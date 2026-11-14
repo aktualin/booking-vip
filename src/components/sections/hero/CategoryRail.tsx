@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import {
   ArrowRightIcon,
   CarIcon,
@@ -37,16 +38,19 @@ const CAT_KEYS: Record<string, DictKey> = {
  */
 const RAIL_ENTRIES = serviceNav.map((nav) => ({
   slug: nav.href.replace(/^\//, ""),
+  href: nav.href,
   tone: nav.tone,
   fallbackLabel: nav.label,
   ...serviceRailMeta[nav.href.replace(/^\//, "")],
 }));
 
 /**
- * The floating category pill of the home hero — the tab group sits centered
+ * The floating category pill of the home hero — the group sits centered
  * while it fits, and falls back to horizontal scroll with circular scroll
- * buttons at the ends once it overflows (mobile). Selecting a tab switches
- * the field set of the search card below it.
+ * buttons at the ends once it overflows (mobile). The VIP pill is the tab
+ * of the search card below (selecting it switches the field set back);
+ * every other line has its own page, so its pill is just a menu link
+ * opening it.
  */
 export default function CategoryRail({
   activeSlug,
@@ -56,7 +60,7 @@ export default function CategoryRail({
   onSelect: (slug: string) => void;
 }) {
   const { t } = useLocale();
-  const scroller = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
   // Averaged campaign discount per line — fetched on the client (the page
   // stays static). Falls back to the serviceRailMeta constant per line.
@@ -110,9 +114,8 @@ export default function CategoryRail({
         <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 rounded-r-full bg-gradient-to-l from-white via-white/80 to-transparent" />
       )}
 
-      <div
+      <nav
         ref={scroller}
-        role="tablist"
         aria-label={t("hero.railAria")}
         onScroll={measure}
         className="flex overflow-x-auto px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -124,18 +127,15 @@ export default function CategoryRail({
           const active = l.slug === activeSlug;
           const catKey = CAT_KEYS[l.slug];
           const percent = campaignDiscounts[l.slug] ?? l.discountPercent;
-          return (
-            <button
-              key={l.slug}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onSelect(l.slug)}
-              style={{ animationDelay: `${120 + i * 70}ms` }}
-              className={`hero-tab flex shrink-0 items-center gap-2.5 rounded-full px-3.5 py-2 transition-colors ${
-                active ? "bg-brand-soft" : "hover:bg-canvas"
-              }`}
-            >
+          // VIP is the tab of the form below; every other line has its own
+          // page, so its pill is just a menu link opening it.
+          const vip = l.slug === "vip-service";
+          const className = `hero-tab flex shrink-0 items-center gap-2.5 rounded-full px-3.5 py-2 transition-colors ${
+            active ? "bg-brand-soft" : "hover:bg-canvas"
+          }`;
+          const style = { animationDelay: `${120 + i * 70}ms` };
+          const pill = (
+            <>
               <span
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-white shadow-sm ${l.tone}`}
               >
@@ -153,11 +153,33 @@ export default function CategoryRail({
                   -{percent}%
                 </span>
               )}
+            </>
+          );
+          return vip ? (
+            <button
+              key={l.slug}
+              type="button"
+              aria-current={active ? "true" : undefined}
+              onClick={() => onSelect(l.slug)}
+              style={style}
+              className={className}
+            >
+              {pill}
             </button>
+          ) : (
+            <Link
+              key={l.slug}
+              href={l.href}
+              aria-current={active ? "page" : undefined}
+              style={style}
+              className={className}
+            >
+              {pill}
+            </Link>
           );
         })}
         </div>
-      </div>
+      </nav>
 
       {/* Circular scroll buttons — hidden unless that end has more rail */}
       {edges.left && (

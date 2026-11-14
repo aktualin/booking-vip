@@ -20,6 +20,13 @@ import {
 } from "@/components/icons";
 import CategoryRail from "@/components/sections/hero/CategoryRail";
 import { serviceNav, serviceSearchFields } from "@/data/services";
+import {
+  chainComplete,
+  fieldValueKeys,
+  firstUnfilledIndex,
+  paxKeys,
+  resetDownstream,
+} from "@/lib/heroSearchChain";
 import { loadDraft, rememberSearch } from "@/lib/searchDraft";
 import { SERVICE_LABEL_KEYS } from "@/lib/serviceLabels";
 import { logSearch } from "@/app/actions/search";
@@ -58,6 +65,14 @@ const FIELD_COPY_PREFIX: Record<string, string> = {
 
 const EN_DICT = en as Record<string, string>;
 
+/**
+ * Hero tabs with strict sequential progressive disclosure: only the fields
+ * up to the first unfilled one render, and changing a field clears and hides
+ * everything after it. The chain is the positional order of `fields` (the DB
+ * `sortOrder`), so re-sorting the fields in the admin re-sequences this too.
+ */
+const PROGRESSIVE_TAB_SLUGS = new Set(["vip-service"]);
+
 /** The shared look of a field tile — muted label on top, bold value below. */
 const TILE =
   "flex min-h-[64px] min-w-0 flex-1 basis-full flex-col justify-center gap-1 rounded-xl bg-canvas px-4 py-2.5 transition-shadow focus-within:ring-2 focus-within:ring-brand/25 sm:basis-[calc(50%-0.375rem)] lg:basis-0";
@@ -76,15 +91,6 @@ const WIDGET_TILE = [
   "[&>div>span:last-child>span:first-child]:text-xs",
   "[&>div>span:last-child>div>button>span]:text-[15px] [&>div>span:last-child>div>button>span]:font-bold",
 ].join(" ");
-
-/** The draft keys that hold the passenger counts of a `pax` field. */
-function paxKeys(key: string) {
-  return {
-    adults: `${key}Adults`,
-    children: `${key}Children`,
-    infants: `${key}Infants`,
-  };
-}
 
 /** Read the passenger counts of a `pax` field out of the value map. */
 function readPax(values: Record<string, string>, key: string): PaxCounts {
@@ -110,6 +116,7 @@ function SelectField({
   tree,
   onChange,
   searchable,
+  className,
 }: {
   field: ResolvedField;
   value: string;
@@ -119,6 +126,8 @@ function SelectField({
   onChange: (v: string) => void;
   /** Show a search box above the list (used for the long airport list). */
   searchable?: boolean;
+  /** Extra classes on the tile root (the reveal animation on gated tabs). */
+  className?: string;
 }) {
   const { t } = useLocale();
   const [query, setQuery] = useState("");
@@ -138,7 +147,7 @@ function SelectField({
   const treeEmpty = hasTree && !hasPlaceMatch(tree ?? [], query);
 
   return (
-    <div className={TILE}>
+    <div className={className ? `${TILE} ${className}` : TILE}>
       <span className="text-xs text-muted">{field.label}</span>
       <Popover
         ariaLabel={field.label}
@@ -351,6 +360,21 @@ export default function HeroSearch() {
 
   const currentValues = useMemo(() => values[service] ?? {}, [service, values]);
 
+  // Strict sequential disclosure on the gated tabs: render the chain only up
+  // to the first unfilled step. Hidden steps are unmounted (not disabled),
+  // so Tab order follows the chain and only active fields are focusable. A
+  // restored draft that already fills the chain shows every tile at once.
+  const isProgressive = PROGRESSIVE_TAB_SLUGS.has(slug);
+  const revealIndex = isProgressive
+    ? firstUnfilledIndex(fields, currentValues)
+    : -1;
+  const visibleFields =
+    isProgressive && revealIndex >= 0
+      ? fields.slice(0, revealIndex + 1)
+      : fields;
+  // The search CTA stays locked until every step of the chain is filled.
+  const chainLocked = isProgressive && !chainComplete(fields, currentValues);
+
   const setField = (key: string, value: string) =>
     setValues((v) => ({
       ...v,
@@ -369,6 +393,55 @@ export default function HeroSearch() {
         [k.children]: String(counts.children),
         [k.infants]: String(counts.infants),
       },
+    }));
+  };
+
+  /**
+   * `setField` on the gated tabs: writing a step's value also drops every
+   * value key of the steps after it, so downstream tiles hide and refill
+   * from clean state. An identical re-select behaves exactly as today —
+   * nothing downstream is touched.
+   */
+  const setFieldCascading = (key: string, value: string) => {
+    const idx = isProgressive
+      ? fields.findIndex((f) => fieldValueKeys(f).includes(key))
+      : -1;
+    if (idx < 0 || currentValues[key] === value) {
+      setField(key, value);
+      return;
+    }
+    setValues((v) => ({
+      ...v,
+      [service]: resetDownstream(
+        { ...currentValues, [key]: value },
+        fields,
+        idx
+      ),
+    }));
+  };
+
+  /** `setPax` with the same reset-on-change contract as `setFieldCascading`. */
+  const setPaxCascading = (key: string, counts: PaxCounts) => {
+    const summary = formatPaxSummary(counts, t);
+    const idx = isProgressive ? fields.findIndex((f) => f.key === key) : -1;
+    if (idx < 0 || currentValues[key] === summary) {
+      setPax(key, counts);
+      return;
+    }
+    const k = paxKeys(key);
+    setValues((v) => ({
+      ...v,
+      [service]: resetDownstream(
+        {
+          ...currentValues,
+          [key]: summary,
+          [k.adults]: String(counts.adults),
+          [k.children]: String(counts.children),
+          [k.infants]: String(counts.infants),
+        },
+        fields,
+        idx
+      ),
     }));
   };
 
@@ -438,6 +511,9 @@ export default function HeroSearch() {
 
   const renderField = (f: ResolvedField) => {
     const value = currentValues[f.key] ?? "";
+    // Tiles are keyed by f.key and only mount when revealed, so the CSS
+    // reveal animation runs exactly once per step — never on re-renders.
+    const tileIn = isProgressive ? " hero-tile-in" : "";
 
     switch (f.kind) {
       case "select-airport":
@@ -464,22 +540,23 @@ export default function HeroSearch() {
             value={value}
             options={fieldOptions}
             tree={tree}
-            onChange={(v) => setField(f.key, v)}
+            onChange={(v) => setFieldCascading(f.key, v)}
             searchable={f.kind === "select-airport" || f.kind === "select-city"}
+            className={isProgressive ? "hero-tile-in" : undefined}
           />
         );
       }
 
       case "datetime":
         return (
-          <div key={f.key} className={WIDGET_TILE}>
+          <div key={f.key} className={`${WIDGET_TILE}${tileIn}`}>
             <DateTimePopover
               label={f.label}
               placeholder={f.placeholder}
               date={value}
               time={currentValues[`${f.key}Time`] ?? ""}
-              onDate={(v) => setField(f.key, v)}
-              onTime={(v) => setField(`${f.key}Time`, v)}
+              onDate={(v) => setFieldCascading(f.key, v)}
+              onTime={(v) => setFieldCascading(`${f.key}Time`, v)}
               timeSlots={timeSlots}
             />
           </div>
@@ -487,12 +564,12 @@ export default function HeroSearch() {
 
       case "pax":
         return (
-          <div key={f.key} className={WIDGET_TILE}>
+          <div key={f.key} className={`${WIDGET_TILE}${tileIn}`}>
             <PaxPopover
               label={f.label}
               placeholder={f.placeholder}
               value={readPax(currentValues, f.key)}
-              onChange={(counts) => setPax(f.key, counts)}
+              onChange={(counts) => setPaxCascading(f.key, counts)}
               align="right"
             />
           </div>
@@ -500,11 +577,11 @@ export default function HeroSearch() {
 
       default:
         return (
-          <div key={f.key} className={TILE}>
+          <div key={f.key} className={`${TILE}${tileIn}`}>
             <span className="text-xs text-muted">{f.label}</span>
             <input
               value={value}
-              onChange={(e) => setField(f.key, e.target.value)}
+              onChange={(e) => setFieldCascading(f.key, e.target.value)}
               placeholder={f.placeholder}
               aria-label={f.label}
               className="w-full bg-transparent text-[15px] font-bold text-ink outline-none placeholder:font-semibold placeholder:text-muted"
@@ -515,8 +592,10 @@ export default function HeroSearch() {
   };
 
   // Field tiles, with the swap button inserted between the two place tiles.
+  // Gated tabs only walk the revealed prefix — the row grows as the user
+  // progresses, no layout reserve.
   const tiles: ReactNode[] = [];
-  for (const f of fields) {
+  for (const f of visibleFields) {
     if (swapEnabled && f.key === placeKeys[1]) {
       tiles.push(
         <button
@@ -564,10 +643,12 @@ export default function HeroSearch() {
       <style>{`
         @keyframes heroRise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
         @keyframes heroTab { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        @keyframes heroTileIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
         .hero-card { animation: heroRise .55s cubic-bezier(.22,1,.36,1) both; }
         .hero-tab { animation: heroTab .4s ease-out both; }
+        .hero-tile-in { animation: heroTileIn .25s ease-out both; }
         @media (prefers-reduced-motion: reduce) {
-          .hero-card, .hero-tab { animation: none; }
+          .hero-card, .hero-tab, .hero-tile-in { animation: none; }
         }
       `}</style>
 
@@ -600,7 +681,7 @@ export default function HeroSearch() {
               <div className="flex flex-1 flex-wrap gap-3">{tiles}</div>
               <button
                 onClick={submit}
-                disabled={pending}
+                disabled={pending || chainLocked}
                 aria-busy={pending}
                 className="h-14 w-full shrink-0 rounded-xl bg-brand px-8 text-base font-bold text-white shadow-sm transition hover:bg-brand-dark active:scale-[0.98] disabled:cursor-wait disabled:opacity-70 lg:w-auto lg:self-stretch"
               >
