@@ -70,7 +70,7 @@ export default function DateTimePopover({
       <Popover
         align={align}
         ariaLabel={label}
-        panelClassName="w-[min(21rem,calc(100vw-2rem))]"
+        panelClassName="w-[min(21rem,calc(100vw-2rem))] sm:w-[22rem]"
         trigger={
           <span
             className={`flex items-center gap-1.5 text-sm font-semibold ${

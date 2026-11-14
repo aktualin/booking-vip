@@ -65,7 +65,7 @@ export default function PlaceOptionList({
   // Searching always shows the whole grouped tree, regardless of the drill.
   if (q) {
     return (
-      <ul className="max-h-60 overflow-y-auto">
+      <ul className="min-h-0 flex-1 overflow-y-auto">
         <PlaceBranch
           nodes={nodes}
           query={q}
@@ -82,12 +82,23 @@ export default function PlaceOptionList({
   const levelNodes = current ? current.children : nodes;
 
   return (
-    <div>
-      {/* Breadcrumb — walk back up the hierarchy. */}
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Breadcrumb — walk back up the hierarchy. The leading chevron is the
+          one-step back button, so the chrome stays a single row. */}
       <nav
         aria-label="Tingkatan wilayah"
-        className="mb-1 flex flex-wrap items-center gap-1 px-3 pt-1 text-[11px]"
+        className="mb-1 flex shrink-0 flex-wrap items-center gap-1 px-3 pt-1 text-[11px]"
       >
+        {current ? (
+          <button
+            type="button"
+            onClick={() => setPath(path.slice(0, -1))}
+            aria-label={`Kembali ke ${current.label}`}
+            className="flex items-center rounded-md p-0.5 text-muted transition-colors hover:bg-canvas hover:text-ink"
+          >
+            <ChevronLeft width={14} height={14} />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => setPath([])}
@@ -113,18 +124,7 @@ export default function PlaceOptionList({
         ))}
       </nav>
 
-      {current ? (
-        <button
-          type="button"
-          onClick={() => setPath(path.slice(0, -1))}
-          className="mx-3 mb-1 flex items-center gap-1 rounded-lg px-1 py-1 text-[12px] font-semibold text-muted transition-colors hover:bg-canvas hover:text-ink"
-        >
-          <ChevronLeft width={14} height={14} />
-          Kembali
-        </button>
-      ) : null}
-
-      <ul className="max-h-60 overflow-y-auto">
+      <ul className="min-h-0 flex-1 overflow-y-auto">
         {levelNodes.length === 0 ? (
           <li className="px-3 py-6 text-center text-xs text-muted">
             Belum ada data untuk dipilih.

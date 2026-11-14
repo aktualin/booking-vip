@@ -151,7 +151,7 @@ function SelectField({
       <span className="text-xs text-muted">{field.label}</span>
       <Popover
         ariaLabel={field.label}
-        panelClassName="w-[min(20rem,calc(100vw-2rem))]"
+        panelClassName="w-[min(22rem,calc(100vw-2rem))] sm:w-[24rem]"
         trigger={
           <span
             className={`flex items-center gap-1 text-[15px] font-bold ${
@@ -166,16 +166,21 @@ function SelectField({
         }
       >
         {({ close }) => (
-          <div>
+          <div className="flex min-h-0 flex-1 flex-col">
             {searchable && (
-              <div className="relative mb-2">
+              <div className="relative mb-2 shrink-0">
                 <SearchIcon
                   width={16}
                   height={16}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
                 />
                 <input
-                  autoFocus
+                  // The panel is pinned by a layout effect one beat after
+                  // mount — focus without scrolling the page to its
+                  // not-yet-placed position.
+                  ref={(el) => {
+                    el?.focus({ preventScroll: true });
+                  }}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={t("search.airportSearch")}
@@ -202,7 +207,7 @@ function SelectField({
                 )}
               </>
             ) : (
-              <ul className="max-h-60 overflow-y-auto">
+              <ul className="min-h-0 flex-1 overflow-y-auto">
                 {list.map((opt) => (
                   <li key={opt.value}>
                     <button

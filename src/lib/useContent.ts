@@ -114,6 +114,10 @@ export function useSearchFields(lineSlug: string): SearchFieldDTO[] {
   useEffect(() => {
     let active = true;
     if (!lineSlug) return;
+    // Ketika slug berganti, segera pakai fallback slug yang baru — jangan
+    // menampilkan daftar field tab lama selagi fetch berjalan (dan jangan
+    // terjebak di daftar lama bila fetch gagal; getSearchFields menelan error).
+    setFields(staticSearchFields(lineSlug));
     getSearchFields(lineSlug).then((db) => {
       if (active && db.length > 0) setFields(db);
     });

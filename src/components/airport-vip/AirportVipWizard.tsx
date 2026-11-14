@@ -447,8 +447,10 @@ export default function AirportVipWizard({
                    province → city down to the airport, or search across the
                    whole tree. The submitted value stays the airport label;
                    the wizard keeps working with the airport id. */
-                <div className="mt-5 rounded-xl border border-line bg-white p-3">
-                  <div className="relative mb-2">
+                /* Bounded flex column — PlaceOptionList's list stretches
+                   into the leftover height and scrolls there. */
+                <div className="mt-5 flex h-80 flex-col rounded-xl border border-line bg-white p-3">
+                  <div className="relative mb-2 shrink-0">
                     <SearchIcon
                       width={16}
                       height={16}

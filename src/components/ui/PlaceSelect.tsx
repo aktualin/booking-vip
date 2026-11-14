@@ -41,7 +41,7 @@ export default function PlaceSelect({
       <span className="mb-1.5 block text-[12px] font-medium text-ink">{label}</span>
       <Popover
         ariaLabel={label}
-        panelClassName="w-[min(22rem,calc(100vw-2rem))]"
+        panelClassName="w-[min(22rem,calc(100vw-2rem))] sm:w-[24rem]"
         trigger={
           <span
             className={`flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-3 text-[13px] transition-colors hover:bg-canvas ${
@@ -57,16 +57,20 @@ export default function PlaceSelect({
         }
       >
         {({ close }) => (
-          <div>
+          <div className="flex min-h-0 flex-1 flex-col">
             {searchable && (
-              <div className="relative mb-2">
+              <div className="relative mb-2 shrink-0">
                 <SearchIcon
                   width={16}
                   height={16}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
                 />
                 <input
-                  autoFocus
+                  ref={(el) => {
+                    // Focus without letting the browser scroll the page to
+                    // the panel before its first placement.
+                    el?.focus({ preventScroll: true });
+                  }}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Cari wilayah, kota, atau tempat…"
@@ -80,18 +84,18 @@ export default function PlaceSelect({
                 Belum ada data untuk dipilih.
               </p>
             ) : (
-              <div className="max-h-64 overflow-y-auto">
-                <PlaceOptionList
-                  nodes={places}
-                  query={query}
-                  selected={value}
-                  selectableKinds={selectableKinds}
-                  onSelect={(v) => {
-                    close();
-                    onSelect(v);
-                  }}
-                />
-              </div>
+              /* The list stretches into the panel's leftover height and
+                  scrolls there — no second scroller of its own. */
+              <PlaceOptionList
+                nodes={places}
+                query={query}
+                selected={value}
+                selectableKinds={selectableKinds}
+                onSelect={(v) => {
+                  close();
+                  onSelect(v);
+                }}
+              />
             )}
           </div>
         )}
