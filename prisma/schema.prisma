@@ -504,6 +504,14 @@ model Contact {
   phone           String
   isGuestSelf     Boolean @default(true)
   notes           String?
+  /// Renter identity number: NIK / SSN / passport number.
+  identityNumber  String?
+  /// "ktp" | "ssn" | "passport"
+  idType          String?
+  /// Stored URL of the uploaded ID document (image/PDF).
+  idDocumentUrl   String?
+  /// Stored URL of the renter signature PNG.
+  signatureUrl    String?
   booking         Booking @relation(fields: [bookingId], references: [id])
 }
 
@@ -536,7 +544,7 @@ model PaymentMethod {
   label     String
   sortOrder Int       @default(0)
   active    Boolean   @default(true)
-  /// The gateway that settles this method: "xendit" | "paypal" | null (offline).
+  /// The gateway that settles this method: "doku" | "paypal" | null (offline).
   provider  String?
   /// The method code as the gateway names it ("VA", "EWALLET", "QRIS", "CREDIT_CARD").
   providerMethodCode String?
@@ -555,9 +563,9 @@ model Payment {
   currencyCode   String
   fxRate         Float    @default(1)
   reference      String?
-  /// The gateway that owns this payment: "xendit" | "paypal" | null.
+  /// The gateway that owns this payment: "doku" | "paypal" | null.
   provider       String?
-  /// The provider-side id (the Xendit invoice id, the PayPal order id).
+  /// The provider-side id (the DOKU invoice number, the PayPal order id).
   providerRef    String?
   /// The amount charged by the provider, in the provider currency (cents).
   providerAmountCents Int?
@@ -578,7 +586,7 @@ model Payment {
 /// A webhook event received from a gateway — the dedupe/audit ledger.
 model PaymentWebhookEvent {
   id           String   @id @default(uuid())
-  /// The gateway: "xendit" | "paypal".
+  /// The gateway: "doku" | "paypal".
   provider     String
   /// The provider's event id — unique per provider, so a replay is ignored.
   providerEventId String

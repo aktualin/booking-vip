@@ -375,6 +375,14 @@ export async function createBooking(
 
       // 4. Contact (normalize: trim names, lowercase+trim email for case-insensitive lookup)
       const contactId = crypto.randomUUID();
+      // The renter identity (car rental) is optional server-side — only the
+      // rental UI requires it, so we persist whatever was sent. An idType
+      // outside the known set is ignored rather than stored.
+      const rawIdType = input.contact.idType;
+      const idType =
+        rawIdType === "ktp" || rawIdType === "ssn" || rawIdType === "passport"
+          ? rawIdType
+          : null;
       await db.orm.public.Contact.create({
         id: contactId,
         bookingId,
@@ -385,6 +393,10 @@ export async function createBooking(
         phone: input.contact.phone,
         isGuestSelf: input.contact.isGuestSelf,
         notes: input.contact.notes ?? null,
+        identityNumber: input.contact.identityNumber?.trim() || null,
+        idType,
+        idDocumentUrl: input.contact.idDocumentUrl || null,
+        signatureUrl: input.contact.signatureUrl || null,
       });
 
       // 5. Traveler* (normalize names)
@@ -457,7 +469,7 @@ export async function createBooking(
         }
       }
 
-      return { ok: true, code };
+      return { ok: true, code, totalUsdCents, invoiceNumber };
     } catch (insertError) {
       // Compensating deletes
       console.error("[booking] insert failed, rolling back", insertError);

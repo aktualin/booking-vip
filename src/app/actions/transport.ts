@@ -4,8 +4,7 @@ import { db } from "@/prisma/db";
 import { parseBookingRules, type BookingRules } from "@/lib/bookingRules";
 
 /**
- * The transport rental readers — the results list, the vehicle detail and
- * the reviews behind them.
+ * The transport rental readers — the results list and the vehicle detail.
  *
  * Everything is DB-first and degrades to an empty result on error, so the
  * pages keep rendering when the database is unreachable (the same contract
@@ -82,15 +81,6 @@ export type TransportPackageDTO = {
   durationHours: number | null;
 };
 
-export type TransportReviewDTO = {
-  id: string;
-  author: string;
-  initials: string;
-  rating: number;
-  body: string;
-  createdAt: string;
-};
-
 export type TransportDetailDTO = {
   slug: string;
   title: string;
@@ -103,9 +93,6 @@ export type TransportDetailDTO = {
   specs: TransportSpec[];
   photos: { url: string; alt: string | null; credit: string | null }[];
   packages: TransportPackageDTO[];
-  rating: number | null;
-  reviewCount: number;
-  reviews: TransportReviewDTO[];
   rules: BookingRules;
   leadTimeHours: number;
   leadTimeDays: number;
@@ -160,14 +147,6 @@ function decodeCursor(cursor: string | null | undefined): number {
   } catch {
     return 0;
   }
-}
-
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  const first = parts[0]![0] ?? "";
-  const last = parts.length > 1 ? (parts[parts.length - 1]![0] ?? "") : "";
-  return (first + last).toUpperCase() || "?";
 }
 
 /** The transport ServiceLine id, or null when the line is missing. */
@@ -367,7 +346,7 @@ export async function searchTransport(
 }
 
 // ---------------------------------------------------------------------------
-// getTransportDetail — one vehicle with packages, photos, reviews and rules
+// getTransportDetail — one vehicle with packages, photos and rules
 // ---------------------------------------------------------------------------
 
 export async function getTransportDetail(
@@ -387,8 +366,6 @@ export async function getTransportDetail(
         "tone",
         "imageUrl",
         "specs",
-        "rating",
-        "reviews",
         "leadTimeHours",
         "leadTimeDays",
       )
@@ -435,39 +412,6 @@ export async function getTransportDetail(
       photos.push({ url: product.imageUrl, alt: product.title, credit: null });
     }
 
-    // Reviews — the root comments on this product, newest first.
-    const reviewRows = await db.orm.public.Review
-      .select("id", "userId", "rating", "body", "createdAt")
-      .where((f) => f.subjectType.eq("product"))
-      .where((f) => f.subjectId.eq(product.id))
-      .where((f) => f.parentId.isNull())
-      .orderBy((f) => f.createdAt.desc())
-      .all();
-
-    const userIds = [...new Set(reviewRows.map((row) => row.userId))];
-    const names = new Map<string, string>();
-    if (userIds.length > 0) {
-      const users = await db.orm.public.User
-        .select("id", "name", "email")
-        .where((f) => f.id.in(userIds))
-        .all();
-      for (const user of users) {
-        names.set(user.id, user.name ?? user.email.split("@")[0] ?? "Customer");
-      }
-    }
-
-    const reviews: TransportReviewDTO[] = reviewRows.map((row) => {
-      const author = names.get(row.userId) ?? "Customer";
-      return {
-        id: row.id,
-        author,
-        initials: initialsOf(author),
-        rating: row.rating,
-        body: row.body,
-        createdAt: new Date(row.createdAt).toISOString(),
-      };
-    });
-
     const settings = await db.orm.public.Setting
       .select("value")
       .where((f) => f.key.eq("booking.rules"))
@@ -495,9 +439,6 @@ export async function getTransportDetail(
         info: parseInfo(pkg.info),
         durationHours: pkg.durationHours,
       })),
-      rating: product.rating,
-      reviewCount: product.reviews ?? reviews.length,
-      reviews,
       rules: parseBookingRules(settings[0]?.value),
       leadTimeHours: product.leadTimeHours,
       leadTimeDays: product.leadTimeDays,
@@ -505,58 +446,5 @@ export async function getTransportDetail(
   } catch (error) {
     console.error("[transport] could not load the vehicle", error);
     return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// listTransportReviews — the full review list behind "Lihat semua"
-// ---------------------------------------------------------------------------
-
-export async function listTransportReviews(
-  slug: string,
-): Promise<TransportReviewDTO[]> {
-  try {
-    const products = await db.orm.public.Product
-      .select("id")
-      .where((f) => f.slug.eq(slug))
-      .limit(1)
-      .all();
-    const product = products[0];
-    if (!product) return [];
-
-    const rows = await db.orm.public.Review
-      .select("id", "userId", "rating", "body", "createdAt")
-      .where((f) => f.subjectType.eq("product"))
-      .where((f) => f.subjectId.eq(product.id))
-      .where((f) => f.parentId.isNull())
-      .orderBy((f) => f.createdAt.desc())
-      .all();
-
-    const userIds = [...new Set(rows.map((row) => row.userId))];
-    const names = new Map<string, string>();
-    if (userIds.length > 0) {
-      const users = await db.orm.public.User
-        .select("id", "name", "email")
-        .where((f) => f.id.in(userIds))
-        .all();
-      for (const user of users) {
-        names.set(user.id, user.name ?? user.email.split("@")[0] ?? "Customer");
-      }
-    }
-
-    return rows.map((row) => {
-      const author = names.get(row.userId) ?? "Customer";
-      return {
-        id: row.id,
-        author,
-        initials: initialsOf(author),
-        rating: row.rating,
-        body: row.body,
-        createdAt: new Date(row.createdAt).toISOString(),
-      };
-    });
-  } catch (error) {
-    console.error("[transport] could not load the reviews", error);
-    return [];
   }
 }

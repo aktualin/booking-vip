@@ -7,19 +7,20 @@ import BottomTabBar from "@/components/sections/BottomTabBar";
 import Container from "@/components/ui/Container";
 import BackToHomeLink from "@/components/sections/BackToHomeLink";
 import TransportSearchClient from "@/components/transport/TransportSearchClient";
-import { getOptions, getPlaceOptions } from "@/app/actions/catalog";
+import { getOptions } from "@/app/actions/catalog";
 
 export const metadata: Metadata = {
   title: "Sewa Mobil · Booking VIP",
   description:
-    "Sewa mobil dengan supir atau tanpa supir. Tentukan lokasi penjemputan dan tujuan, pilih tanggal, lalu bandingkan armadanya.",
+    "Sewa mobil dengan supir atau tanpa supir. Pilih tanggal, opsi supir, dan bandingkan armadanya.",
 };
 
 /**
  * The transport entry page — "Sewa Mobil".
  *
- * The navbar points here: the customer picks the route, the dates and the car
- * before the fleet is shown. The fleet itself lives on `/transport/armada`.
+ * The navbar points here: the customer picks the dates, the driver option and
+ * the car class before the fleet is shown. The fleet itself lives on
+ * `/transport/armada`.
  */
 export default function TransportPage() {
   return (
@@ -40,8 +41,8 @@ export default function TransportPage() {
               Sewa Mobil
             </h1>
             <p className="mt-3 max-w-2xl text-sm text-white/85 md:text-base">
-              Bandingkan harga sewa mobil dari berbagai mitra — dengan supir atau
-              lepas kunci. Tentukan titik penjemputan, tujuan dan tanggal perjalanan.
+              Sewa mobil dari berbagai mitra — dengan supir atau lepas kunci.
+              Pilih tanggal, opsi supir, dan bandingkan armadanya.
             </p>
           </Container>
         </section>
@@ -59,7 +60,7 @@ export default function TransportPage() {
   );
 }
 
-/** The skeleton shown while the places and the vehicle classes load. */
+/** The skeleton shown while the vehicle classes load. */
 function SearchSkeleton() {
   return (
     <div className="space-y-5">
@@ -70,21 +71,17 @@ function SearchSkeleton() {
 }
 
 /**
- * The dynamic part of the page: the place hierarchy and the vehicle classes.
+ * The dynamic part of the page: the vehicle classes.
  *
- * Both come from the database, so the page is rendered at request time.
+ * They come from the database, so the page is rendered at request time.
  */
 async function TransportSearchStep() {
   await connection();
 
-  const [places, types] = await Promise.all([
-    getPlaceOptions(["city", "area", "district", "village", "destination"]),
-    getOptions("serviceType", "transport"),
-  ]);
+  const types = await getOptions("serviceType", "transport");
 
   return (
     <TransportSearchClient
-      places={places}
       vehicleTypes={types.map((t) => ({ slug: t.value, name: t.label }))}
     />
   );

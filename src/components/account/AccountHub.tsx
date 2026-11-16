@@ -45,7 +45,7 @@ const MENUS: MenuItem[] = [
   {
     href: "/account/payments",
     label: "Metode Pembayaran",
-    description: "Kartu tersimpan, Xendit dan PayPal",
+    description: "Kartu tersimpan, DOKU dan PayPal",
     icon: <TagIcon width={18} height={18} />,
   },
   {

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { db } from "@/prisma/db";
 import { getAdminAuth } from "@/lib/firebase";
 import {
   createEmailPasswordAccount,
@@ -33,6 +34,8 @@ import {
 
 export type UserAuthState = {
   error?: string;
+  /** The form field the error belongs to (e.g. "name", "phone"). */
+  field?: string;
 };
 
 const GENERIC_ERROR = "Email atau password salah.";
@@ -141,6 +144,7 @@ export async function registerUser(
 ): Promise<UserAuthState> {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
 
@@ -157,14 +161,29 @@ export async function registerUser(
   if (formData.get("terms") !== "1") {
     return { error: "Kamu harus menyetujui Syarat & Ketentuan." };
   }
-  if (!name || !email || !password) {
-    return { error: "Nama, email, dan password wajib diisi." };
+  // Personal info is mandatory: the name identifies the customer and the
+  // phone number is how we reach them about a booking. The phone format
+  // matches the profile editor (updateAccountProfile).
+  if (name.length < 2) {
+    return { error: "Nama minimal 2 karakter.", field: "name" };
+  }
+  if (!email) {
+    return { error: "Email wajib diisi.", field: "email" };
+  }
+  if (!phone) {
+    return { error: "Nomor telepon wajib diisi.", field: "phone" };
+  }
+  if (!/^[0-9+()\-\s]{6,20}$/.test(phone)) {
+    return { error: "Nomor telepon tidak valid.", field: "phone" };
+  }
+  if (!password) {
+    return { error: "Password wajib diisi.", field: "password" };
   }
   if (password.length < 8) {
-    return { error: "Password minimal 8 karakter." };
+    return { error: "Password minimal 8 karakter.", field: "password" };
   }
   if (password !== confirm) {
-    return { error: "Konfirmasi password tidak sama." };
+    return { error: "Konfirmasi password tidak sama.", field: "confirm" };
   }
 
   const created = await createEmailPasswordAccount(name, email, password);
@@ -192,6 +211,7 @@ export async function registerUser(
       uid: decoded.uid,
       email: decoded.email ?? email,
       name,
+      phone,
       emailVerified: false,
     });
   } catch {
@@ -255,7 +275,21 @@ export async function signInUserWithGoogle(idToken: string): Promise<void> {
     redirect("/login?error=admin");
   }
 
+  // Google supplies the name and the email but never the phone number. Read
+  // the stored phone so an incomplete profile (missing phone, or a name
+  // Google did not provide) is completed on the profile page instead of being
+  // silently skipped. The session is issued first so the account area lets
+  // the customer in.
+  const row = await db.orm.public.User
+    .select("phone")
+    .where({ id: decoded.uid })
+    .first();
+
   await issueUserSession(idToken);
+
+  if (!account.name || !row?.phone) {
+    redirect("/account/profile?lengkapi=1");
+  }
   redirect("/");
 }
 

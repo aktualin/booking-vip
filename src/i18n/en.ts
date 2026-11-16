@@ -149,6 +149,7 @@ export const en = {
   // Booking wizard - stepper
   "wizard.step.addons": "Additional Service",
   "wizard.step.details": "Booking Form",
+  "wizard.step.signature": "Signature",
   "wizard.step.payment": "Payment",
   "wizard.step.result": "Result",
 
@@ -187,6 +188,10 @@ export const en = {
   "wizard.details.travelerPlaceholder": "Full name as on ID",
   "wizard.details.back": "Back",
   "wizard.details.continueToPayment": "Continue to Payment",
+  "wizard.details.continueToSignature": "Continue to signature",
+
+  // Step signature (transport / car rental)
+  "wizard.signature.title": "Signature",
 
   // Step payment
   "wizard.payment.title": "Payment",
@@ -200,8 +205,8 @@ export const en = {
   "wizard.missingDate": "Please choose a valid date and time to continue.",
 
   // Step result
-  "wizard.result.title": "Booking Confirmed!",
-  "wizard.result.desc": "Your booking has been successfully created. A confirmation email will be sent to {email}.",
+  "wizard.result.title": "Booking Created",
+  "wizard.result.desc": "Complete the payment to confirm your booking. A confirmation email will be sent to {email}.",
   "wizard.result.bookingCode": "Booking Code",
   "wizard.result.status": "Status",
   "wizard.result.awaitingPayment": "Awaiting Payment",

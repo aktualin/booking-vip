@@ -126,6 +126,12 @@ export default function PaymentReturn({
           >
             Detail pesanan
           </Link>
+          <Link
+            href={`/invoice/${bookingCode}`}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-line bg-white px-5 text-[13px] font-semibold text-ink transition-colors hover:bg-canvas"
+          >
+            Lihat invoice
+          </Link>
         </div>
       </div>
     );

@@ -19,6 +19,9 @@ export default function AuthField({
   defaultValue,
   onChange,
   className = "",
+  variant = "default",
+  hideLabel = false,
+  required = true,
 }: {
   label: string;
   name: string;
@@ -30,14 +33,26 @@ export default function AuthField({
   defaultValue?: string;
   onChange?: (value: string) => void;
   className?: string;
+  /** "pill" is the ChatGPT-style full-round input used by the auth pages. */
+  variant?: "default" | "pill";
+  /** Keep the label for screen readers but hide it visually (placeholder-only fields). */
+  hideLabel?: boolean;
+  required?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
   const isPassword = type === "password";
   const inputType = isPassword && visible ? "text" : type;
+  const isPill = variant === "pill";
 
   return (
     <label className={`block ${className}`}>
-      <span className="mb-1.5 block text-[13px] font-medium text-ink">
+      <span
+        className={
+          hideLabel
+            ? "sr-only"
+            : "mb-1.5 block text-[13px] font-medium text-ink"
+        }
+      >
         {label}
       </span>
       <span className="relative block">
@@ -49,8 +64,12 @@ export default function AuthField({
           defaultValue={value === undefined ? defaultValue : undefined}
           value={value}
           onChange={onChange ? (e) => onChange(e.target.value) : undefined}
-          required
-          className="h-11 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/15"
+          required={required}
+          className={
+            isPill
+              ? "h-14 w-full rounded-full border border-line bg-white px-5 text-base text-ink outline-none placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/15"
+              : "h-11 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/15"
+          }
           placeholder={placeholder}
         />
         {isPassword ? (
@@ -58,7 +77,11 @@ export default function AuthField({
             type="button"
             onClick={() => setVisible((v) => !v)}
             aria-label={visible ? "Sembunyikan password" : "Tampilkan password"}
-            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted transition-colors hover:bg-canvas hover:text-ink"
+            className={
+              isPill
+                ? "absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted transition-colors hover:bg-canvas hover:text-ink"
+                : "absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted transition-colors hover:bg-canvas hover:text-ink"
+            }
           >
             {visible ? <EyeOffIcon /> : <EyeIcon />}
           </button>

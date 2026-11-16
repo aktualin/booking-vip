@@ -129,8 +129,9 @@ export function cardBrandLabel(brand: string): string {
 /**
  * The Luhn check — the standard sanity check for a card number.
  *
- * The card is never sent to the gateway from this project yet (the Xendit
- * integration comes later), so this is the only validation we can do here.
+ * The card is never sent to the gateway from this project (the DOKU
+ * integration captures cards on its hosted payment page), so this is the
+ * only validation we can do here.
  */
 export function isValidCardNumber(number: string): boolean {
   const digits = normalizeCardNumber(number);

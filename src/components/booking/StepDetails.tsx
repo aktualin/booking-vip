@@ -6,6 +6,7 @@ import PlaceSelect from "@/components/ui/PlaceSelect";
 import type { PlaceNode } from "@/lib/places";
 import type { OptionDTO } from "@/types";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import RenterIdentityForm, { type RenterIdentity } from "./RenterIdentityForm";
 
 type ContactData = {
   firstName: string;
@@ -40,6 +41,10 @@ type Props = {
   onTravelersChange: (t: { fullName: string; kind: string }[]) => void;
   onBack: () => void;
   onContinue: () => void;
+  /** Car rental (transport line): hides flight/traveler fields, adds renter identity. */
+  isTransport?: boolean;
+  identity?: RenterIdentity;
+  onIdentityChange?: (v: RenterIdentity) => void;
 };
 
 export default function StepDetails({
@@ -57,6 +62,9 @@ export default function StepDetails({
   onTravelersChange,
   onBack,
   onContinue,
+  isTransport,
+  identity,
+  onIdentityChange,
 }: Props) {
   const { t } = useLocale();
   const [airlines, setAirlines] = useState<OptionDTO[]>([]);
@@ -69,8 +77,10 @@ export default function StepDetails({
 
   const totalTravelers = adults + children;
 
-  // Ensure travelers array matches expected count
+  // Ensure travelers array matches expected count. Transport bookings carry
+  // no traveler names — the renter identity replaces them.
   useEffect(() => {
+    if (isTransport) return;
     if (travelers.length !== totalTravelers) {
       const newTravelers = Array.from({ length: totalTravelers }, (_, i) => ({
         fullName: travelers[i]?.fullName ?? "",
@@ -78,7 +88,7 @@ export default function StepDetails({
       }));
       onTravelersChange(newTravelers);
     }
-  }, [totalTravelers, adults]);
+  }, [totalTravelers, adults, isTransport]);
 
   const handleTravelerChange = (idx: number, fullName: string) => {
     const updated = travelers.map((t, i) =>
@@ -98,18 +108,30 @@ export default function StepDetails({
         })
       : "";
 
-  const canContinue =
-    contact.firstName &&
-    contact.lastName &&
-    contact.email &&
-    contact.phone &&
-    travelers.every((tr) => tr.fullName.trim() !== "");
+  const canContinue = isTransport
+    ? Boolean(
+        contact.firstName &&
+          contact.lastName &&
+          contact.email &&
+          contact.phone &&
+          identity?.identityNumber.trim() &&
+          identity.idType &&
+          identity.idDocumentUrl
+      )
+    : Boolean(
+        contact.firstName &&
+          contact.lastName &&
+          contact.email &&
+          contact.phone &&
+          travelers.every((tr) => tr.fullName.trim() !== "")
+      );
 
   return (
     <div>
       <h2 className="mb-4 text-xl font-bold text-ink">{t("wizard.details.title")}</h2>
 
-      {/* Other Details */}
+      {/* Other Details — flight info is irrelevant for car rental. */}
+      {!isTransport && (
       <div className="mb-6 rounded-2xl border border-line bg-white p-5">
         <h3 className="mb-4 text-base font-bold text-ink">{t("wizard.details.otherDetails")}</h3>
         <div className="space-y-4">
@@ -215,6 +237,7 @@ export default function StepDetails({
           </div>
         </div>
       </div>
+      )}
 
       {/* Contact */}
       <div className="mb-6 rounded-2xl border border-line bg-white p-5">
@@ -312,6 +335,8 @@ export default function StepDetails({
               className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-sm text-ink"
             />
           </div>
+          {/* The renter is always the guest on a car rental. */}
+          {!isTransport && (
           <div className="flex gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -342,11 +367,17 @@ export default function StepDetails({
               </span>
             </label>
           </div>
+          )}
         </div>
       </div>
 
+      {/* Renter identity — car rental only. */}
+      {isTransport && identity && onIdentityChange && (
+        <RenterIdentityForm value={identity} onChange={onIdentityChange} />
+      )}
+
       {/* Traveler Details */}
-      {totalTravelers > 0 && (
+      {!isTransport && totalTravelers > 0 && (
         <div className="mb-6 rounded-2xl border border-line bg-white p-5">
           <h3 className="mb-4 text-base font-bold text-ink">
             {t("wizard.details.travelers")}
@@ -382,7 +413,11 @@ export default function StepDetails({
           disabled={!canContinue}
           className="rounded-xl bg-brand px-8 py-3 text-base font-bold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {t("wizard.details.continueToPayment")}
+          {t(
+            isTransport
+              ? "wizard.details.continueToSignature"
+              : "wizard.details.continueToPayment"
+          )}
         </button>
       </div>
     </div>

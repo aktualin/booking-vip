@@ -17,9 +17,8 @@ import {
  * A saved card is stored **encrypted** — only the last four digits are shown.
  * The CVV is never asked for: the form has no field for it.
  *
- * The other methods (Xendit, PayPal) are listed next to the cards; the
- * Xendit gateway is prepared but the keys are not set yet, so it is marked
- * as "coming soon".
+ * The other methods (DOKU, PayPal) are listed next to the cards; DOKU
+ * settles Credit Card and QRIS payments on its hosted pages.
  */
 export default function PaymentsPanel() {
   const [cards, setCards] = useState<SavedCardDTO[]>([]);
@@ -261,14 +260,14 @@ export default function PaymentsPanel() {
           <div className="rounded-2xl border border-line bg-white p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-[14px] font-semibold text-ink">Xendit</h3>
+                <h3 className="text-[14px] font-semibold text-ink">DOKU</h3>
                 <p className="mt-1 text-[12px] leading-relaxed text-muted">
-                  Virtual account, QRIS dan e-wallet. Diproses otomatis lewat Xendit
+                  Kartu kredit/debit dan QRIS. Diproses otomatis lewat DOKU
                   Payment Gateway.
                 </p>
               </div>
-              <span className="shrink-0 rounded-full bg-canvas px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted">
-                Segera
+              <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-brand-dark">
+                Aktif
               </span>
             </div>
           </div>

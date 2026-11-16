@@ -3,7 +3,7 @@ import PaymentsPanel from "@/components/account/PaymentsPanel";
 
 export const metadata: Metadata = {
   title: "Metode Pembayaran · Booking VIP",
-  description: "Kartu tersimpan, Xendit dan PayPal.",
+  description: "Kartu tersimpan, DOKU dan PayPal.",
 };
 
 /** The payment methods page of the account area. */

@@ -64,6 +64,14 @@ export default function RegisterForm() {
         />
 
         <AuthField
+          label="Nomor telepon"
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          placeholder="+62 812 3456 7890"
+        />
+
+        <AuthField
           label="Password"
           name="password"
           type="password"

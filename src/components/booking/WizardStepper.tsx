@@ -16,14 +16,29 @@ const STEPS: Step[] = [
   { key: "result", labelKey: "wizard.step.result" },
 ];
 
-export default function WizardStepper({ currentStep }: { currentStep: string }) {
+/** Car rental adds a renter-signature step between details and payment. */
+const SIGNATURE_STEP: Step = {
+  key: "signature",
+  labelKey: "wizard.step.signature",
+};
+
+export default function WizardStepper({
+  currentStep,
+  isTransport,
+}: {
+  currentStep: string;
+  isTransport?: boolean;
+}) {
   const { t } = useLocale();
-  const currentIdx = STEPS.findIndex((s) => s.key === currentStep);
+  const steps = isTransport
+    ? [...STEPS.slice(0, 2), SIGNATURE_STEP, ...STEPS.slice(2)]
+    : STEPS;
+  const currentIdx = steps.findIndex((s) => s.key === currentStep);
 
   return (
     <div className="mb-6 overflow-x-auto lg:mb-8">
       <div className="flex min-w-max items-center gap-2 px-1 py-2 lg:gap-4">
-        {STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const isDone = i < currentIdx;
           const isCurrent = i === currentIdx;
 
@@ -47,7 +62,7 @@ export default function WizardStepper({ currentStep }: { currentStep: string }) 
               >
                 {t(step.labelKey)}
               </span>
-              {i < STEPS.length - 1 && (
+              {i < steps.length - 1 && (
                 <div className="mx-2 h-px w-8 bg-line lg:w-12" />
               )}
             </div>

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'61a63442ed422021f8abb61982e8ecd591a7ed97e53a012d0e9a85966a82267d'>;
+  StorageHashBase<'541e69033de9055ab8e2d0ca4e9d8402202ab3841087ee53cdaf36f1520163b2'>;
 export type ExecutionHash =
   ExecutionHashBase<'f2e4202e9184c02e0cd5f82f954a1a2e7c68894bc5acbd833deab456a39b91b7'>;
 export type ProfileHash =
@@ -453,11 +453,15 @@ export namespace Models {
     email: FieldOutputTypes['public']['Contact']['email'];
     firstName: FieldOutputTypes['public']['Contact']['firstName'];
     id: FieldOutputTypes['public']['Contact']['id'];
+    idDocumentUrl: FieldOutputTypes['public']['Contact']['idDocumentUrl'];
+    idType: FieldOutputTypes['public']['Contact']['idType'];
+    identityNumber: FieldOutputTypes['public']['Contact']['identityNumber'];
     isGuestSelf: FieldOutputTypes['public']['Contact']['isGuestSelf'];
     lastName: FieldOutputTypes['public']['Contact']['lastName'];
     notes: FieldOutputTypes['public']['Contact']['notes'];
     phone: FieldOutputTypes['public']['Contact']['phone'];
     phoneCountryCode: FieldOutputTypes['public']['Contact']['phoneCountryCode'];
+    signatureUrl: FieldOutputTypes['public']['Contact']['signatureUrl'];
     title: FieldOutputTypes['public']['Contact']['title'];
     booking: public_Booking;
     readonly [RelationKeys]?: 'booking';
@@ -1911,6 +1915,24 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly idDocumentUrl: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly idType: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly identityNumber: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly isGuestSelf: {
                   readonly dataType: 'pg/bool';
                   readonly codecId: 'pg/bool@1';
@@ -1943,6 +1965,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly signatureUrl: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly title: {
@@ -5771,6 +5799,18 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly idDocumentUrl: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly idType: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly identityNumber: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly isGuestSelf: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
@@ -5789,6 +5829,10 @@ type ContractBase = Omit<
               };
               readonly phoneCountryCode: {
                 readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly signatureUrl: {
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly title: {
@@ -5818,11 +5862,15 @@ type ContractBase = Omit<
                 readonly email: { readonly column: 'email' };
                 readonly firstName: { readonly column: 'firstName' };
                 readonly id: { readonly column: 'id' };
+                readonly idDocumentUrl: { readonly column: 'idDocumentUrl' };
+                readonly idType: { readonly column: 'idType' };
+                readonly identityNumber: { readonly column: 'identityNumber' };
                 readonly isGuestSelf: { readonly column: 'isGuestSelf' };
                 readonly lastName: { readonly column: 'lastName' };
                 readonly notes: { readonly column: 'notes' };
                 readonly phone: { readonly column: 'phone' };
                 readonly phoneCountryCode: { readonly column: 'phoneCountryCode' };
+                readonly signatureUrl: { readonly column: 'signatureUrl' };
                 readonly title: { readonly column: 'title' };
               };
             };

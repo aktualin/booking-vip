@@ -20,12 +20,9 @@ import {
   type TransportResultItem,
   type TransportSort,
 } from "@/app/actions/transport";
-import { stringifyPickedPoint, type PickedPoint } from "@/lib/picked-point";
 import type { DictKey } from "@/i18n";
 
 export type TransportFleetSearch = {
-  from?: string;
-  to?: string;
   date?: string;
   time?: string;
   returnDate?: string;
@@ -33,8 +30,6 @@ export type TransportFleetSearch = {
   totalDays?: string;
   driverOption?: string;
   type?: string;
-  pickup?: PickedPoint | null;
-  dropoff?: PickedPoint | null;
 };
 
 const PAGE_SIZE = 8;
@@ -94,10 +89,6 @@ export default function TransportFleetClient({
     if (search.returnTime) next.set("returnTime", search.returnTime);
     next.set("totalDays", String(days));
     next.set("driverOption", withDriver ? "with_driver" : "without_driver");
-    if (search.from) next.set("from", search.from);
-    if (search.to) next.set("to", search.to);
-    if (search.pickup) next.set("pickup", stringifyPickedPoint(search.pickup));
-    if (search.dropoff) next.set("dropoff", stringifyPickedPoint(search.dropoff));
     return next.toString();
   }, [search, days, withDriver]);
 
@@ -179,8 +170,6 @@ export default function TransportFleetClient({
         <Search width={18} height={18} className="shrink-0 text-muted" />
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-semibold text-ink">
           <span>{withDriver ? t("transport.withDriver") : t("transport.withoutDriver")}</span>
-          <span className="hidden h-4 w-px bg-line sm:block" aria-hidden />
-          <span className="max-w-[16rem] truncate">{search.from ?? t("transport.anywhere")}</span>
           <span className="hidden h-4 w-px bg-line sm:block" aria-hidden />
           <span>
             {formatDate(search.date)}

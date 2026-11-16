@@ -151,6 +151,7 @@ export const id: Record<DictKey, string> = {
   // Wizard stepper
   "wizard.step.addons": "Layanan Tambahan",
   "wizard.step.details": "Form Pemesanan",
+  "wizard.step.signature": "Tanda Tangan",
   "wizard.step.payment": "Pembayaran",
   "wizard.step.result": "Hasil",
 
@@ -189,6 +190,10 @@ export const id: Record<DictKey, string> = {
   "wizard.details.travelerPlaceholder": "Nama lengkap sesuai KTP",
   "wizard.details.back": "Kembali",
   "wizard.details.continueToPayment": "Lanjut ke Pembayaran",
+  "wizard.details.continueToSignature": "Lanjut ke tanda tangan",
+
+  // Step signature (transport / car rental)
+  "wizard.signature.title": "Tanda Tangan",
 
   // Step payment
   "wizard.payment.title": "Pembayaran",
@@ -202,8 +207,8 @@ export const id: Record<DictKey, string> = {
   "wizard.missingDate": "Pilih tanggal dan waktu yang valid untuk melanjutkan.",
 
   // Step result
-  "wizard.result.title": "Pemesanan Dikonfirmasi!",
-  "wizard.result.desc": "Pemesanan Anda berhasil dibuat. Email konfirmasi akan dikirim ke {email}.",
+  "wizard.result.title": "Pemesanan Dibuat",
+  "wizard.result.desc": "Selesaikan pembayaran untuk mengonfirmasi pesanan kamu. Email konfirmasi akan dikirim ke {email}.",
   "wizard.result.bookingCode": "Kode Pemesanan",
   "wizard.result.status": "Status",
   "wizard.result.awaitingPayment": "Menunggu Pembayaran",

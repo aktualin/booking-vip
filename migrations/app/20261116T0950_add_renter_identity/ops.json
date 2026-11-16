@@ -1,0 +1,242 @@
+[
+  {
+    "id": "column.public.Contact.idDocumentUrl",
+    "label": "Add column \"idDocumentUrl\" to \"Contact\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "idDocumentUrl",
+        "table": "Contact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"idDocumentUrl\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "idDocumentUrl"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"idDocumentUrl\" on \"Contact\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"idDocumentUrl\"",
+        "sql": "ALTER TABLE \"public\".\"Contact\" ADD COLUMN \"idDocumentUrl\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"idDocumentUrl\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "idDocumentUrl"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"idDocumentUrl\" on \"Contact\""
+        }
+      },
+      {
+        "description": "verify column \"idDocumentUrl\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "idDocumentUrl",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Contact.idType",
+    "label": "Add column \"idType\" to \"Contact\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "idType",
+        "table": "Contact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"idType\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "idType"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"idType\" on \"Contact\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"idType\"",
+        "sql": "ALTER TABLE \"public\".\"Contact\" ADD COLUMN \"idType\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"idType\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "idType"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"idType\" on \"Contact\""
+        }
+      },
+      {
+        "description": "verify column \"idType\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "idType",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Contact.identityNumber",
+    "label": "Add column \"identityNumber\" to \"Contact\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "identityNumber",
+        "table": "Contact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"identityNumber\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "identityNumber"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"identityNumber\" on \"Contact\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"identityNumber\"",
+        "sql": "ALTER TABLE \"public\".\"Contact\" ADD COLUMN \"identityNumber\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"identityNumber\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "identityNumber"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"identityNumber\" on \"Contact\""
+        }
+      },
+      {
+        "description": "verify column \"identityNumber\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "identityNumber",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Contact.signatureUrl",
+    "label": "Add column \"signatureUrl\" to \"Contact\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "signatureUrl",
+        "table": "Contact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"signatureUrl\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "signatureUrl"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"signatureUrl\" on \"Contact\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"signatureUrl\"",
+        "sql": "ALTER TABLE \"public\".\"Contact\" ADD COLUMN \"signatureUrl\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"signatureUrl\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "signatureUrl"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"signatureUrl\" on \"Contact\""
+        }
+      },
+      {
+        "description": "verify column \"signatureUrl\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "signatureUrl",
+          "text"
+        ]
+      }
+    ]
+  }
+]

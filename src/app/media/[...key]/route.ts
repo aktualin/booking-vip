@@ -1,6 +1,7 @@
-// Serves the images of the R2 bucket through the app itself.
+// Serves the images (and renter identity PDFs) of the R2 bucket through the
+// app itself.
 //
-// The database stores `/media/<key>` URLs, so every image request lands
+// The database stores `/media/<key>` URLs, so every media request lands
 // here: the handler reads the object from the bucket with the server's
 // credentials and streams it back with a long browser cache lifetime.
 //
@@ -23,8 +24,12 @@ export async function GET(
     if (!object) return new Response("Not found", { status: 404 });
 
     const contentType = object.contentType ?? "application/octet-stream";
-    if (!contentType.startsWith("image/")) {
-      // The bucket holds only site images — never serve anything else.
+    // Site images are always allowed. Renter identity documents may be PDFs,
+    // but only under the dedicated `renter-docs/` prefix — nothing else.
+    const isImage = contentType.startsWith("image/");
+    const isRenterPdf =
+      contentType === "application/pdf" && key.startsWith("renter-docs/");
+    if (!isImage && !isRenterPdf) {
       return new Response("Not found", { status: 404 });
     }
 

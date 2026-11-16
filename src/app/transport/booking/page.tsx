@@ -7,12 +7,9 @@ import BottomTabBar from "@/components/sections/BottomTabBar";
 import Container from "@/components/ui/Container";
 import TransportBookingClient from "@/components/transport/TransportBookingClient";
 import { getTransportVehicles } from "@/app/actions/catalog";
-import { parsePickedPoint } from "@/lib/picked-point";
 
 /** The query string of the booking step. */
 type TransportBookingParams = {
-  pickup?: string;
-  dropoff?: string;
   /** The vehicle that was picked on the fleet list ("slug::packageId"). */
   vehicle?: string;
   date?: string;
@@ -27,9 +24,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Step 2 of the transport flow — the booking form.
+ * The booking form of the transport flow.
  *
- * The route comes from the query string (the map step), so the page is
+ * The vehicle and the schedule come from the query string, so the page is
  * dynamic and reads the search parameters inside a Suspense boundary.
  */
 export default function TransportBookingPage({
@@ -47,14 +44,13 @@ export default function TransportBookingPage({
         <Container className="py-8 md:py-12">
           <div className="mb-7">
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
-              Transport · Langkah 2 dari 2
+              Transport
             </p>
             <h1 className="mt-1.5 text-[24px] font-bold tracking-[-0.01em] text-ink md:text-[30px]">
               Detail perjalanan
             </h1>
             <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted">
-              Lokasi sudah dikonfirmasi. Pilih jadwal, kendaraan dan cara kami
-              menghubungi kamu.
+              Pilih jadwal, kendaraan dan cara kami menghubungi kamu.
             </p>
           </div>
 
@@ -71,7 +67,7 @@ export default function TransportBookingPage({
 }
 
 /**
- * The dynamic part of the page: the route from the query string and the
+ * The dynamic part of the page: the selection from the query string and the
  * vehicle list from the database.
  */
 async function TransportBookingStep({
@@ -84,31 +80,10 @@ async function TransportBookingStep({
   await connection();
 
   const params = searchParams ? await searchParams : {};
-  const pickup = parsePickedPoint(params.pickup);
-  const dropoff = parsePickedPoint(params.dropoff);
   const vehicles = await getTransportVehicles();
-
-  if (!pickup || !dropoff) {
-    return (
-      <div className="mx-auto max-w-md rounded-2xl border border-line bg-white p-8 text-center">
-        <h2 className="text-[17px] font-bold text-ink">Lokasi belum dipilih</h2>
-        <p className="mt-1.5 text-[13px] text-muted">
-          Pilih titik pickup dan dropoff terlebih dahulu.
-        </p>
-        <a
-          href="/transport/pickup"
-          className="mt-5 inline-flex h-10 items-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-white transition-opacity hover:bg-brand-dark"
-        >
-          Pilih lokasi
-        </a>
-      </div>
-    );
-  }
 
   return (
     <TransportBookingClient
-      pickup={pickup}
-      dropoff={dropoff}
       vehicles={vehicles}
       initial={{
         vehicle: params.vehicle,

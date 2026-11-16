@@ -27,6 +27,14 @@ export type CreateBookingInput = {
     notes?: string;
     /** "mr" | "mrs" | "ms" */
     title?: string;
+    /** Renter identity number (NIK / SSN / passport no.) — car rental. */
+    identityNumber?: string;
+    /** The identity document type: "ktp" | "ssn" | "passport". */
+    idType?: string;
+    /** Stored URL of the uploaded identity document (image/PDF) — car rental. */
+    idDocumentUrl?: string;
+    /** Stored URL of the renter's signature image (PNG) — car rental. */
+    signatureUrl?: string;
   };
   flight: {
     airportName?: string;
@@ -62,7 +70,7 @@ export type CreateBookingInput = {
 };
 
 export type CreateBookingResult =
-  | { ok: true; code: string }
+  | { ok: true; code: string; totalUsdCents: number; invoiceNumber: string }
   | { ok: false; error: string };
 
 export type BookingLookupDTO = {

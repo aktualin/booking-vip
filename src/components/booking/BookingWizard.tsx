@@ -4,18 +4,24 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { getProduct, getPlaceOptions } from "@/app/actions/catalog";
 import { createBooking } from "@/app/actions/booking";
+import {
+  startBookingPayment,
+  startCardDirectBookingPayment,
+} from "@/app/actions/payments";
 import { parsePickedPoint } from "@/lib/picked-point";
 import type { PlaceNode } from "@/lib/places";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { useAccountOverview } from "@/components/providers/AccountProvider";
 import type { ProductDetailDTO } from "@/types";
 import WizardStepper from "./WizardStepper";
 import BookingSummary from "./BookingSummary";
 import StepAddOns from "./StepAddOns";
 import StepDetails from "./StepDetails";
-import StepPayment, { type AppliedPromo } from "./StepPayment";
-import StepResult from "./StepResult";
+import StepPayment, { type AppliedPromo, type CardSubmit } from "./StepPayment";
+import SignaturePad from "./SignaturePad";
+import type { RenterIdentity } from "./RenterIdentityForm";
 
-type Step = "addons" | "details" | "payment" | "result";
+type Step = "addons" | "details" | "signature" | "payment";
 
 type ContactData = {
   firstName: string;
@@ -99,13 +105,48 @@ export default function BookingWizard() {
     { fullName: string; kind: string }[]
   >([]);
 
+  // Car rental (transport line) adds renter identity + a signature step.
+  const isTransport = product?.lineSlug === "transport";
+  const [identity, setIdentity] = useState<RenterIdentity>({
+    identityNumber: "",
+    idType: "",
+    idDocumentUrl: null,
+  });
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [bookingCode, setBookingCode] = useState<string | null>(null);
+  // The booking created by "Bayar Sekarang" — created ONCE; payment retries
+  // (a declined card, an expired 3DS session) reuse the same booking.
+  const [created, setCreated] = useState<{
+    code: string;
+    totalUsdCents: number;
+    invoiceNumber: string;
+  } | null>(null);
 
   // The validated promo/voucher — lifted here so the sticky summary and the
   // result screen show the same discount the server will recompute.
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
+
+  // Prefill the contact form from the signed-in account (shared provider
+  // read, same as StepPayment). Only empty fields are filled, so anything
+  // the customer already typed is never overwritten.
+  const { overview } = useAccountOverview();
+  useEffect(() => {
+    if (!overview) return;
+    const [firstName = "", ...rest] = (overview.name ?? "")
+      .trim()
+      .split(/\s+/);
+    const lastName = rest.join(" ");
+    setContact((c) => ({
+      ...c,
+      firstName: c.firstName || firstName,
+      lastName: c.lastName || lastName,
+      email: c.email || overview.email,
+      phoneCountryCode: c.phoneCountryCode || "ID",
+      phone: c.phone || (overview.phone ?? ""),
+    }));
+  }, [overview]);
 
   // Load product
   useEffect(() => {
@@ -163,7 +204,14 @@ export default function BookingWizard() {
     });
   }, [selectedAddOns, product]);
 
-  const handleSubmit = async (promoCode?: string) => {
+  /**
+   * Pay: create the booking (once) and start the DOKU payment.
+   *  - Card → the embedded form was already filled on OUR page; the server
+   *    starts the 3DS authentication and the browser goes to the issuer's
+   *    page, then back to /payment/3ds/return → /payment/return.
+   *  - QRIS → the DOKU hosted checkout, back via /payment/return.
+   */
+  const handlePay = async (method: "CREDIT_CARD" | "QRIS", card?: CardSubmit) => {
     if (!product || !selectedPackage) return;
 
     // Guard against missing/invalid date/time BEFORE constructing the ISO
@@ -178,50 +226,105 @@ export default function BookingWizard() {
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const serviceAtISO = serviceAtValue.toISOString();
+    // 1. Create the booking once; retries reuse it so a declined card never
+    //    creates a second booking.
+    let booking = created;
+    if (!booking) {
+      const serviceAtISO = serviceAtValue.toISOString();
 
-    // Use the live cached FX rate from the provider (same rate shown in UI).
-    // USD rate is implicitly 1; for other currencies pull from `rates`.
-    const fxRate = currency === "USD" ? 1 : (rates[currency] ?? 1);
+      // Use the live cached FX rate from the provider (same rate shown in UI).
+      // USD rate is implicitly 1; for other currencies pull from `rates`.
+      const fxRate = currency === "USD" ? 1 : (rates[currency] ?? 1);
 
-    const result = await createBooking({
-      productSlug: slug,
-      packageId: selectedPackage.id,
-      serviceAt: serviceAtISO,
-      adult: adults,
-      child: children,
-      infant: infants,
-      units: selectedPackage.unitKind === "per_unit" ? qtyParam : undefined,
-      days: selectedPackage.unitKind === "per_day" ? daysParam : undefined,
-      pickup: pickupPoint ?? undefined,
-      dropoff: dropoffPoint ?? undefined,
-      driverOption: driverOptionParam,
-      addOns: selectedAddOns,
-      contact,
-      flight,
-      travelers,
-      currencyCode: currency,
-      fxRate,
-      promoCode,
-    });
+      // Renter identity + signature ride on the contact payload. For other
+      // lines the identity state stays empty, so these fields are undefined.
+      const contactPayload = {
+        ...contact,
+        identityNumber: identity.identityNumber || undefined,
+        idType: identity.idType || undefined,
+        idDocumentUrl: identity.idDocumentUrl ?? undefined,
+        signatureUrl: signatureUrl ?? undefined,
+      };
 
-    setIsSubmitting(false);
+      const result = await createBooking({
+        productSlug: slug,
+        packageId: selectedPackage.id,
+        serviceAt: serviceAtISO,
+        adult: adults,
+        child: children,
+        infant: infants,
+        units: selectedPackage.unitKind === "per_unit" ? qtyParam : undefined,
+        days: selectedPackage.unitKind === "per_day" ? daysParam : undefined,
+        pickup: pickupPoint ?? undefined,
+        dropoff: dropoffPoint ?? undefined,
+        driverOption: driverOptionParam,
+        addOns: selectedAddOns,
+        contact: contactPayload,
+        // Car rental has no flight info or traveler names — the renter
+        // identity replaces them.
+        flight: isTransport ? {} : flight,
+        travelers: isTransport ? [] : travelers,
+        currencyCode: currency,
+        fxRate,
+        promoCode: appliedPromo?.code,
+      });
 
-    if (result.ok) {
-      setBookingCode(result.code);
-      // Save to localStorage
+      if (!result.ok) {
+        setSubmitError(result.error);
+        setIsSubmitting(false);
+        return;
+      }
+
+      booking = {
+        code: result.code,
+        totalUsdCents: result.totalUsdCents,
+        invoiceNumber: result.invoiceNumber,
+      };
+      setCreated(booking);
+
+      // Save to localStorage so the return page can find the email again.
       try {
         localStorage.setItem(
           LAST_BOOKING_KEY,
-          JSON.stringify({ code: result.code, email: contact.email })
+          JSON.stringify({ code: booking.code, email: contact.email })
         );
       } catch {
         // Storage unavailable
       }
-      setStep("result");
-    } else {
-      setSubmitError(result.error);
     }
+
+    // 2. Start the payment.
+    if (method === "CREDIT_CARD" && card) {
+      const result = await startCardDirectBookingPayment({
+        bookingCode: booking.code,
+        email: contact.email,
+        cardNumber: card.cardNumber,
+        cardExpiry: card.cardExpiry,
+        cardCvv: card.cardCvv,
+      });
+      if (result.ok) {
+        // Off to the issuer's 3DS page — no result step, the return page
+        // takes over after the charge.
+        window.location.href = result.authenticationUrl;
+        return;
+      }
+      setSubmitError(result.error);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // QRIS → the DOKU hosted checkout.
+    const result = await startBookingPayment({
+      bookingCode: booking.code,
+      email: contact.email,
+      methodCode: "QRIS",
+    });
+    if (result.ok) {
+      window.location.href = result.checkoutUrl;
+      return;
+    }
+    setSubmitError(result.error);
+    setIsSubmitting(false);
   };
 
   if (loading) {
@@ -242,7 +345,7 @@ export default function BookingWizard() {
 
   return (
     <div className="pb-12">
-      <WizardStepper currentStep={step} />
+      <WizardStepper currentStep={step} isTransport={isTransport} />
 
       <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8">
         <div>
@@ -269,13 +372,39 @@ export default function BookingWizard() {
               onFlightChange={setFlight}
               onTravelersChange={setTravelers}
               onBack={() => setStep("addons")}
-              onContinue={() => setStep("payment")}
+              onContinue={() => setStep(isTransport ? "signature" : "payment")}
+              isTransport={isTransport}
+              identity={identity}
+              onIdentityChange={setIdentity}
             />
+          )}
+          {step === "signature" && isTransport && (
+            <div>
+              <h2 className="mb-4 text-xl font-bold text-ink">
+                {t("wizard.signature.title")}
+              </h2>
+              <SignaturePad value={signatureUrl} onChange={setSignatureUrl} />
+              <div className="mt-8 flex justify-between">
+                <button
+                  onClick={() => setStep("details")}
+                  className="rounded-xl border border-line bg-white px-6 py-3 text-base font-bold text-ink transition-colors hover:bg-canvas"
+                >
+                  {t("wizard.details.back")}
+                </button>
+                <button
+                  onClick={() => setStep("payment")}
+                  disabled={!signatureUrl}
+                  className="rounded-xl bg-brand px-8 py-3 text-base font-bold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t("wizard.details.continueToPayment")}
+                </button>
+              </div>
+            </div>
           )}
           {step === "payment" && (
             <StepPayment
-              onSubmit={handleSubmit}
-              onBack={() => setStep("details")}
+              onSubmit={handlePay}
+              onBack={() => setStep(isTransport ? "signature" : "details")}
               isSubmitting={isSubmitting}
               error={submitError}
               subtotalUsdCents={Math.round(total * 100)}
@@ -283,19 +412,9 @@ export default function BookingWizard() {
               onPromoChange={setAppliedPromo}
             />
           )}
-          {step === "result" && bookingCode && (
-            <StepResult
-              code={bookingCode}
-              email={contact.email}
-              total={Math.max(0, total - (appliedPromo?.discountUsdCents ?? 0) / 100)}
-              lineSlug={product.lineSlug}
-              productSlug={slug}
-            />
-          )}
         </div>
 
-        {step !== "result" && (
-          <aside className="mt-8 lg:mt-0">
+        <aside className="mt-8 lg:mt-0">
             <BookingSummary
               product={product}
               date={date}
@@ -315,8 +434,7 @@ export default function BookingWizard() {
               discountUsdCents={appliedPromo?.discountUsdCents ?? 0}
               promoCode={appliedPromo?.code ?? null}
             />
-          </aside>
-        )}
+        </aside>
       </div>
     </div>
   );

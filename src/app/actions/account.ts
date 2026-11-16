@@ -11,7 +11,7 @@ import {
   isValidCardNumber,
   normalizeCardNumber,
 } from "@/lib/crypto";
-import { generateApplicationCode } from "@/lib/invoice";
+import { generateApplicationCode, loadInvoice, type InvoiceDTO } from "@/lib/invoice";
 import { listLoyaltyLevels, resolveLevel, type LoyaltyLevelDTO } from "@/lib/loyalty";
 
 /**
@@ -490,65 +490,16 @@ export async function listMyOrders(): Promise<MyOrderDTO[]> {
   }));
 }
 
-export type InvoiceDTO = {
-  code: string;
-  invoiceNumber: string | null;
-  status: string;
-  serviceAt: string;
-  createdAt: string;
-  currencyCode: string;
-  fxRate: number;
-  subtotalUsdCents: number;
-  addOnsUsdCents: number;
-  discountUsdCents: number;
-  taxUsdCents: number;
-  totalUsdCents: number;
-  promoCode: string | null;
-  taxes: { key: string; label: string; value: string; amountUsdCents: number }[];
-  items: {
-    label: string;
-    packageLabel: string | null;
-    unitKind: string;
-    adultCount: number;
-    childCount: number;
-    infantCount: number;
-    unitUsdCents: number;
-    totalUsdCents: number;
-  }[];
-  addOns: { label: string; quantity: number; unitUsdCents: number; totalUsdCents: number }[];
-  contact: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phoneCountryCode: string;
-    phone: string;
-  } | null;
-  travelers: { fullName: string; kind: string }[];
-};
+export type { InvoiceDTO } from "@/lib/invoice";
 
 /** The full invoice of one of the customer's own bookings. */
 export async function getMyInvoice(code: string): Promise<InvoiceDTO | null> {
   const session = await getUserSession();
   if (!session) return null;
 
+  // Ownership: the booking must belong to the signed-in customer.
   const rows = await db.orm.public.Booking
-    .select(
-      "id",
-      "code",
-      "invoiceNumber",
-      "status",
-      "serviceAt",
-      "createdAt",
-      "currencyCode",
-      "fxRate",
-      "subtotalUsdCents",
-      "addOnsUsdCents",
-      "discountUsdCents",
-      "taxUsdCents",
-      "totalUsdCents",
-      "promoCode",
-      "taxes",
-    )
+    .select("id")
     .where((f) => f.code.eq(code))
     .where((f) => f.userId.eq(session.uid))
     .limit(1)
@@ -557,104 +508,7 @@ export async function getMyInvoice(code: string): Promise<InvoiceDTO | null> {
   const booking = rows[0];
   if (!booking) return null;
 
-  const [items, addOns, contacts, travelers] = await Promise.all([
-    db.orm.public.BookingItem
-      .select(
-        "label",
-        "packageLabel",
-        "unitKind",
-        "adultCount",
-        "childCount",
-        "infantCount",
-        "unitUsdCents",
-        "totalUsdCents",
-      )
-      .where((f) => f.bookingId.eq(booking.id))
-      .all(),
-    db.orm.public.BookingAddOn
-      .select("label", "quantity", "unitUsdCents", "totalUsdCents")
-      .where((f) => f.bookingId.eq(booking.id))
-      .all(),
-    db.orm.public.Contact
-      .select("firstName", "lastName", "email", "phoneCountryCode", "phone")
-      .where((f) => f.bookingId.eq(booking.id))
-      .limit(1)
-      .all(),
-    db.orm.public.Traveler
-      .select("fullName", "kind")
-      .where((f) => f.bookingId.eq(booking.id))
-      .all(),
-  ]);
-
-  const contact = contacts[0] ?? null;
-
-  return {
-    code: booking.code,
-    invoiceNumber: booking.invoiceNumber ?? null,
-    status: booking.status,
-    serviceAt: new Date(booking.serviceAt).toISOString(),
-    createdAt: new Date(booking.createdAt).toISOString(),
-    currencyCode: booking.currencyCode,
-    fxRate: booking.fxRate,
-    subtotalUsdCents: booking.subtotalUsdCents,
-    addOnsUsdCents: booking.addOnsUsdCents,
-    discountUsdCents: booking.discountUsdCents,
-    taxUsdCents: booking.taxUsdCents,
-    totalUsdCents: booking.totalUsdCents,
-    promoCode: booking.promoCode ?? null,
-    taxes: parseTaxLines(booking.taxes),
-    items: items.map((item) => ({
-      label: item.label,
-      packageLabel: item.packageLabel ?? null,
-      unitKind: item.unitKind,
-      adultCount: item.adultCount,
-      childCount: item.childCount,
-      infantCount: item.infantCount,
-      unitUsdCents: item.unitUsdCents,
-      totalUsdCents: item.totalUsdCents,
-    })),
-    addOns: addOns.map((addOn) => ({
-      label: addOn.label,
-      quantity: addOn.quantity,
-      unitUsdCents: addOn.unitUsdCents,
-      totalUsdCents: addOn.totalUsdCents,
-    })),
-    contact: contact
-      ? {
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          email: contact.email,
-          phoneCountryCode: contact.phoneCountryCode,
-          phone: contact.phone,
-        }
-      : null,
-    travelers: travelers.map((traveler) => ({
-      fullName: traveler.fullName,
-      kind: traveler.kind,
-    })),
-  };
-}
-
-/** Read the tax lines stored on a booking. */
-function parseTaxLines(value: unknown): { key: string; label: string; value: string; amountUsdCents: number }[] {
-  if (!Array.isArray(value)) return [];
-  const lines: { key: string; label: string; value: string; amountUsdCents: number }[] = [];
-  for (const item of value) {
-    const line = item as {
-      key?: string;
-      label?: string;
-      value?: string;
-      amountUsdCents?: number;
-    };
-    if (!line?.key) continue;
-    lines.push({
-      key: line.key,
-      label: line.label ?? line.key,
-      value: line.value ?? "",
-      amountUsdCents: line.amountUsdCents ?? 0,
-    });
-  }
-  return lines;
+  return loadInvoice(booking.id);
 }
 
 // ---------------------------------------------------------------------------

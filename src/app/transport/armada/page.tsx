@@ -7,7 +7,6 @@ import Container from "@/components/ui/Container";
 import TransportFleetClient, {
   type TransportFleetSearch,
 } from "@/components/transport/TransportFleetClient";
-import { parsePickedPoint } from "@/lib/picked-point";
 
 export const metadata: Metadata = {
   title: "Armada · Booking VIP",
@@ -66,8 +65,6 @@ async function FleetStep({
   const params = await searchParams;
 
   const search: TransportFleetSearch = {
-    from: params.from,
-    to: params.to,
     date: params.date,
     time: params.time,
     returnDate: params.returnDate,
@@ -75,8 +72,6 @@ async function FleetStep({
     totalDays: params.totalDays,
     driverOption: params.driverOption,
     type: params.type,
-    pickup: parsePickedPoint(params.pickup),
-    dropoff: parsePickedPoint(params.dropoff),
   };
 
   return <TransportFleetClient search={search} />;

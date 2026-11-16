@@ -1531,6 +1531,27 @@
                   "kind": "scalar"
                 }
               },
+              "idDocumentUrl": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "idType": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "identityNumber": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "isGuestSelf": {
                 "nullable": false,
                 "type": {
@@ -1561,6 +1582,13 @@
               },
               "phoneCountryCode": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "signatureUrl": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -1606,6 +1634,15 @@
                 "id": {
                   "column": "id"
                 },
+                "idDocumentUrl": {
+                  "column": "idDocumentUrl"
+                },
+                "idType": {
+                  "column": "idType"
+                },
+                "identityNumber": {
+                  "column": "identityNumber"
+                },
                 "isGuestSelf": {
                   "column": "isGuestSelf"
                 },
@@ -1620,6 +1657,9 @@
                 },
                 "phoneCountryCode": {
                   "column": "phoneCountryCode"
+                },
+                "signatureUrl": {
+                  "column": "signatureUrl"
                 },
                 "title": {
                   "column": "title"
@@ -6727,6 +6767,21 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "idDocumentUrl": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "idType": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "identityNumber": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "isGuestSelf": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -6755,6 +6810,11 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "signatureUrl": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "title": {
                   "codecId": "pg/text@1",
@@ -9841,7 +9901,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "61a63442ed422021f8abb61982e8ecd591a7ed97e53a012d0e9a85966a82267d"
+    "storageHash": "541e69033de9055ab8e2d0ca4e9d8402202ab3841087ee53cdaf36f1520163b2"
   },
   "execution": {
     "executionHash": "f2e4202e9184c02e0cd5f82f954a1a2e7c68894bc5acbd833deab456a39b91b7",

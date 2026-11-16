@@ -1198,56 +1198,73 @@ async function seedLoyaltyLevels() {
 }
 
 // ---------- Payment methods ----------
-// The methods the customer can pick on the payment page. They are grouped by
-// the gateway method code, exactly like the marketplace does it — the guest
-// picks the concrete option on the gateway page.
+// The methods the customer can pick on the payment page. The gateway is DOKU
+// (non-SNAP): Credit Card via the Card Payment Page and QRIS via DOKU
+// Checkout. The other channels are kept as inactive rows — historical
+// payments still reference them — but they cannot be started.
 const paymentMethods: {
   code: string;
   label: string;
-  providerMethodCode: string;
+  provider: string | null;
+  providerMethodCode: string | null;
   sortOrder: number;
+  active: boolean;
 }[] = [
   {
     code: "BANK_TRANSFER",
     label: "Transfer Bank (Virtual Account) — BCA, Mandiri, BNI, BRI, BSI, Permata",
-    providerMethodCode: "BANK_TRANSFER",
+    provider: null,
+    providerMethodCode: null,
     sortOrder: 10,
+    active: false,
   },
   {
     code: "CREDIT_CARD",
     label: "Kartu Kredit / Debit — Visa, Mastercard, JCB",
+    provider: "doku",
     providerMethodCode: "CREDIT_CARD",
     sortOrder: 20,
+    active: true,
   },
   {
     code: "EWALLET",
     label: "E-Wallet — DANA, GoPay, ShopeePay, LinkAja, OVO",
-    providerMethodCode: "EWALLET",
+    provider: null,
+    providerMethodCode: null,
     sortOrder: 30,
+    active: false,
   },
   {
     code: "QRIS",
     label: "QRIS — scan dengan aplikasi apa pun",
+    provider: "doku",
     providerMethodCode: "QRIS",
     sortOrder: 40,
+    active: true,
   },
   {
     code: "DIRECT_DEBIT",
     label: "Pembayaran Instan — KlikBCA, OCTO, blu",
-    providerMethodCode: "DIRECT_DEBIT",
+    provider: null,
+    providerMethodCode: null,
     sortOrder: 50,
+    active: false,
   },
   {
     code: "RETAIL_OUTLET",
     label: "Gerai Retail — Indomaret, Alfamart",
-    providerMethodCode: "RETAIL_OUTLET",
+    provider: null,
+    providerMethodCode: null,
     sortOrder: 60,
+    active: false,
   },
   {
     code: "PAYLATER",
     label: "Paylater / Cicilan Tanpa Kartu — Kredivo, Akulaku",
-    providerMethodCode: "PAYLATER",
+    provider: null,
+    providerMethodCode: null,
     sortOrder: 70,
+    active: false,
   },
 ];
 
@@ -1261,11 +1278,11 @@ async function seedPaymentMethods() {
     if (existing) {
       await db.orm.public.PaymentMethod.where({ id: existing.id }).update({
         label: method.label,
-        provider: "xendit",
+        provider: method.provider,
         providerMethodCode: method.providerMethodCode,
-        providerCurrency: "IDR",
+        providerCurrency: method.provider ? "IDR" : null,
         sortOrder: method.sortOrder,
-        active: true,
+        active: method.active,
       });
       bump("PaymentMethod", false);
       continue;
@@ -1275,11 +1292,11 @@ async function seedPaymentMethods() {
       id: crypto.randomUUID(),
       code: method.code,
       label: method.label,
-      provider: "xendit",
+      provider: method.provider,
       providerMethodCode: method.providerMethodCode,
-      providerCurrency: "IDR",
+      providerCurrency: method.provider ? "IDR" : null,
       sortOrder: method.sortOrder,
-      active: true,
+      active: method.active,
     });
     bump("PaymentMethod", true);
   }

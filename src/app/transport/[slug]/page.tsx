@@ -8,7 +8,6 @@ import TransportDetailClient, {
   type TransportDetailSearch,
 } from "@/components/transport/TransportDetailClient";
 import { getTransportDetail } from "@/app/actions/transport";
-import { parsePickedPoint } from "@/lib/picked-point";
 
 export const metadata: Metadata = {
   title: "Detail Mobil · Booking VIP",
@@ -16,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * The vehicle detail — the photo carousel, the vendor card, the reviews,
+ * The vehicle detail — the photo carousel, the vendor card,
  * the booking rules and the selectable rental packages with the sticky
  * total bar. The booking itself stays in the shared `/booking/[slug]` wizard.
  */
@@ -82,10 +81,6 @@ async function DetailStep({
     returnTime: query.returnTime,
     totalDays: query.totalDays,
     driverOption: query.driverOption,
-    from: query.from,
-    to: query.to,
-    pickup: parsePickedPoint(query.pickup),
-    dropoff: parsePickedPoint(query.dropoff),
   };
 
   return <TransportDetailClient detail={detail} search={search} />;

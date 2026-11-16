@@ -1,11 +1,21 @@
 #!/usr/bin/env node --experimental-strip-types
-// Idempotent seed of the transport rental fleet.
+// Complete, idempotent seed of the transport rental fleet (NO reviews).
 //
 // Run:  node --experimental-strip-types scripts/seed-transport.mts
 //   (or `npm run db:seed-transport` from repo root)
 //
-// Re-running is safe: products / packages / reviews / media are looked up by
-// their natural key (or a deterministic id) and only inserted when missing.
+// "Complete" means every car ends up with: a photo + credit, the full spec
+// grid, included / not-included / rental-requirements lists, a pickup policy,
+// and three rental packages (base / all-in area 0 / all-in area 2) each with
+// an overtime rate. Reviews are deliberately NOT seeded — the rating summary
+// is recomputed from whatever real reviews exist (none → null / 0).
+//
+// Re-running is safe and SELF-HEALING: products / packages / media are looked
+// up by their natural key (or a deterministic id). Missing rows are inserted;
+// existing rows are topped up with any empty descriptive field. Package
+// PRICES (unitUsdCents / fromUsdCents) are never changed on re-run, so
+// historical bookings and in-flight checkouts keep their amounts.
+//
 // Photos are fetched from Wikimedia Commons into public/images/transport/;
 // when the network is unavailable the car simply keeps its gradient Thumb.
 //
@@ -29,6 +39,7 @@ type PackageSeed = {
   label: string;
   unitUsdCents: number;
   fromUsdCents: number | null;
+  extraHourUsdCents: number;
   description: string;
   info: { key: string; name: string; excluded?: boolean }[];
   durationHours: number;
@@ -49,7 +60,6 @@ type CarSeed = {
   netUsdCents: number;
   imageQuery: string;
   description: string;
-  reviews: { user: number; rating: number; body: string }[];
 };
 
 const EXCLUDED_BASE = [
@@ -72,6 +82,7 @@ function packagesFor(car: CarSeed): PackageSeed[] {
       label: withDriver ? "Mobil & Sopir Saja" : "Lepas Kunci",
       unitUsdCents: net,
       fromUsdCents: net * 2,
+      extraHourUsdCents: Math.round(net * 0.1),
       description: withDriver
         ? "Mobil plus sopir berpengalaman; bensin dan makan sopir dibayar langsung."
         : "Ambil mobilnya sendiri, kembalikan sendiri — tanpa sopir.",
@@ -82,6 +93,7 @@ function packagesFor(car: CarSeed): PackageSeed[] {
       label: "All-in Area 0",
       unitUsdCents: Math.round(net * 1.8),
       fromUsdCents: net * 4,
+      extraHourUsdCents: Math.round(net * 0.15),
       description: "Dalam kota: bensin, tol, parkir, dan makan sopir sudah termasuk.",
       info: INCLUDED_ALLIN,
       durationHours: 12,
@@ -90,11 +102,78 @@ function packagesFor(car: CarSeed): PackageSeed[] {
       label: "All-in Area 2",
       unitUsdCents: Math.round(net * 2.6),
       fromUsdCents: Math.round(net * 3.4),
+      extraHourUsdCents: Math.round(net * 0.2),
       description: "Luar kota / area jauh: semua biaya perjalanan sudah termasuk.",
       info: INCLUDED_ALLIN,
       durationHours: 12,
     },
   ];
+}
+
+/**
+ * The included / not-included / requirements lists of a rental car.
+ *
+ * These are the plain-string lists rendered on the product detail and used by
+ * the generic catalog DTO. They vary by driver option (lepas kunci needs a
+ * driving licence + bigger deposit) and by powertrain (EV charging).
+ */
+function rulesFor(car: CarSeed): {
+  included: string[];
+  notIncluded: string[];
+  requirements: string[];
+} {
+  const withDriver = car.driverOption === "with_driver";
+  const ev = car.electric === true;
+
+  const included = withDriver
+    ? [
+        "Mobil + sopir berpengalaman",
+        "Asuransi kendaraan selama sewa",
+        "Sopir bisa bahasa Inggris",
+        "BV Clean — mobil dicuci & divakum sebelum dipakai",
+        "Bantuan darurat 24 jam",
+      ]
+    : [
+        "Mobil saja (lepas kunci / self-drive)",
+        "Asuransi kendaraan selama sewa",
+        "BV Clean — mobil dicuci & divakum sebelum dipakai",
+        "Bantuan darurat 24 jam",
+      ];
+  if (ev) included.push("Kabel charger portable & kartu akses charging station");
+  if (car.typeSlug === "luxury") included.push("Air mineral, tisu & captain seat");
+
+  const notIncluded = withDriver
+    ? [
+        "Bensin" + (ev ? " / pengisian daya" : ""),
+        "Tol & parkir",
+        "Uang makan sopir IDR 75.000/hari",
+        "Overtime di luar 12 jam (lihat tarif per jam)",
+      ]
+    : [
+        "Bensin" + (ev ? " / pengisian daya" : ""),
+        "Tol & parkir",
+        "Sopir (opsional, bisa ditambah saat booking)",
+        "Overtime di luar 12 jam (lihat tarif per jam)",
+      ];
+
+  const requirements = withDriver
+    ? [
+        "KTP pemesan yang masih berlaku",
+        "Deposit jaminan IDR 500.000 (dikembalikan setelah sewa)",
+        "Minimal sewa 1 hari (12 jam)",
+        "Pemesanan maksimal H-2 sebelum pemakaian",
+        "Rute & tujuan disepakati saat konfirmasi",
+      ]
+    : [
+        "KTP + SIM A yang masih berlaku",
+        "Usia pengemudi minimal 21 tahun",
+        "Foto selfie sambil memegang KTP",
+        "Deposit jaminan IDR 1.000.000 (dikembalikan setelah sewa)",
+        "Minimal sewa 1 hari (12 jam)",
+        "Mobil dikembalikan dengan kondisi & bahan bakar seperti saat diambil",
+      ];
+
+  return { included, notIncluded, requirements };
 }
 
 const CARS: CarSeed[] = [
@@ -113,10 +192,6 @@ const CARS: CarSeed[] = [
     imageQuery: "Toyota Avanza",
     description:
       "<p>MPV sejuta umat yang nyaman untuk keluarga maupun perjalanan bisnis. Kabin lega, AC dingin, dan sopir yang hafal jalan.</p><ul><li>AC double blower</li><li>Audio Bluetooth</li><li>Bagasi untuk 2 koper besar</li></ul>",
-    reviews: [
-      { user: 1, rating: 5, body: "Mobil bersih, sopirnya ramah dan tau jalan tercepat." },
-      { user: 2, rating: 4, body: "AC dingin, mobil wangi. Recommended untuk keluarga." },
-    ],
   },
   {
     slug: "toyota-all-new-avanza-2022",
@@ -133,7 +208,6 @@ const CARS: CarSeed[] = [
     imageQuery: "Toyota Avanza 2022 white",
     description:
       "<p>Generasi terbaru Avanza dengan penggerak roda depan dan fitur keselamatan Toyota Safety Sense.</p><ul><li>6 airbags</li><li>Cruise control</li><li>Head unit touchscreen</li></ul>",
-    reviews: [{ user: 3, rating: 5, body: "Very good experience with excellent driving and punctuality." }],
   },
   {
     slug: "daihatsu-all-new-xenia-2022",
@@ -150,7 +224,6 @@ const CARS: CarSeed[] = [
     imageQuery: "Daihatsu Xenia silver",
     description:
       "<p>S kembar Avanza dengan suspensi nyaman dan kabin kedap. Cocok untuk perjalanan jauh antar kota.</p>",
-    reviews: [{ user: 1, rating: 5, body: "Bagusss sesuai ekspektasi......." }],
   },
   {
     slug: "daihatsu-sigra",
@@ -166,7 +239,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 1500,
     imageQuery: "Daihatsu Sigra white car",
     description: "<p>MPV ringkas yang irit dan lincah untuk dalam kota. Harga bersahabat, muat 5 penumpang.</p>",
-    reviews: [],
   },
   {
     slug: "suzuki-xl7",
@@ -182,7 +254,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 1550,
     imageQuery: "Suzuki XL7",
     description: "<p>SUV 6 penumpang dengan ground clearance tinggi — siap untuk rute menanjak dan jalan pedesaan.</p>",
-    reviews: [{ user: 2, rating: 4, body: "Mobil terawat, sopir sabar menunggu." }],
   },
   {
     slug: "mitsubishi-xpander",
@@ -198,7 +269,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 1600,
     imageQuery: "Mitsubishi Xpander silver",
     description: "<p>MPV modern dengan kabin paling lega di kelasnya dan fitur keselamatan aktif.</p>",
-    reviews: [],
   },
   {
     slug: "daihatsu-terios",
@@ -214,7 +284,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 1700,
     imageQuery: "Daihatsu Terios white SUV",
     description: "<p>SUV 7 penumpang lepas kunci. Cocok untuk yang ingin menyetir sendiri menjelajah pulau.</p>",
-    reviews: [],
   },
   {
     slug: "toyota-kijang-innova-reborn",
@@ -230,9 +299,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 2600,
     imageQuery: "Toyota Kijang Innova",
     description: "<p>MPV premium untuk perjalanan bisnis dan keluarga besar. Captain seat di baris kedua.</p>",
-    reviews: [
-      { user: 3, rating: 5, body: "Innova bersih dan sopir profesional. Akan pesan lagi." },
-    ],
   },
   {
     slug: "toyota-camry",
@@ -248,7 +314,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 3500,
     imageQuery: "Toyota Camry black sedan",
     description: "<p>Sedan eksekutif untuk penjemputan tamu penting. Kabin senyap dan sopir berjas.</p>",
-    reviews: [],
   },
   {
     slug: "honda-cr-v",
@@ -264,7 +329,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 3200,
     imageQuery: "Honda CR-V silver SUV",
     description: "<p>SUV premium dengan Honda Sensing dan kabin mewah untuk 5 penumpang.</p>",
-    reviews: [],
   },
   {
     slug: "toyota-fortuner",
@@ -280,7 +344,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 4200,
     imageQuery: "Toyota Fortuner black SUV",
     description: "<p>SUV gagah untuk perjalanan jauh dan medan berat, tetap nyaman untuk keluarga.</p>",
-    reviews: [],
   },
   {
     slug: "hyundai-ioniq-5",
@@ -297,7 +360,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 3800,
     imageQuery: "Hyundai Ioniq 5 electric car",
     description: "<p>Mobil listrik futuristik dengan pengisian cepat dan kabin lounge. Nol emisi selama sewa.</p>",
-    reviews: [{ user: 1, rating: 5, body: "Mobil listriknya senyap dan nyaman, sopir paham charging station." }],
   },
   {
     slug: "wuling-air-ev",
@@ -314,7 +376,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 950,
     imageQuery: "Wuling Air EV",
     description: "<p>Mobil listrik mungil untuk keliling kota. Parkir gampang, biaya hemat.</p>",
-    reviews: [],
   },
   {
     slug: "honda-brio",
@@ -330,7 +391,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 1100,
     imageQuery: "Honda Brio yellow hatchback",
     description: "<p>Hatchback lincah lepas kunci untuk perjalanan solo atau berdua dalam kota.</p>",
-    reviews: [],
   },
   {
     slug: "toyota-alphard",
@@ -346,7 +406,6 @@ const CARS: CarSeed[] = [
     netUsdCents: 9000,
     imageQuery: "Toyota Alphard black van",
     description: "<p>MPV mewah kelas bisnis: captain seat, pintu elektrik, dan privasi penuh.</p>",
-    reviews: [{ user: 2, rating: 5, body: "Alphard bersih seperti baru, layanan VIP sungguhan." }],
   },
   {
     slug: "toyota-hiace-premio",
@@ -362,15 +421,78 @@ const CARS: CarSeed[] = [
     netUsdCents: 5500,
     imageQuery: "Toyota Hiace",
     description: "<p>Van 12 penumpang untuk rombongan wisata dan acara kantor. Bagasi luas untuk 6 koper.</p>",
-    reviews: [],
   },
 ];
 
-const REVIEW_USERS = [
-  { id: "seed-transport-user-1", email: "transport.reviewer1@seed.bookingvip.local", name: "Andi Rahmawan" },
-  { id: "seed-transport-user-2", email: "transport.reviewer2@seed.bookingvip.local", name: "Intan Maharani" },
-  { id: "seed-transport-user-3", email: "transport.reviewer3@seed.bookingvip.local", name: "Taufik Akbar" },
+/** Optional rental accessories offered on the cars (the wizard add-ons step). */
+const RENTAL_ADD_ONS: { slug: string; title: string; unitUsdCents: number; selfDriveOnly?: boolean }[] = [
+  { slug: "baby-seat", title: "Baby Seat / Child Seat", unitUsdCents: 500 },
+  { slug: "cooler-box", title: "Cooler Box", unitUsdCents: 400 },
+  { slug: "gps-holder", title: "GPS / Phone Holder", unitUsdCents: 300 },
+  { slug: "extra-driver", title: "Supir Tambahan", unitUsdCents: 2000, selfDriveOnly: true },
 ];
+
+/**
+ * Create the rental add-on products (isAddOn = true) and link them to the
+ * fleet. Idempotent: products are found by slug, links by (product, addOn).
+ * The extra driver is only offered on self-drive (lepas kunci) cars.
+ */
+async function seedRentalAddOns(lineId: string, carIds: Record<string, string>) {
+  const addOnIds = new Map<string, string>();
+  for (const a of RENTAL_ADD_ONS) {
+    const existing = await db.orm.public.Product.select("id").where({ slug: a.slug }).first();
+    if (existing) {
+      addOnIds.set(a.slug, existing.id);
+      await db.orm.public.Product.where({ id: existing.id }).update({
+        title: a.title,
+        isAddOn: true,
+        fromPriceUsdCents: a.unitUsdCents,
+        active: true,
+      } as never);
+    } else {
+      const id = crypto.randomUUID();
+      await db.orm.public.Product.create({
+        id,
+        slug: a.slug,
+        lineId,
+        title: a.title,
+        isAddOn: true,
+        fromPriceUsdCents: a.unitUsdCents,
+        active: true,
+      } as never);
+      addOnIds.set(a.slug, id);
+      console.log(`+ Add-on ${a.slug}`);
+    }
+  }
+
+  let links = 0;
+  for (const car of CARS) {
+    const productId = carIds[car.slug];
+    if (!productId) continue;
+    let order = 0;
+    for (const a of RENTAL_ADD_ONS) {
+      if (a.selfDriveOnly && car.driverOption !== "without_driver") continue;
+      const addOnId = addOnIds.get(a.slug)!;
+      const existing = await db.orm.public.ProductAddOn
+        .select("id")
+        .where({ productId, addOnId })
+        .first();
+      if (existing) {
+        await db.orm.public.ProductAddOn.where({ id: existing.id }).update({ sortOrder: order } as never);
+      } else {
+        await db.orm.public.ProductAddOn.create({
+          id: crypto.randomUUID(),
+          productId,
+          addOnId,
+          sortOrder: order,
+        } as never);
+        links++;
+      }
+      order++;
+    }
+  }
+  console.log(`  + ${links} new add-on links across the fleet`);
+}
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -506,23 +628,9 @@ async function main() {
     }
   }
 
-  // Review authors.
-  for (const user of REVIEW_USERS) {
-    const existing = await db.orm.public.User.select("id").where({ id: user.id }).first();
-    if (!existing) {
-      await db.orm.public.User.create({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: "USER",
-        emailVerified: true,
-      });
-      console.log(`+ User ${user.email}`);
-    }
-  }
-
   let created = 0;
-  let skipped = 0;
+  let updated = 0;
+  const carIds: Record<string, string> = {};
 
   for (const car of CARS) {
     const existing = await db.orm.public.Product.select("id").where({ slug: car.slug }).first();
@@ -540,41 +648,64 @@ async function main() {
       ...(car.electric ? [{ key: "electric", name: "Mobil Listrik" }] : []),
     ];
 
+    const rules = rulesFor(car);
+
+    // The complete descriptive payload — written on create AND on re-run so
+    // an existing car with empty lists gets topped up. Prices live on the
+    // packages, not here, so this never changes what a booking is charged.
+    const productData = {
+      lineId,
+      serviceTypeId: typeIds.get(car.typeSlug) ?? null,
+      title: car.title,
+      description: car.description,
+      vendor: car.vendor,
+      seats: car.seats,
+      transmission: car.transmission.toLowerCase(),
+      driverOption: car.driverOption,
+      pickupPolicy: "vendor_pickup",
+      specs,
+      included: rules.included,
+      notIncluded: rules.notIncluded,
+      requirements: rules.requirements,
+      tone: car.tone,
+      fromPriceUsdCents: car.netUsdCents * 2,
+      leadTimeHours: 2,
+      leadTimeDays: 0,
+      isAddOn: false,
+      active: true,
+    };
+
     if (existing) {
       productId = existing.id;
-      skipped++;
+      await db.orm.public.Product.where({ id: productId }).update(productData as never);
+      updated++;
+      console.log(`~ Product ${car.slug} (topped up)`);
     } else {
       productId = crypto.randomUUID();
-      await db.orm.public.Product.create({
-        id: productId,
-        slug: car.slug,
-        lineId,
-        serviceTypeId: typeIds.get(car.typeSlug) ?? null,
-        title: car.title,
-        description: car.description,
-        vendor: car.vendor,
-        seats: car.seats,
-        transmission: car.transmission.toLowerCase(),
-        driverOption: car.driverOption,
-        specs: specs as unknown as [],
-        tone: car.tone,
-        fromPriceUsdCents: car.netUsdCents * 2,
-        leadTimeHours: 2,
-        leadTimeDays: 0,
-        isAddOn: false,
-        active: true,
-      });
+      await db.orm.public.Product.create({ id: productId, slug: car.slug, ...productData } as never);
       created++;
       console.log(`+ Product ${car.slug}`);
     }
+    carIds[car.slug] = productId;
 
-    // Packages — inserted when the (product, label) pair is missing.
+    // Packages — insert when the (product, label) pair is missing; otherwise
+    // top up the descriptive fields but NEVER touch the price.
     for (const [index, pkg] of packagesFor(car).entries()) {
       const existingPkg = await db.orm.public.ProductPackage
         .select("id")
         .where({ productId, label: pkg.label })
         .first();
-      if (existingPkg) continue;
+      if (existingPkg) {
+        await db.orm.public.ProductPackage.where({ id: existingPkg.id }).update({
+          description: pkg.description,
+          info: pkg.info,
+          durationHours: pkg.durationHours,
+          extraHourUsdCents: pkg.extraHourUsdCents,
+          sortOrder: index,
+          active: true,
+        } as never);
+        continue;
+      }
       await db.orm.public.ProductPackage.create({
         id: crypto.randomUUID(),
         productId,
@@ -582,34 +713,18 @@ async function main() {
         unitKind: "per_day",
         unitUsdCents: pkg.unitUsdCents,
         fromUsdCents: pkg.fromUsdCents,
+        extraHourUsdCents: pkg.extraHourUsdCents,
         description: pkg.description,
-        info: pkg.info as unknown as [],
+        info: pkg.info,
         durationHours: pkg.durationHours,
         sortOrder: index,
         active: true,
-      });
+      } as never);
       console.log(`  + Package ${car.slug} / ${pkg.label}`);
     }
 
-    // Reviews — deterministic ids keep re-runs idempotent.
-    for (const [index, review] of car.reviews.entries()) {
-      const id = `seed-transport-review-${car.slug}-${index}`;
-      const existingReview = await db.orm.public.Review.select("id").where({ id }).first();
-      if (existingReview) continue;
-      const user = REVIEW_USERS[review.user - 1]!;
-      await db.orm.public.Review.create({
-        id,
-        userId: user.id,
-        subjectType: "product",
-        subjectId: productId,
-        rating: review.rating,
-        body: review.body,
-        createdAt: new Date(Date.now() - (index + 1) * 86_400_000 * 3),
-      });
-      console.log(`  + Review ${car.slug} #${index + 1}`);
-    }
-
-    // Keep the rating summary in sync with the stored reviews.
+    // Rating summary — recomputed from the real reviews that exist. Reviews
+    // are not seeded, so with none present this clears rating to null / 0.
     const reviewRows = await db.orm.public.Review
       .select("rating")
       .where({ subjectType: "product", subjectId: productId })
@@ -625,7 +740,7 @@ async function main() {
 
     // Photo + Media row (skipped when the network is unavailable).
     const mediaId = `seed-transport-media-${car.slug}`;
-    const existingMedia = await db.orm.public.Media.select("id").where({ id: mediaId }).first();
+    let existingMedia = await db.orm.public.Media.select("id", "credit").where({ id: mediaId }).first();
     if (!existingMedia) {
       const photo = await fetchPhoto(car);
       if (photo) {
@@ -642,16 +757,27 @@ async function main() {
         });
         await db.orm.public.Product
           .where({ id: productId })
-          .update({ imageUrl: photo.url } as never);
+          .update({ imageUrl: photo.url, imageCredit: photo.credit } as never);
         console.log(`  + Photo ${car.slug}`);
       } else {
         console.log(`  · Photo skipped (offline?) ${car.slug}`);
       }
       await pause(800);
+      existingMedia = await db.orm.public.Media.select("id", "credit").where({ id: mediaId }).first();
+    }
+
+    // Backfill the product-level photo credit from the media row when missing.
+    if (existingMedia?.credit) {
+      await db.orm.public.Product
+        .where({ id: productId })
+        .update({ imageCredit: existingMedia.credit } as never);
     }
   }
 
-  console.log(`\nTransport seed done: ${created} created, ${skipped} already present.`);
+  // Optional accessories for the wizard "Additional Services" step.
+  await seedRentalAddOns(lineId, carIds);
+
+  console.log(`\nTransport seed done: ${created} created, ${updated} topped up (no reviews).`);
   process.exit(0);
 }
 

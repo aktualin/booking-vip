@@ -36,6 +36,13 @@ export default function GoogleButton({
       // header swaps to the account menu without a page reload.
       await signInUserWithGoogle(idToken);
     } catch (err) {
+      // A successful sign-in ends in a server-side redirect, which rejects
+      // the action promise with a NEXT_REDIRECT digest. That is navigation,
+      // not a failure — let the router carry on without flashing an error.
+      const digest = (err as { digest?: string })?.digest;
+      if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+        return;
+      }
       const code = (err as { code?: string })?.code;
       if (code !== "auth/popup-closed-by-user") {
         setError("Gagal masuk dengan Google. Coba lagi.");

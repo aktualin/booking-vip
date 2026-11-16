@@ -1,16 +1,24 @@
 "use client";
 
+// The wizard's PAYMENT step — everything payment happens here (per the
+// product decision): promo/voucher, the payment method and, for cards, the
+// card form embedded on OUR page (Host-to-Host). One "Bayar" button creates
+// the booking (once) and starts the payment.
+
 import { useEffect, useState } from "react";
 import { getPaymentMethods } from "@/app/actions/catalog";
 import { validatePromoCode } from "@/app/actions/booking";
 import { listMyVouchers, type VoucherDTO } from "@/app/actions/loyalty";
 import { useAccountOverview } from "@/components/providers/AccountProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
-
-type PaymentMethodDTO = {
-  code: string;
-  label: string;
-};
+import DokuCardForm, {
+  EMPTY_CARD_FIELDS,
+  parseCardFields,
+  type CardFields,
+} from "@/components/payment/DokuCardForm";
+import PaymentMethodPicker, {
+  type PaymentMethodOption,
+} from "@/components/payment/PaymentMethodPicker";
 
 /** The promo/voucher currently applied to the booking (validated server-side). */
 export type AppliedPromo = {
@@ -19,8 +27,19 @@ export type AppliedPromo = {
   discountUsdCents: number;
 };
 
+/** The parsed card fields handed to the wizard's submit handler. */
+export type CardSubmit = {
+  cardNumber: string;
+  cardExpiry: string;
+  cardCvv: string;
+};
+
 type Props = {
-  onSubmit: (promoCode?: string) => void;
+  /**
+   * Pay: the chosen method and, for cards, the parsed card fields. The
+   * wizard creates the booking (once) and starts the DOKU payment.
+   */
+  onSubmit: (method: "CREDIT_CARD" | "QRIS", card?: CardSubmit) => void;
   onBack: () => void;
   isSubmitting: boolean;
   error: string | null;
@@ -43,8 +62,12 @@ export default function StepPayment({
   const { t, formatMoney } = useLocale();
   const { overview } = useAccountOverview();
 
-  const [methods, setMethods] = useState<PaymentMethodDTO[]>([]);
+  const [methods, setMethods] = useState<PaymentMethodOption[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [selected, setSelected] = useState("");
+
+  const [card, setCard] = useState<CardFields>(EMPTY_CARD_FIELDS);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -57,6 +80,7 @@ export default function StepPayment({
     getPaymentMethods().then((m) => {
       setMethods(m);
       setLoaded(true);
+      if (m.length > 0) setSelected(m[0].code);
     });
   }, []);
 
@@ -75,8 +99,6 @@ export default function StepPayment({
       ),
     );
   }, [overview]);
-
-  const hasMethods = methods.length > 0;
 
   /** Check a code server-side — the discount only applies once it is valid. */
   const checkCode = async (code: string) => {
@@ -112,6 +134,27 @@ export default function StepPayment({
     void checkCode(code);
   };
 
+  const pay = () => {
+    if (!selected || isSubmitting) return;
+
+    if (selected === "CREDIT_CARD") {
+      const parsed = parseCardFields(card);
+      if (!parsed.ok) {
+        setCardError(parsed.error);
+        return;
+      }
+      setCardError(null);
+      onSubmit("CREDIT_CARD", {
+        cardNumber: parsed.cardNumber,
+        cardExpiry: parsed.cardExpiry,
+        cardCvv: parsed.cardCvv,
+      });
+      return;
+    }
+
+    onSubmit("QRIS");
+  };
+
   // Points this booking will earn once paid (1 point per whole dollar of
   // the discounted total — the same rule the server applies).
   const earnPreview = Math.max(
@@ -119,64 +162,63 @@ export default function StepPayment({
     Math.floor((subtotalUsdCents - (appliedPromo?.discountUsdCents ?? 0)) / 100),
   );
 
+  // The card form's amount strip: the discounted estimate. The server
+  // recomputes the charge amount from the booking total.
+  const totalAfterDiscountUsdCents = Math.max(
+    0,
+    subtotalUsdCents - (appliedPromo?.discountUsdCents ?? 0),
+  );
+
   return (
     <div>
       <h2 className="mb-4 text-xl font-bold text-ink">{t("wizard.payment.title")}</h2>
-
-      {loaded && !hasMethods ? (
-        <div className="mb-6 rounded-2xl border border-line bg-canvas p-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand">
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="2" y="5" width="20" height="14" rx="2" />
-                <path d="M2 10h20" />
-              </svg>
-            </div>
-          </div>
-          <p className="mb-2 text-base font-semibold text-ink">
-            {t("wizard.payment.setupTitle")}
-          </p>
-          <p className="text-sm text-muted">{t("wizard.payment.setupDesc")}</p>
-        </div>
-      ) : (
-        <div className="mb-6 rounded-2xl border border-line bg-white p-5">
-          <h3 className="mb-4 text-base font-bold text-ink">
-            {t("wizard.payment.selectMethod")}
-          </h3>
-          <div className="space-y-2">
-            {methods.map((m) => (
-              <label
-                key={m.code}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-line p-4 transition-colors hover:bg-canvas"
-              >
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  className="h-4 w-4 accent-brand"
-                />
-                <span className="text-sm font-semibold text-ink">
-                  {m.label}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
 
       {error && (
         <div className="mb-4 rounded-xl border border-danger/20 bg-danger/5 p-4 text-sm text-danger">
           {error}
         </div>
       )}
+
+      {/* Payment method + (for cards) the embedded card form */}
+      <div className="mb-6 rounded-2xl border border-line bg-white p-5">
+        <h3 className="mb-4 text-base font-bold text-ink">
+          {t("wizard.payment.selectMethod")}
+        </h3>
+        {!loaded ? (
+          <p className="text-sm text-muted">Memuat metode pembayaran…</p>
+        ) : methods.length === 0 ? (
+          <div className="rounded-2xl border border-line bg-canvas p-8 text-center">
+            <p className="mb-2 text-base font-semibold text-ink">
+              {t("wizard.payment.setupTitle")}
+            </p>
+            <p className="text-sm text-muted">{t("wizard.payment.setupDesc")}</p>
+          </div>
+        ) : (
+          <>
+            <PaymentMethodPicker
+              methods={methods}
+              selected={selected}
+              onSelect={(code) => {
+                setSelected(code);
+                setCardError(null);
+              }}
+              disabled={isSubmitting}
+            />
+            {selected === "CREDIT_CARD" ? (
+              <div className="mt-5 border-t border-line pt-5">
+                <DokuCardForm
+                  value={card}
+                  onChange={setCard}
+                  amountUsdCents={totalAfterDiscountUsdCents}
+                  formatMoney={formatMoney}
+                  disabled={isSubmitting}
+                  error={cardError}
+                />
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
 
       {/* Reward vouchers of the signed-in customer */}
       {vouchers.length > 0 ? (
@@ -291,19 +333,13 @@ export default function StepPayment({
           {t("wizard.payment.back")}
         </button>
         <button
-          onClick={() => onSubmit(appliedPromo?.code)}
-          disabled={isSubmitting}
+          onClick={pay}
+          disabled={!selected || isSubmitting || !loaded}
           className="rounded-xl bg-brand px-8 py-3 text-base font-bold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isSubmitting ? t("wizard.payment.processing") : t("wizard.payment.bookNow")}
+          {isSubmitting ? t("wizard.payment.processing") : "Bayar Sekarang"}
         </button>
       </div>
-
-      {!hasMethods && loaded && (
-        <p className="mt-4 text-center text-xs text-muted">
-          {t("wizard.payment.fullPayment")}
-        </p>
-      )}
     </div>
   );
 }

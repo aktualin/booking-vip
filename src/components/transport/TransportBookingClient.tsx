@@ -5,11 +5,8 @@ import Link from "next/link";
 import { createBooking } from "@/app/actions/booking";
 import PaymentStep from "@/components/payment/PaymentStep";
 import type { TransportVehicleDTO } from "@/app/actions/catalog";
-import type { PickedPoint } from "@/components/transport/LocationPicker";
 
 type Props = {
-  pickup: PickedPoint;
-  dropoff: PickedPoint;
   vehicles: TransportVehicleDTO[];
   /** The values that came from the search (the entry page). */
   initial?: {
@@ -40,15 +37,12 @@ const TIME_SLOTS = [
 ];
 
 /**
- * Step 2 of the transport flow — the booking form.
+ * The booking form of the transport flow.
  *
- * The route is already confirmed (it came from the map step), so this form
- * only asks for what is left: when, how many passengers, which vehicle and
- * how to reach the customer. No passenger data is stored.
+ * It asks for when, how many passengers, which vehicle and how to reach the
+ * customer. No passenger data is stored.
  */
 export default function TransportBookingClient({
-  pickup,
-  dropoff,
   vehicles,
   initial,
 }: Props) {
@@ -77,6 +71,10 @@ export default function TransportBookingClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
+  // The server computes the final total (incl. tax) and the invoice number —
+  // the payment step must show exactly what DOKU will charge.
+  const [serverTotalUsdCents, setServerTotalUsdCents] = useState<number | null>(null);
+  const [invoiceNumber, setInvoiceNumber] = useState<string | null>(null);
 
   const selected = useMemo(
     () => vehicles.find((v) => `${v.productSlug}::${v.packageId}` === vehicleSlug) ?? null,
@@ -151,8 +149,6 @@ export default function TransportBookingClient({
       },
       flight: {},
       travelers: [],
-      pickup: { label: pickup.label, lat: pickup.lat, lng: pickup.lng },
-      dropoff: { label: dropoff.label, lat: dropoff.lat, lng: dropoff.lng },
       currencyCode: "USD",
       fxRate: 1,
     });
@@ -161,6 +157,8 @@ export default function TransportBookingClient({
 
     if (result.ok) {
       setCode(result.code);
+      setServerTotalUsdCents(result.totalUsdCents);
+      setInvoiceNumber(result.invoiceNumber);
     } else {
       setError(result.error);
     }
@@ -195,6 +193,11 @@ export default function TransportBookingClient({
         <p className="mt-5 rounded-xl border border-line bg-canvas px-4 py-3 font-mono text-[16px] font-bold tracking-[0.06em] text-ink">
           {code}
         </p>
+        {invoiceNumber ? (
+          <p className="mt-2 font-mono text-[12px] text-muted">
+            No. invoice: {invoiceNumber}
+          </p>
+        ) : null}
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <Link
@@ -202,6 +205,12 @@ export default function TransportBookingClient({
             className="inline-flex h-10 items-center justify-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-white transition-opacity hover:bg-brand-dark"
           >
             Lihat pesanan saya
+          </Link>
+          <Link
+            href={`/invoice/${code}`}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-line bg-white px-5 text-[13px] font-semibold text-ink transition-colors hover:bg-canvas"
+          >
+            Lihat invoice
           </Link>
           <Link
             href="/transport"
@@ -216,7 +225,7 @@ export default function TransportBookingClient({
         <PaymentStep
           bookingCode={code}
           email={email}
-          amountUsdCents={totalUsdCents}
+          amountUsdCents={serverTotalUsdCents ?? totalUsdCents}
         />
       </div>
     );
@@ -228,52 +237,6 @@ export default function TransportBookingClient({
   return (
     <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_340px]">
       <div className="space-y-6">
-        {/* Route summary */}
-        <section className="rounded-2xl border border-line bg-white p-5">
-          <h2 className="text-[15px] font-bold tracking-[-0.01em] text-ink">
-            Rute perjalanan
-          </h2>
-
-          <div className="mt-4 space-y-2">
-            <div className="flex items-start gap-3 rounded-xl border border-line bg-canvas/50 p-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] font-bold text-white">
-                A
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                  Pickup
-                </p>
-                <p className="mt-0.5 break-words text-[13px] text-ink">{pickup.label}</p>
-                <p className="mt-0.5 font-mono text-[11px] text-muted">
-                  {pickup.lat.toFixed(5)}, {pickup.lng.toFixed(5)}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-xl border border-line bg-canvas/50 p-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-danger text-[11px] font-bold text-white">
-                B
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                  Dropoff
-                </p>
-                <p className="mt-0.5 break-words text-[13px] text-ink">{dropoff.label}</p>
-                <p className="mt-0.5 font-mono text-[11px] text-muted">
-                  {dropoff.lat.toFixed(5)}, {dropoff.lng.toFixed(5)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <Link
-            href="/transport/pickup"
-            className="mt-3 inline-block text-[12px] font-medium text-brand transition-opacity hover:opacity-80"
-          >
-            Ubah lokasi
-          </Link>
-        </section>
-
         {/* When */}
         <section className="rounded-2xl border border-line bg-white p-5">
           <h2 className="text-[15px] font-bold tracking-[-0.01em] text-ink">
@@ -625,6 +588,9 @@ export default function TransportBookingClient({
               ${(totalUsdCents / 100).toFixed(2)}
             </span>
           </div>
+          <p className="mt-1 text-right text-[11px] text-muted">
+            belum termasuk pajak
+          </p>
 
           <button
             type="submit"

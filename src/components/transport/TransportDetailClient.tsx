@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import DOMPurify from "dompurify";
 import {
@@ -27,7 +27,6 @@ import type {
   TransportDetailDTO,
   TransportSpec,
 } from "@/app/actions/transport";
-import { stringifyPickedPoint, type PickedPoint } from "@/lib/picked-point";
 import TransportPackages from "./TransportPackages";
 
 export type TransportDetailSearch = {
@@ -37,10 +36,6 @@ export type TransportDetailSearch = {
   returnTime?: string;
   totalDays?: string;
   driverOption?: string;
-  from?: string;
-  to?: string;
-  pickup?: PickedPoint | null;
-  dropoff?: PickedPoint | null;
 };
 
 /** The icon of one spec, by its stable key. */
@@ -70,8 +65,8 @@ function SpecIcon({ specKey }: { specKey: string }) {
 
 /**
  * The vehicle detail — photo carousel, vendor card, sanitized description,
- * reviews, booking rules, the selectable rental packages and the sticky
- * total bar that carries the chosen package into the booking wizard.
+ * booking rules, the selectable rental packages and the sticky total bar
+ * that carries the chosen package into the booking wizard.
  */
 export default function TransportDetailClient({
   detail,
@@ -101,10 +96,6 @@ export default function TransportDetailClient({
     if (search.time) params.set("time", search.time);
     params.set("days", String(days));
     params.set("driverOption", search.driverOption ?? detail.driverOption);
-    if (search.from) params.set("from", search.from);
-    if (search.to) params.set("to", search.to);
-    if (search.pickup) params.set("pickup", stringifyPickedPoint(search.pickup));
-    if (search.dropoff) params.set("dropoff", stringifyPickedPoint(search.dropoff));
     return `/booking/${detail.slug}?${params.toString()}`;
   }, [selected, search, days, detail.slug, detail.driverOption]);
 
@@ -190,9 +181,6 @@ export default function TransportDetailClient({
             ) : null}
           </div>
         </section>
-
-        {/* Reviews */}
-        <ReviewSection detail={detail} />
 
         {/* Important notes */}
         <section>
@@ -341,130 +329,5 @@ function PhotoCarousel({
         </p>
       ) : null}
     </div>
-  );
-}
-
-/** The review summary + a scrollable carousel of review cards. */
-function ReviewSection({ detail }: { detail: TransportDetailDTO }) {
-  const { lang, t } = useLocale();
-  const scrollerRef = useRef<HTMLDivElement>(null);
-
-  const average =
-    detail.rating ??
-    (detail.reviews.length > 0
-      ? detail.reviews.reduce((sum, review) => sum + review.rating, 0) /
-        detail.reviews.length
-      : 0);
-  const rounded = Math.round(average * 10) / 10;
-
-  const ratingLabel =
-    rounded >= 4.5
-      ? t("transport.ratingExcellent")
-      : rounded >= 4
-        ? t("transport.ratingGood")
-        : rounded >= 3
-          ? t("transport.ratingOkay")
-          : t("transport.ratingLow");
-
-  const scroll = (direction: -1 | 1) => {
-    scrollerRef.current?.scrollBy({ left: direction * 340, behavior: "smooth" });
-  };
-
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString(lang === "id" ? "id-ID" : "en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-
-  return (
-    <section>
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-[20px] font-bold tracking-[-0.01em] text-ink">
-          {t("transport.reviewHeading")}
-        </h2>
-        <Link
-          href={`/transport/${detail.slug}/reviews`}
-          className="text-[13px] font-semibold text-brand hover:underline"
-        >
-          {t("transport.seeAll")}
-        </Link>
-      </div>
-
-      <div className="mt-4 flex items-end justify-between gap-4">
-        <div className="flex items-end gap-3">
-          <p className="text-[32px] font-extrabold leading-none tracking-[-0.02em] text-ink">
-            {rounded.toLocaleString(lang === "id" ? "id-ID" : "en-US", {
-              minimumFractionDigits: 1,
-              maximumFractionDigits: 1,
-            })}
-            <span className="text-[15px] font-semibold text-muted">/5</span>
-          </p>
-          <div className="pb-0.5">
-            <p className="text-[14px] font-bold text-ink">{ratingLabel}</p>
-            <p className="text-[12px] text-muted">
-              {t("transport.reviewCount", { n: detail.reviewCount })}
-            </p>
-          </div>
-        </div>
-        {detail.reviews.length > 0 ? (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              aria-label="Previous reviews"
-              onClick={() => scroll(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-white text-ink transition-colors hover:bg-canvas"
-            >
-              <ChevronLeft width={16} height={16} />
-            </button>
-            <button
-              type="button"
-              aria-label="Next reviews"
-              onClick={() => scroll(1)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-white text-ink transition-colors hover:bg-canvas"
-            >
-              <ChevronRight width={16} height={16} />
-            </button>
-          </div>
-        ) : null}
-      </div>
-
-      {detail.reviews.length === 0 ? (
-        <p className="mt-4 rounded-2xl border border-line bg-white p-6 text-center text-[13px] text-muted">
-          {t("transport.noReviews")}
-        </p>
-      ) : (
-        <div
-          ref={scrollerRef}
-          className="mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2"
-        >
-          {detail.reviews.map((review) => (
-            <article
-              key={review.id}
-              className="w-[300px] shrink-0 snap-start rounded-2xl border border-line bg-white p-5 shadow-sm"
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-[15px] font-extrabold text-ink">
-                  {review.rating.toLocaleString(lang === "id" ? "id-ID" : "en-US", {
-                    minimumFractionDigits: 1,
-                    maximumFractionDigits: 1,
-                  })}
-                  <span className="text-[11px] font-semibold text-muted">/5</span>
-                </p>
-                <p className="text-[11px] text-muted">{formatDate(review.createdAt)}</p>
-              </div>
-              <p className="mt-2 truncate text-[12px] text-muted">
-                <span className="font-bold text-ink">{review.initials}</span>
-                {" · "}
-                {review.author}
-              </p>
-              <p className="mt-3 line-clamp-3 text-[13px] leading-relaxed text-ink">
-                {review.body}
-              </p>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
   );
 }
