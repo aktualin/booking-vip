@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Bell,
   Boxes,
   Calendar,
   Car,
@@ -102,6 +103,7 @@ const settingsGroup: NavGroup = {
   icon: Settings,
   items: [
     { href: "/admin/settings/popup", label: "Popup Homepage", icon: FileText },
+    { href: "/admin/settings/notifications", label: "Notifikasi Order", icon: Bell },
     { href: "/admin/settings/tax", label: "Pajak", icon: Percent },
     { href: "/admin/settings/evoa-fields", label: "Form Dinamis e-VOA", icon: List },
     { href: "/admin/settings/cancellation", label: "Pembatalan Tour", icon: Ticket },

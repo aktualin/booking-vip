@@ -356,7 +356,7 @@ const loyaltyRewardsDefault = [
  * them. `loyalty.rewards` is created with defaults when missing, then left
  * to the operator.
  */
-const adminManagedSettingKeys = ["home.popup", "loyalty.rewards", "promo.campaigns"];
+const adminManagedSettingKeys = ["home.popup", "loyalty.rewards", "promo.campaigns", "orderNotifications"];
 
 export async function seedSettings(counts: SeedCounts) {
   // The rewards catalog: seed the defaults once, never overwrite an

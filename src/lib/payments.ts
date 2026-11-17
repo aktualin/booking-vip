@@ -23,6 +23,7 @@ import {
 } from "@/lib/paypal";
 import { sendBookingConfirmation } from "@/lib/notify";
 import { notifyEvoaStatusChange } from "@/lib/evoa-notify";
+import { notifyAdminOrderPaid } from "@/lib/order-notifications";
 
 /**
  * The payment service.
@@ -570,6 +571,9 @@ async function confirmPaidPayment(
   if (!alreadyPaid) {
     void notifyBookingConfirmed(bookingId).catch((error) => {
       console.error("[payments] confirmation notification failed", error);
+    });
+    void notifyAdminOrderPaid(bookingId).catch((error) => {
+      console.error("[payments] admin order notification failed", error);
     });
   }
 }
