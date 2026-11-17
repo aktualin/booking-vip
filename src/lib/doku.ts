@@ -507,6 +507,9 @@ export async function checkThreeDSecure(
       callback_url_success: input.successUrl,
       callback_url_failed: input.failureUrl,
     },
+    ...(notificationUrlOverride()
+      ? { additional_info: { override_notification_url: notificationUrlOverride() } }
+      : {}),
   };
 
   const payload = await dokuFetch<{
@@ -550,6 +553,9 @@ export async function chargeCard(input: {
     three_dsecure: { authentication_id: input.authenticationId },
     payment: { type: "SALE" },
     card: { cvv: input.cvv, save: false },
+    ...(notificationUrlOverride()
+      ? { additional_info: { override_notification_url: notificationUrlOverride() } }
+      : {}),
   };
 
   const payload = await dokuFetch<{
