@@ -100,28 +100,195 @@ model Review {
 }
 
 /// A visa application (the e-VOA service).
+/// An e-VOA service order: we apply for the visa on behalf of the customer.
+/// One order carries 1..5 applicants (VisaApplicant); travel plan and
+/// accommodation are shared by the group, documents and visas are per person.
 model VisaApplication {
   id             String   @id @default(uuid())
   /// A human readable application number.
   code           String   @unique
   userId         String?
   productId      String?
-  fullName       String
-  passportNumber String
-  nationality    String
-  dateOfBirth    DateTime
+  /// Legacy single-applicant fields — kept for old rows; new orders store
+  /// per-person data in VisaApplicant.
+  fullName       String?
+  passportNumber String?
+  nationality    String?
+  dateOfBirth    DateTime?
   arrivalDate    DateTime
+  /// Contact email of the pemesan (the account holder).
   email          String
   phone          String
-  /// "submitted" | "processing" | "approved" | "rejected"
+  /// "draft" | "awaiting_payment" | "paid" | "review" | "revision" |
+  /// "processing" | "issued" | "completed" | "rejected" | "refunded" |
+  /// "expired". Legacy rows may carry "submitted" | "approved".
   status         String   @default("submitted")
   note           String?
   totalUsdCents  Int      @default(0)
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  /// The VIP booking this VOA handling belongs to (internal eVOA flow).
+  bookingId      String?
+
+  /// Name of the pemesan (may differ from every applicant).
+  contactName    String?
+  /// "tourism" | "family_social" | "government" | "business_meeting" |
+  /// "goods_purchase" | "transit"
+  purpose        String?
+  flightNumber   String?
+  /// The immigration checkpoint (TPI) of arrival — an Airport row.
+  portOfEntryId  String?
+  /// Snapshot of the checkpoint name at submission time.
+  portOfEntryName String?
+  departureDate  DateTime?
+  departureFlightNumber String?
+  hotelName      String?
+  hotelAddress   String?
+  hotelCity      String?
+  hotelPostalCode String?
+  /// Answers to admin-defined order-level fields (EvoaFormField scope
+  /// "application") — { [fieldKey]: value }.
+  extraAnswers   Json     @default("{}")
+  /// The official portal transaction reference entered by ops.
+  officialTransactionRef String?
+  /// Order-level revision request note shown to the customer.
+  revisionNote   String?
+  paidAt         DateTime?
+  processingAt   DateTime?
+  completedAt    DateTime?
 
   user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  booking        Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  portOfEntry    Airport? @relation(fields: [portOfEntryId], references: [id], onDelete: SetNull)
+  applicants     VisaApplicant[]
+  documents      VisaDocument[]
+  events         EvoaStatusEvent[]
 
   @@index([userId])
+  @@index([bookingId])
+  @@index([status])
+}
+
+/// One person the e-VOA is applied for (1..5 per order).
+model VisaApplicant {
+  id             String   @id @default(uuid())
+  applicationId  String
+  sortOrder      Int      @default(0)
+  /// Full name exactly as printed in the passport.
+  fullName       String
+  /// "male" | "female"
+  gender         String
+  dateOfBirth    DateTime
+  placeOfBirth   String
+  /// Country code (Country.code) of the nationality.
+  nationality    String
+  passportNumber String
+  /// "ordinary" | "emergency" — emergency passports need 12 months validity.
+  passportType   String   @default("ordinary")
+  passportIssuingCountry String
+  passportIssueDate DateTime?
+  passportExpiryDate DateTime
+  /// Email the issued e-VOA is delivered to.
+  email          String
+  phone          String
+  /// Relationship to the pemesan: "self" | "family" | "client" | "other".
+  relation       String   @default("other")
+  /// Answers to admin-defined applicant-level fields — { [fieldKey]: value }.
+  extraAnswers   Json     @default("{}")
+  /// "pending" | "review" | "revision" | "processing" | "issued" | "rejected"
+  status         String   @default("pending")
+  visaNumber     String?
+  /// R2 key of the issued e-VOA PDF (private — served via /media with auth).
+  visaPdfKey     String?
+  issuedAt       DateTime?
+  visaExpiresAt  DateTime?
+  revisionNote   String?
+  createdAt      DateTime @default(now())
+
+  application    VisaApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  documents      VisaDocument[]
+  events         EvoaStatusEvent[]
+
+  @@unique([applicationId, passportNumber])
+  @@index([applicationId])
+}
+
+/// One uploaded file of an e-VOA order. Several rows may share a slot
+/// (multiple files per document kind). Order-level files have no applicant.
+model VisaDocument {
+  id            String   @id @default(uuid())
+  applicationId String
+  /// Null for order-level documents (e.g. a sponsor letter).
+  applicantId   String?
+  /// "passport" | "photo" | "ticket" | "hotel" | an EvoaFormField key.
+  slot          String
+  /// The object key inside the bucket (server-generated UUID).
+  key           String
+  url           String
+  fileName      String
+  mimeType      String
+  sizeBytes     Int
+  sortOrder     Int      @default(0)
+  /// "pending" | "ok" | "revision"
+  reviewStatus  String   @default("pending")
+  reviewNote    String?
+  createdAt     DateTime @default(now())
+
+  application   VisaApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicant     VisaApplicant?  @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([applicantId])
+  @@index([key])
+}
+
+/// An admin-defined extra form field rendered on top of the standard e-VOA
+/// form. Managed without a deploy from /admin/settings/evoa-fields.
+model EvoaFormField {
+  id            String   @id @default(uuid())
+  /// Stable machine key — also the document slot for "file" fields.
+  key           String   @unique
+  labelEn       String
+  labelId       String?
+  /// "text" | "textarea" | "number" | "date" | "select" | "checkbox" | "file"
+  type          String
+  /// "application" (once per order) | "applicant" (once per person).
+  scope         String   @default("applicant")
+  required        Boolean  @default(false)
+  /// Select options: [{ value, labelEn, labelId? }].
+  options       Json     @default("[]")
+  /// Conditional visibility: { field: "purpose" | "<fieldKey>", equals: "x" }.
+  /// Null = always visible.
+  showWhen      Json?
+  placeholderEn String?
+  placeholderId String?
+  helpEn        String?
+  helpId        String?
+  /// File fields: how many files may be uploaded (null = 1).
+  maxFiles      Int?
+  sortOrder     Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+/// Append-only audit trail of an e-VOA order (and optionally one applicant).
+model EvoaStatusEvent {
+  id            String   @id @default(uuid())
+  applicationId String
+  applicantId   String?
+  status        String
+  note          String?
+  /// "customer" | "admin" | "system"
+  actor         String   @default("system")
+  actorEmail    String?
+  createdAt     DateTime @default(now())
+
+  application   VisaApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicant     VisaApplicant?  @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([createdAt])
 }
 
 /// A promo code that cuts the price — either a fixed amount (USD cents) or a
@@ -246,6 +413,8 @@ model Airport {
   products    Product[]
   /// The tour products that use this place as their destination.
   destinations Product[] @relation("DestinationPlace")
+  /// The e-VOA orders arriving through this checkpoint (TPI).
+  visaApplications VisaApplication[]
 
   @@index([level])
   @@index([parentId])
@@ -276,10 +445,22 @@ model Product {
   transmission     String?
   /// How many passengers the vehicle carries.
   seats            Int?
+  /// How many units of this vehicle the vendor owns (rental stock). Available
+  /// stock is derived from active bookings.
+  stockTotal       Int       @default(1)
   /// "with_driver" | "without_driver"
   driverOption     String    @default("with_driver")
   /// "vendor_pickup" (free — pick up at the vendor) | "delivered" (extra fee).
   pickupPolicy     String?
+  /// Tour only: "private" (per vehicle, flexible date) | "join_in"
+  /// (per pax, scheduled departures with a seat quota). Null for non-tour lines.
+  tourKind         String?
+  /// Tour only: the number of days of an overnight package (0 = day tour).
+  durationDays     Int       @default(0)
+  /// Tour only: minimum paying passengers (adult + child) per booking.
+  minPax           Int       @default(1)
+  /// Tour only: maximum passengers per booking / unit (null = no limit).
+  maxPax           Int?
   /// The tour destination — a place row of kind "destination".
   destinationId    String?
   /// The day-by-day itinerary of a tour package.
@@ -326,6 +507,8 @@ model Product {
   amenities        ProductAmenity[]
   bookingItems     BookingItem[]
   bookingAddOns    BookingAddOn[]
+  /// The scheduled join-in departures of this tour product.
+  departures       TourDeparture[]
 
   @@index([lineId])
 }
@@ -414,6 +597,8 @@ model Booking {
   adultCount      Int       @default(1)
   childCount      Int       @default(0)
   infantCount     Int       @default(0)
+  /// How many units of the vehicle this booking reserves (transport rentals).
+  vehicleCount    Int       @default(1)
   subtotalUsdCents Int
   addOnsUsdCents  Int       @default(0)
   totalUsdCents   Int
@@ -421,6 +606,9 @@ model Booking {
   userId          String?
   /// The invoice number — `#INV/YYYY/MM/DD/4DIGIT/2RANDOM`.
   invoiceNumber   String?   @unique
+  /// Client-generated key deduping booking creation — a retry with the same
+  /// key returns the original booking.
+  idempotencyKey  String?   @unique
   /// The promo code that was applied.
   promoCode       String?
   /// The discount that was applied (USD cents).
@@ -438,10 +626,26 @@ model Booking {
   dropoffLng      Float?
   /// A free-form note from the customer (the "special request").
   notes           String?
+  /// Operational status of the VIP service — separate from the payment
+  /// `status`: "waiting_documents" | "processing" | "ready" | "in_service" | "done"
+  opsStatus       String    @default("waiting_documents")
+  /// The greeter assigned to meet the traveller at the airport.
+  greeterName     String?
+  greeterPhone    String?
+  /// Internal operator note about the service handling.
+  opsNote         String?
   /// "with_driver" | "without_driver"
   driverOption    String?
   /// "vendor_pickup" | "delivered"
   pickupPolicy    String?
+  /// Tour: the scheduled join-in departure this booking seats on.
+  departureId     String?
+  /// Tour: the driver assigned by the operator (roster).
+  driverId        String?
+  /// Tour: the vehicle assigned by the operator (roster).
+  vehicleId       String?
+  /// Tour: the hotel / pickup point name the customer typed.
+  hotelName       String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -451,10 +655,18 @@ model Booking {
   items           BookingItem[]
   addOns          BookingAddOn[]
   payments        Payment[]
+  visaApplications VisaApplication[]
   user            User?     @relation(fields: [userId], references: [id])
+  departure       TourDeparture? @relation(fields: [departureId], references: [id], onDelete: SetNull)
+  driver          Driver?        @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  vehicle         Vehicle?       @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([userId])
+  @@index([departureId])
+  @@index([driverId])
+  @@index([vehicleId])
+  @@index([status, serviceAt])
 }
 
 model BookingItem {
@@ -471,6 +683,8 @@ model BookingItem {
   infantCount   Int      @default(0)
   /// How many units were booked — the number of rental days for "per_day".
   quantity      Int      @default(1)
+  /// How many units of this vehicle this line reserves (transport rentals).
+  vehicleCount  Int      @default(1)
   unitUsdCents  Int
   totalUsdCents Int
   booking       Booking  @relation(fields: [bookingId], references: [id])
@@ -501,6 +715,9 @@ model Contact {
   phoneCountryCode String
   phone           String
   isGuestSelf     Boolean @default(true)
+  /// The traveller's country of origin (name from the `Country` table) —
+  /// drives which paperwork the greeter prepares (e.g. Visa on Arrival).
+  nationality     String?
   notes           String?
   /// Renter identity number: NIK / SSN / passport number.
   identityNumber  String?
@@ -520,6 +737,21 @@ model Traveler {
   /// "adult" | "child" | "infant"
   kind      String
   sortOrder Int
+  /// Passport number, as printed in the travel document.
+  passportNumber String?
+  /// Nationality (country name from the `Country` table).
+  nationality    String?
+  dateOfBirth    DateTime?
+  /// Must be at least 6 months after the service date (immigration rule).
+  passportExpiry DateTime?
+  /// PRIVATE R2 object key of the passport photo — never a public URL;
+  /// the admin reads it through a signed URL.
+  passportPhotoKey String?
+  /// Document handling status:
+  /// "pending" | "received" | "processing" | "ready" | "issue"
+  docStatus String @default("pending")
+  /// Operator note about this traveller's documents.
+  docNote   String?
   booking   Booking @relation(fields: [bookingId], references: [id])
 }
 
@@ -534,6 +766,71 @@ model FlightDetails {
   /// "arrival" | "departure"
   direction    String?
   booking      Booking @relation(fields: [bookingId], references: [id])
+}
+
+/// A scheduled join-in tour departure.
+///
+/// Seats are derived — never stored — from the bookings that actively
+/// reserve them (the same pattern as the transport rental stock):
+///   - every "confirmed" booking reserves its adult + child count, always;
+///   - an "awaiting_payment" booking reserves for 24 hours after creation,
+///     then lazily expires (no cron);
+///   - "completed" and "cancelled" bookings reserve nothing.
+/// Infants do not occupy a seat.
+model TourDeparture {
+  id        String   @id @default(uuid())
+  productId String
+  /// The calendar date of the departure (stored at midnight).
+  date      DateTime
+  /// Local start time, "HH:MM" (e.g. "08:00").
+  startTime String   @default("08:00")
+  /// Total seats sold on this departure.
+  quota     Int      @default(10)
+  /// "open" | "closed" | "cancelled"
+  status    String   @default("open")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([productId, date])
+}
+
+/// A tour driver / guide — the operator roster.
+model Driver {
+  id        String   @id @default(uuid())
+  name      String
+  /// WhatsApp number in international format, e.g. "6281234567890".
+  phone     String
+  /// Languages spoken — free form, e.g. "EN, ID".
+  languages String?
+  photoUrl  String?
+  notes     String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[]
+}
+
+/// A tour vehicle — the operator roster.
+model Vehicle {
+  id          String   @id @default(uuid())
+  /// e.g. "Toyota Innova Reborn".
+  name        String
+  plateNumber String?
+  seats       Int      @default(6)
+  photoUrl    String?
+  notes       String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bookings Booking[]
 }
 
 model PaymentMethod {
@@ -629,6 +926,9 @@ model Country {
   name     String
   dialCode String
   active   Boolean @default(true)
+  /// Whether citizens of this country may get an Indonesian Visa on Arrival —
+  /// the VIP wizard uses it to tell the traveller which paperwork we handle.
+  voaEligible Boolean @default(true)
 }
 
 /// A file stored in Cloudflare R2 (S3-compatible object storage).

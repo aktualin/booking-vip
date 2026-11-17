@@ -7,12 +7,15 @@ import {
   type PlaceKind,
   type PlaceNode,
 } from "@/lib/places";
+import { getAvailableStock } from "@/lib/stock";
+import { listTourDepartures } from "@/lib/tour";
 import type {
   CatalogDTO,
   OptionDTO,
   ProductCardDTO,
   ProductDetailDTO,
 } from "@/types";
+import type { TourDepartureDTO, TourItineraryDay } from "@/types/tour";
 
 /** Map a service line slug to the DB ServiceLine record. */
 async function getLineBySlug(lineSlug: string) {
@@ -65,6 +68,7 @@ export async function getCatalog(lineSlug: string): Promise<CatalogDTO | null> {
     // Fetch all products for this line (active, non-addon)
     const products = await db.orm.public.Product
       .select(
+        "id",
         "slug",
         "title",
         "titleId",
@@ -87,9 +91,17 @@ export async function getCatalog(lineSlug: string): Promise<CatalogDTO | null> {
       .where((f) => f.isAddOn.eq(false))
       .all();
 
+    // The transport line hides cars with no available stock — in every
+    // listing, including the home carousel. Other lines are unaffected.
+    let visibleProducts = products;
+    if (line.slug === "transport") {
+      const stock = await getAvailableStock(products.map((p) => p.id));
+      visibleProducts = products.filter((p) => (stock.get(p.id) ?? 0) > 0);
+    }
+
     // Collect unique service type IDs and airport IDs
-    const serviceTypeIds = [...new Set(products.map((p) => p.serviceTypeId).filter((x): x is string => x != null))];
-    const airportIds = [...new Set(products.map((p) => p.airportId).filter((x): x is string => x != null))];
+    const serviceTypeIds = [...new Set(visibleProducts.map((p) => p.serviceTypeId).filter((x): x is string => x != null))];
+    const airportIds = [...new Set(visibleProducts.map((p) => p.airportId).filter((x): x is string => x != null))];
 
     // Fetch service type names (EN + the optional ID variant)
     const serviceTypeMap = new Map<string, { name: string; nameId: string | null }>();
@@ -126,7 +138,7 @@ export async function getCatalog(lineSlug: string): Promise<CatalogDTO | null> {
 
     // Map products to DTOs. The *Id fields carry the Indonesian variants;
     // the client picks them via pickLang and falls back to EN when null.
-    const productDTOs: ProductCardDTO[] = products.map((p) => ({
+    const productDTOs: ProductCardDTO[] = visibleProducts.map((p) => ({
       slug: p.slug,
       title: p.title,
       titleId: p.titleId,
@@ -198,7 +210,18 @@ export async function getProduct(slug: string): Promise<ProductDetailDTO | null>
         "fromPriceUsdCents",
         "serviceTypeId",
         "airportId",
-        "isAddOn"
+        "isAddOn",
+        "durationLabel",
+        "durationLabelId",
+        "imageUrl",
+        "rating",
+        "reviews",
+        "tourKind",
+        "minPax",
+        "maxPax",
+        "durationDays",
+        "destinationId",
+        "itinerary"
       )
       .where((f) => f.slug.eq(slug))
       .where((f) => f.active.eq(true))
@@ -241,6 +264,20 @@ export async function getProduct(slug: string): Promise<ProductDetailDTO | null>
       placeLabelId = airports[0]?.cityId ?? airports[0]?.nameId ?? null;
     }
 
+    // Get the tour destination name (EN + the optional ID variant)
+    let destinationLabel = "";
+    let destinationLabelId: string | null = null;
+    const destinationId = product.destinationId;
+    if (destinationId != null) {
+      const destinations = await db.orm.public.Airport
+        .select("name", "nameId")
+        .where((f) => f.id.eq(destinationId))
+        .limit(1)
+        .all();
+      destinationLabel = destinations[0]?.name ?? "";
+      destinationLabelId = destinations[0]?.nameId ?? null;
+    }
+
     // Get packages (active, sorted)
     const packages = await db.orm.public.ProductPackage
       .select(
@@ -253,7 +290,10 @@ export async function getProduct(slug: string): Promise<ProductDetailDTO | null>
         "infantUsdCents",
         "unitUsdCents",
         "durationHours",
-        "extraHourUsdCents"
+        "extraHourUsdCents",
+        "description",
+        "descriptionId",
+        "fromUsdCents"
       )
       .where((f) => f.productId.eq(product.id))
       .where((f) => f.active.eq(true))
@@ -314,12 +354,27 @@ export async function getProduct(slug: string): Promise<ProductDetailDTO | null>
         unitUsd: centsToUsd(p.unitUsdCents),
         durationHours: p.durationHours ?? undefined,
         extraHourUsd: centsToUsd(p.extraHourUsdCents),
+        description: p.description,
+        descriptionId: p.descriptionId,
+        fromUsd: centsToUsd(p.fromUsdCents),
       })),
       addOns,
       tone: product.tone,
       ribbon: product.ribbon ?? undefined,
       ribbonId: product.ribbonId,
       fromUsd: centsToUsd(product.fromPriceUsdCents) ?? 0,
+      itinerary: (product.itinerary as TourItineraryDay[] | null) ?? [],
+      tourKind: product.tourKind,
+      minPax: product.minPax ?? 1,
+      maxPax: product.maxPax ?? null,
+      durationDays: product.durationDays ?? 0,
+      durationLabel: product.durationLabel,
+      durationLabelId: product.durationLabelId,
+      destinationLabel,
+      destinationLabelId,
+      imageUrl: product.imageUrl,
+      rating: product.rating ?? undefined,
+      reviews: product.reviews ?? undefined,
     };
   } catch (error) {
     console.error("[catalog] could not load product", error);
@@ -467,6 +522,10 @@ export type TransportVehicleDTO = {
   parentSlug: string | null;
   /** The name of the parent type ("Sedan", "Hourly Hire", …). */
   parentName: string | null;
+  /** How many units of this vehicle the vendor owns (rental stock). */
+  stockTotal: number;
+  /** Units still bookable right now (stockTotal minus active reservations). */
+  availableStock: number;
 };
 
 /**
@@ -487,7 +546,7 @@ export async function getTransportVehicles(): Promise<TransportVehicleDTO[]> {
     if (!line) return [];
 
     const products = await db.orm.public.Product
-      .select("id", "slug", "title", "description", "imageUrl", "tone", "serviceTypeId")
+      .select("id", "slug", "title", "description", "imageUrl", "tone", "serviceTypeId", "stockTotal")
       .where((f) => f.lineId.eq(line.id))
       .where((f) => f.active.eq(true))
       .where((f) => f.isAddOn.eq(false))
@@ -498,9 +557,16 @@ export async function getTransportVehicles(): Promise<TransportVehicleDTO[]> {
       products.map((p) => p.serviceTypeId),
     );
 
+    // One stock lookup for the whole fleet — cars with no available unit
+    // are hidden from every transport listing.
+    const stock = await getAvailableStock(products.map((p) => p.id));
+
     const vehicles: TransportVehicleDTO[] = [];
 
     for (const product of products) {
+      const availableStock = stock.get(product.id) ?? 0;
+      if (availableStock <= 0) continue;
+
       const packages = await db.orm.public.ProductPackage
         .select("id", "label", "unitKind", "unitUsdCents", "adultUsdCents")
         .where((f) => f.productId.eq(product.id))
@@ -525,6 +591,8 @@ export async function getTransportVehicles(): Promise<TransportVehicleDTO[]> {
           unitUsdCents: pkg.unitUsdCents ?? pkg.adultUsdCents ?? 0,
           parentSlug: parent?.slug ?? null,
           parentName: parent?.name ?? null,
+          stockTotal: product.stockTotal,
+          availableStock,
         });
       }
     }
@@ -608,21 +676,44 @@ function groupByParent<
 }
 
 export type TourPackageDTO = {
+  productId: string;
   productSlug: string;
   title: string;
+  /** Indonesian title — resolved on the client, EN when absent. */
+  titleId: string | null;
   description: string | null;
+  descriptionId: string | null;
   imageUrl: string | null;
   tone: string | null;
   durationLabel: string | null;
+  durationLabelId: string | null;
   packageId: string;
   packageLabel: string;
+  packageLabelId: string | null;
   unitKind: string;
   adultUsdCents: number;
   childUsdCents: number;
   infantUsdCents: number;
+  /** The price of one unit in USD cents (per_unit packages). */
+  unitUsdCents: number;
+  /** The included duration of the package in hours, when set. */
+  durationHours: number | null;
+  /** The overtime rate per extra hour in USD cents, when set. */
+  extraHourUsdCents: number | null;
   /** The minimum lead time of the product (days / hours). */
   leadTimeDays: number;
   leadTimeHours: number;
+  /** "private" | "join_in" — null when the product has no tour kind. */
+  tourKind: string | null;
+  /** The minimum party size (adults + children). */
+  minPax: number;
+  /** The maximum party size — null when unlimited. */
+  maxPax: number | null;
+  /** 0 = day tour, otherwise the number of days. */
+  durationDays: number;
+  /** The tour destination (an Airport place), EN + the ID variant. */
+  destinationName: string | null;
+  destinationNameId: string | null;
   /** The slug of the parent type (the destination, e.g. "bali"). */
   parentSlug: string | null;
   /** The name of the parent type (the destination, e.g. "Bali"). */
@@ -653,7 +744,26 @@ export async function getTourPackages(): Promise<TourPackageDTO[]> {
     if (!line) return [];
 
     const products = await db.orm.public.Product
-      .select("id", "slug", "title", "description", "imageUrl", "tone", "durationLabel", "leadTimeDays", "leadTimeHours", "serviceTypeId")
+      .select(
+        "id",
+        "slug",
+        "title",
+        "titleId",
+        "description",
+        "descriptionId",
+        "imageUrl",
+        "tone",
+        "durationLabel",
+        "durationLabelId",
+        "leadTimeDays",
+        "leadTimeHours",
+        "serviceTypeId",
+        "tourKind",
+        "minPax",
+        "maxPax",
+        "durationDays",
+        "destinationId"
+      )
       .where((f) => f.lineId.eq(line.id))
       .where((f) => f.active.eq(true))
       .where((f) => f.isAddOn.eq(false))
@@ -666,16 +776,37 @@ export async function getTourPackages(): Promise<TourPackageDTO[]> {
       products.map((p) => p.serviceTypeId),
     );
 
+    // Batch-load the tour destinations (Airport places) — one query for the
+    // whole list, no per-product lookups.
+    const destinationIds = [
+      ...new Set(
+        products.map((p) => p.destinationId).filter((x): x is string => x != null),
+      ),
+    ];
+    const destinationMap = new Map<string, { name: string; nameId: string | null }>();
+    if (destinationIds.length > 0) {
+      const places = await db.orm.public.Airport
+        .select("id", "name", "nameId")
+        .where((f) => f.id.in(destinationIds))
+        .all();
+      for (const place of places) {
+        destinationMap.set(place.id, { name: place.name, nameId: place.nameId });
+      }
+    }
+
     for (const product of products) {
       const packages = await db.orm.public.ProductPackage
         .select(
           "id",
           "label",
+          "labelId",
           "unitKind",
           "adultUsdCents",
           "childUsdCents",
           "infantUsdCents",
           "unitUsdCents",
+          "durationHours",
+          "extraHourUsdCents",
         )
         .where((f) => f.productId.eq(product.id))
         .where((f) => f.active.eq(true))
@@ -685,17 +816,25 @@ export async function getTourPackages(): Promise<TourPackageDTO[]> {
       const parent = product.serviceTypeId
         ? typeMap.get(product.serviceTypeId)
         : undefined;
+      const destination = product.destinationId
+        ? destinationMap.get(product.destinationId)
+        : undefined;
 
       for (const pkg of packages) {
         tours.push({
+          productId: product.id,
           productSlug: product.slug,
           title: product.title,
+          titleId: product.titleId,
           description: product.description ?? null,
+          descriptionId: product.descriptionId,
           imageUrl: product.imageUrl ?? null,
           tone: product.tone ?? null,
           durationLabel: product.durationLabel ?? null,
+          durationLabelId: product.durationLabelId,
           packageId: pkg.id,
           packageLabel: pkg.label,
+          packageLabelId: pkg.labelId,
           unitKind: pkg.unitKind,
           adultUsdCents:
             pkg.unitKind === "per_pax"
@@ -705,8 +844,17 @@ export async function getTourPackages(): Promise<TourPackageDTO[]> {
             pkg.unitKind === "per_pax" ? (pkg.childUsdCents ?? 0) : 0,
           infantUsdCents:
             pkg.unitKind === "per_pax" ? (pkg.infantUsdCents ?? 0) : 0,
+          unitUsdCents: pkg.unitUsdCents ?? 0,
+          durationHours: pkg.durationHours ?? null,
+          extraHourUsdCents: pkg.extraHourUsdCents ?? null,
           leadTimeDays: product.leadTimeDays ?? 0,
           leadTimeHours: product.leadTimeHours ?? 0,
+          tourKind: product.tourKind,
+          minPax: product.minPax ?? 1,
+          maxPax: product.maxPax ?? null,
+          durationDays: product.durationDays ?? 0,
+          destinationName: destination?.name ?? null,
+          destinationNameId: destination?.nameId ?? null,
           parentSlug: parent?.slug ?? null,
           parentName: parent?.name ?? null,
         });
@@ -729,6 +877,23 @@ export async function getTourPackages(): Promise<TourPackageDTO[]> {
 export async function getTourPackageGroups(): Promise<TourPackageGroupDTO[]> {
   const tours = await getTourPackages();
   return groupByParent(tours, "Lainnya");
+}
+
+/**
+ * The future open departures of a join-in tour, with seat availability.
+ *
+ * Seats are derived from the active bookings (see `src/lib/tour.ts`).
+ * Returns an empty array on error.
+ */
+export async function getTourDepartures(
+  productId: string,
+): Promise<TourDepartureDTO[]> {
+  try {
+    return await listTourDepartures(productId);
+  } catch (error) {
+    console.error("[catalog] could not load tour departures", error);
+    return [];
+  }
 }
 
 /**

@@ -78,6 +78,7 @@ async function PackageStep({
     children: params.children,
     infants: params.infants,
     type: params.type,
+    kind: params.kind,
   };
 
   return <TourPackageListClient groups={groups} search={search} />;

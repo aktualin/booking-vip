@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'19a031fdfd1890b629fc6b9006eec08cff45605b6b0cb25ee51752afe1e647aa'>;
+  StorageHashBase<'9299c5d71e5fec1f5b346e9c181e082ada1eea6d45b029789216886be3ddb890'>;
 export type ExecutionHash =
-  ExecutionHashBase<'37dc325c044f5ae026e2b6c95565a2057a3c07138a86b4e9ebba9b0801e2a195'>;
+  ExecutionHashBase<'bc9704dab0d00521de93b81408bbe68ea074de4cb79de8162426e37286778e17'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -335,7 +335,9 @@ export namespace Models {
     destinations: public_Product[];
     parent: public_Airport | null;
     products: public_Product[];
-    readonly [RelationKeys]?: 'children' | 'destinations' | 'parent' | 'products';
+    visaApplications: public_VisaApplication[];
+    readonly [RelationKeys]?:
+      'children' | 'destinations' | 'parent' | 'products' | 'visaApplications';
   };
   export type public_Amenity = {
     id: FieldOutputTypes['public']['Amenity']['id'];
@@ -383,15 +385,23 @@ export namespace Models {
     childCount: FieldOutputTypes['public']['Booking']['childCount'];
     code: FieldOutputTypes['public']['Booking']['code'];
     createdAt: FieldOutputTypes['public']['Booking']['createdAt'];
+    departureId: FieldOutputTypes['public']['Booking']['departureId'];
     discountUsdCents: FieldOutputTypes['public']['Booking']['discountUsdCents'];
+    driverId: FieldOutputTypes['public']['Booking']['driverId'];
     driverOption: FieldOutputTypes['public']['Booking']['driverOption'];
     dropoffLabel: FieldOutputTypes['public']['Booking']['dropoffLabel'];
     dropoffLat: FieldOutputTypes['public']['Booking']['dropoffLat'];
     dropoffLng: FieldOutputTypes['public']['Booking']['dropoffLng'];
+    greeterName: FieldOutputTypes['public']['Booking']['greeterName'];
+    greeterPhone: FieldOutputTypes['public']['Booking']['greeterPhone'];
+    hotelName: FieldOutputTypes['public']['Booking']['hotelName'];
     id: FieldOutputTypes['public']['Booking']['id'];
+    idempotencyKey: FieldOutputTypes['public']['Booking']['idempotencyKey'];
     infantCount: FieldOutputTypes['public']['Booking']['infantCount'];
     invoiceNumber: FieldOutputTypes['public']['Booking']['invoiceNumber'];
     notes: FieldOutputTypes['public']['Booking']['notes'];
+    opsNote: FieldOutputTypes['public']['Booking']['opsNote'];
+    opsStatus: FieldOutputTypes['public']['Booking']['opsStatus'];
     pickupLabel: FieldOutputTypes['public']['Booking']['pickupLabel'];
     pickupLat: FieldOutputTypes['public']['Booking']['pickupLat'];
     pickupLng: FieldOutputTypes['public']['Booking']['pickupLng'];
@@ -405,15 +415,31 @@ export namespace Models {
     totalUsdCents: FieldOutputTypes['public']['Booking']['totalUsdCents'];
     updatedAt: FieldOutputTypes['public']['Booking']['updatedAt'];
     userId: FieldOutputTypes['public']['Booking']['userId'];
+    vehicleCount: FieldOutputTypes['public']['Booking']['vehicleCount'];
+    vehicleId: FieldOutputTypes['public']['Booking']['vehicleId'];
     addOns: public_BookingAddOn[];
     contact: public_Contact | null;
+    departure: public_TourDeparture | null;
+    driver: public_Driver | null;
     flight: public_FlightDetails | null;
     items: public_BookingItem[];
     payments: public_Payment[];
     travelers: public_Traveler[];
     user: public_User | null;
+    vehicle: public_Vehicle | null;
+    visaApplications: public_VisaApplication[];
     readonly [RelationKeys]?:
-      'addOns' | 'contact' | 'flight' | 'items' | 'payments' | 'travelers' | 'user';
+      | 'addOns'
+      | 'contact'
+      | 'departure'
+      | 'driver'
+      | 'flight'
+      | 'items'
+      | 'payments'
+      | 'travelers'
+      | 'user'
+      | 'vehicle'
+      | 'visaApplications';
   };
   export type public_BookingAddOn = {
     addOnProductId: FieldOutputTypes['public']['BookingAddOn']['addOnProductId'];
@@ -441,6 +467,7 @@ export namespace Models {
     totalUsdCents: FieldOutputTypes['public']['BookingItem']['totalUsdCents'];
     unitKind: FieldOutputTypes['public']['BookingItem']['unitKind'];
     unitUsdCents: FieldOutputTypes['public']['BookingItem']['unitUsdCents'];
+    vehicleCount: FieldOutputTypes['public']['BookingItem']['vehicleCount'];
     booking: public_Booking;
     package: public_ProductPackage | null;
     product: public_Product;
@@ -456,6 +483,7 @@ export namespace Models {
     identityNumber: FieldOutputTypes['public']['Contact']['identityNumber'];
     isGuestSelf: FieldOutputTypes['public']['Contact']['isGuestSelf'];
     lastName: FieldOutputTypes['public']['Contact']['lastName'];
+    nationality: FieldOutputTypes['public']['Contact']['nationality'];
     notes: FieldOutputTypes['public']['Contact']['notes'];
     phone: FieldOutputTypes['public']['Contact']['phone'];
     phoneCountryCode: FieldOutputTypes['public']['Contact']['phoneCountryCode'];
@@ -470,6 +498,7 @@ export namespace Models {
     dialCode: FieldOutputTypes['public']['Country']['dialCode'];
     id: FieldOutputTypes['public']['Country']['id'];
     name: FieldOutputTypes['public']['Country']['name'];
+    voaEligible: FieldOutputTypes['public']['Country']['voaEligible'];
     readonly [RelationKeys]?: never;
   };
   export type public_Destination = {
@@ -485,6 +514,54 @@ export namespace Models {
     sortOrder: FieldOutputTypes['public']['Destination']['sortOrder'];
     tone: FieldOutputTypes['public']['Destination']['tone'];
     readonly [RelationKeys]?: never;
+  };
+  export type public_Driver = {
+    active: FieldOutputTypes['public']['Driver']['active'];
+    createdAt: FieldOutputTypes['public']['Driver']['createdAt'];
+    id: FieldOutputTypes['public']['Driver']['id'];
+    languages: FieldOutputTypes['public']['Driver']['languages'];
+    name: FieldOutputTypes['public']['Driver']['name'];
+    notes: FieldOutputTypes['public']['Driver']['notes'];
+    phone: FieldOutputTypes['public']['Driver']['phone'];
+    photoUrl: FieldOutputTypes['public']['Driver']['photoUrl'];
+    sortOrder: FieldOutputTypes['public']['Driver']['sortOrder'];
+    updatedAt: FieldOutputTypes['public']['Driver']['updatedAt'];
+    bookings: public_Booking[];
+    readonly [RelationKeys]?: 'bookings';
+  };
+  export type public_EvoaFormField = {
+    active: FieldOutputTypes['public']['EvoaFormField']['active'];
+    createdAt: FieldOutputTypes['public']['EvoaFormField']['createdAt'];
+    helpEn: FieldOutputTypes['public']['EvoaFormField']['helpEn'];
+    helpId: FieldOutputTypes['public']['EvoaFormField']['helpId'];
+    id: FieldOutputTypes['public']['EvoaFormField']['id'];
+    key: FieldOutputTypes['public']['EvoaFormField']['key'];
+    labelEn: FieldOutputTypes['public']['EvoaFormField']['labelEn'];
+    labelId: FieldOutputTypes['public']['EvoaFormField']['labelId'];
+    maxFiles: FieldOutputTypes['public']['EvoaFormField']['maxFiles'];
+    options: FieldOutputTypes['public']['EvoaFormField']['options'];
+    placeholderEn: FieldOutputTypes['public']['EvoaFormField']['placeholderEn'];
+    placeholderId: FieldOutputTypes['public']['EvoaFormField']['placeholderId'];
+    required: FieldOutputTypes['public']['EvoaFormField']['required'];
+    scope: FieldOutputTypes['public']['EvoaFormField']['scope'];
+    showWhen: FieldOutputTypes['public']['EvoaFormField']['showWhen'];
+    sortOrder: FieldOutputTypes['public']['EvoaFormField']['sortOrder'];
+    type: FieldOutputTypes['public']['EvoaFormField']['type'];
+    updatedAt: FieldOutputTypes['public']['EvoaFormField']['updatedAt'];
+    readonly [RelationKeys]?: never;
+  };
+  export type public_EvoaStatusEvent = {
+    actor: FieldOutputTypes['public']['EvoaStatusEvent']['actor'];
+    actorEmail: FieldOutputTypes['public']['EvoaStatusEvent']['actorEmail'];
+    applicantId: FieldOutputTypes['public']['EvoaStatusEvent']['applicantId'];
+    applicationId: FieldOutputTypes['public']['EvoaStatusEvent']['applicationId'];
+    createdAt: FieldOutputTypes['public']['EvoaStatusEvent']['createdAt'];
+    id: FieldOutputTypes['public']['EvoaStatusEvent']['id'];
+    note: FieldOutputTypes['public']['EvoaStatusEvent']['note'];
+    status: FieldOutputTypes['public']['EvoaStatusEvent']['status'];
+    applicant: public_VisaApplicant | null;
+    application: public_VisaApplication;
+    readonly [RelationKeys]?: 'applicant' | 'application';
   };
   export type public_FlightDetails = {
     airline: FieldOutputTypes['public']['FlightDetails']['airline'];
@@ -585,6 +662,7 @@ export namespace Models {
     destinationId: FieldOutputTypes['public']['Product']['destinationId'];
     direction: FieldOutputTypes['public']['Product']['direction'];
     driverOption: FieldOutputTypes['public']['Product']['driverOption'];
+    durationDays: FieldOutputTypes['public']['Product']['durationDays'];
     durationLabel: FieldOutputTypes['public']['Product']['durationLabel'];
     durationLabelId: FieldOutputTypes['public']['Product']['durationLabelId'];
     fromPriceUsdCents: FieldOutputTypes['public']['Product']['fromPriceUsdCents'];
@@ -598,6 +676,8 @@ export namespace Models {
     leadTimeDays: FieldOutputTypes['public']['Product']['leadTimeDays'];
     leadTimeHours: FieldOutputTypes['public']['Product']['leadTimeHours'];
     lineId: FieldOutputTypes['public']['Product']['lineId'];
+    maxPax: FieldOutputTypes['public']['Product']['maxPax'];
+    minPax: FieldOutputTypes['public']['Product']['minPax'];
     notIncluded: FieldOutputTypes['public']['Product']['notIncluded'];
     notIncludedId: FieldOutputTypes['public']['Product']['notIncludedId'];
     pickupPolicy: FieldOutputTypes['public']['Product']['pickupPolicy'];
@@ -611,9 +691,11 @@ export namespace Models {
     serviceTypeId: FieldOutputTypes['public']['Product']['serviceTypeId'];
     slug: FieldOutputTypes['public']['Product']['slug'];
     specs: FieldOutputTypes['public']['Product']['specs'];
+    stockTotal: FieldOutputTypes['public']['Product']['stockTotal'];
     title: FieldOutputTypes['public']['Product']['title'];
     titleId: FieldOutputTypes['public']['Product']['titleId'];
     tone: FieldOutputTypes['public']['Product']['tone'];
+    tourKind: FieldOutputTypes['public']['Product']['tourKind'];
     transmission: FieldOutputTypes['public']['Product']['transmission'];
     updatedAt: FieldOutputTypes['public']['Product']['updatedAt'];
     vendor: FieldOutputTypes['public']['Product']['vendor'];
@@ -622,6 +704,7 @@ export namespace Models {
     amenities: public_ProductAmenity[];
     bookingAddOns: public_BookingAddOn[];
     bookingItems: public_BookingItem[];
+    departures: public_TourDeparture[];
     destination: public_Airport | null;
     hostAddOns: public_ProductAddOn[];
     line: public_ServiceLine;
@@ -633,6 +716,7 @@ export namespace Models {
       | 'amenities'
       | 'bookingAddOns'
       | 'bookingItems'
+      | 'departures'
       | 'destination'
       | 'hostAddOns'
       | 'line'
@@ -842,11 +926,32 @@ export namespace Models {
     value: FieldOutputTypes['public']['Setting']['value'];
     readonly [RelationKeys]?: never;
   };
+  export type public_TourDeparture = {
+    createdAt: FieldOutputTypes['public']['TourDeparture']['createdAt'];
+    date: FieldOutputTypes['public']['TourDeparture']['date'];
+    id: FieldOutputTypes['public']['TourDeparture']['id'];
+    notes: FieldOutputTypes['public']['TourDeparture']['notes'];
+    productId: FieldOutputTypes['public']['TourDeparture']['productId'];
+    quota: FieldOutputTypes['public']['TourDeparture']['quota'];
+    startTime: FieldOutputTypes['public']['TourDeparture']['startTime'];
+    status: FieldOutputTypes['public']['TourDeparture']['status'];
+    updatedAt: FieldOutputTypes['public']['TourDeparture']['updatedAt'];
+    bookings: public_Booking[];
+    product: public_Product;
+    readonly [RelationKeys]?: 'bookings' | 'product';
+  };
   export type public_Traveler = {
     bookingId: FieldOutputTypes['public']['Traveler']['bookingId'];
+    dateOfBirth: FieldOutputTypes['public']['Traveler']['dateOfBirth'];
+    docNote: FieldOutputTypes['public']['Traveler']['docNote'];
+    docStatus: FieldOutputTypes['public']['Traveler']['docStatus'];
     fullName: FieldOutputTypes['public']['Traveler']['fullName'];
     id: FieldOutputTypes['public']['Traveler']['id'];
     kind: FieldOutputTypes['public']['Traveler']['kind'];
+    nationality: FieldOutputTypes['public']['Traveler']['nationality'];
+    passportExpiry: FieldOutputTypes['public']['Traveler']['passportExpiry'];
+    passportNumber: FieldOutputTypes['public']['Traveler']['passportNumber'];
+    passportPhotoKey: FieldOutputTypes['public']['Traveler']['passportPhotoKey'];
     sortOrder: FieldOutputTypes['public']['Traveler']['sortOrder'];
     booking: public_Booking;
     readonly [RelationKeys]?: 'booking';
@@ -871,24 +976,111 @@ export namespace Models {
     readonly [RelationKeys]?:
       'bookings' | 'level' | 'pushSubscriptions' | 'reviews' | 'savedCards' | 'visaApplications';
   };
+  export type public_Vehicle = {
+    active: FieldOutputTypes['public']['Vehicle']['active'];
+    createdAt: FieldOutputTypes['public']['Vehicle']['createdAt'];
+    id: FieldOutputTypes['public']['Vehicle']['id'];
+    name: FieldOutputTypes['public']['Vehicle']['name'];
+    notes: FieldOutputTypes['public']['Vehicle']['notes'];
+    photoUrl: FieldOutputTypes['public']['Vehicle']['photoUrl'];
+    plateNumber: FieldOutputTypes['public']['Vehicle']['plateNumber'];
+    seats: FieldOutputTypes['public']['Vehicle']['seats'];
+    sortOrder: FieldOutputTypes['public']['Vehicle']['sortOrder'];
+    updatedAt: FieldOutputTypes['public']['Vehicle']['updatedAt'];
+    bookings: public_Booking[];
+    readonly [RelationKeys]?: 'bookings';
+  };
+  export type public_VisaApplicant = {
+    applicationId: FieldOutputTypes['public']['VisaApplicant']['applicationId'];
+    createdAt: FieldOutputTypes['public']['VisaApplicant']['createdAt'];
+    dateOfBirth: FieldOutputTypes['public']['VisaApplicant']['dateOfBirth'];
+    email: FieldOutputTypes['public']['VisaApplicant']['email'];
+    extraAnswers: FieldOutputTypes['public']['VisaApplicant']['extraAnswers'];
+    fullName: FieldOutputTypes['public']['VisaApplicant']['fullName'];
+    gender: FieldOutputTypes['public']['VisaApplicant']['gender'];
+    id: FieldOutputTypes['public']['VisaApplicant']['id'];
+    issuedAt: FieldOutputTypes['public']['VisaApplicant']['issuedAt'];
+    nationality: FieldOutputTypes['public']['VisaApplicant']['nationality'];
+    passportExpiryDate: FieldOutputTypes['public']['VisaApplicant']['passportExpiryDate'];
+    passportIssueDate: FieldOutputTypes['public']['VisaApplicant']['passportIssueDate'];
+    passportIssuingCountry: FieldOutputTypes['public']['VisaApplicant']['passportIssuingCountry'];
+    passportNumber: FieldOutputTypes['public']['VisaApplicant']['passportNumber'];
+    passportType: FieldOutputTypes['public']['VisaApplicant']['passportType'];
+    phone: FieldOutputTypes['public']['VisaApplicant']['phone'];
+    placeOfBirth: FieldOutputTypes['public']['VisaApplicant']['placeOfBirth'];
+    relation: FieldOutputTypes['public']['VisaApplicant']['relation'];
+    revisionNote: FieldOutputTypes['public']['VisaApplicant']['revisionNote'];
+    sortOrder: FieldOutputTypes['public']['VisaApplicant']['sortOrder'];
+    status: FieldOutputTypes['public']['VisaApplicant']['status'];
+    visaExpiresAt: FieldOutputTypes['public']['VisaApplicant']['visaExpiresAt'];
+    visaNumber: FieldOutputTypes['public']['VisaApplicant']['visaNumber'];
+    visaPdfKey: FieldOutputTypes['public']['VisaApplicant']['visaPdfKey'];
+    application: public_VisaApplication;
+    documents: public_VisaDocument[];
+    events: public_EvoaStatusEvent[];
+    readonly [RelationKeys]?: 'application' | 'documents' | 'events';
+  };
   export type public_VisaApplication = {
     arrivalDate: FieldOutputTypes['public']['VisaApplication']['arrivalDate'];
+    bookingId: FieldOutputTypes['public']['VisaApplication']['bookingId'];
     code: FieldOutputTypes['public']['VisaApplication']['code'];
+    completedAt: FieldOutputTypes['public']['VisaApplication']['completedAt'];
+    contactName: FieldOutputTypes['public']['VisaApplication']['contactName'];
     createdAt: FieldOutputTypes['public']['VisaApplication']['createdAt'];
     dateOfBirth: FieldOutputTypes['public']['VisaApplication']['dateOfBirth'];
+    departureDate: FieldOutputTypes['public']['VisaApplication']['departureDate'];
+    departureFlightNumber: FieldOutputTypes['public']['VisaApplication']['departureFlightNumber'];
     email: FieldOutputTypes['public']['VisaApplication']['email'];
+    extraAnswers: FieldOutputTypes['public']['VisaApplication']['extraAnswers'];
+    flightNumber: FieldOutputTypes['public']['VisaApplication']['flightNumber'];
     fullName: FieldOutputTypes['public']['VisaApplication']['fullName'];
+    hotelAddress: FieldOutputTypes['public']['VisaApplication']['hotelAddress'];
+    hotelCity: FieldOutputTypes['public']['VisaApplication']['hotelCity'];
+    hotelName: FieldOutputTypes['public']['VisaApplication']['hotelName'];
+    hotelPostalCode: FieldOutputTypes['public']['VisaApplication']['hotelPostalCode'];
     id: FieldOutputTypes['public']['VisaApplication']['id'];
     nationality: FieldOutputTypes['public']['VisaApplication']['nationality'];
     note: FieldOutputTypes['public']['VisaApplication']['note'];
+    officialTransactionRef: FieldOutputTypes['public']['VisaApplication']['officialTransactionRef'];
+    paidAt: FieldOutputTypes['public']['VisaApplication']['paidAt'];
     passportNumber: FieldOutputTypes['public']['VisaApplication']['passportNumber'];
     phone: FieldOutputTypes['public']['VisaApplication']['phone'];
+    portOfEntryId: FieldOutputTypes['public']['VisaApplication']['portOfEntryId'];
+    portOfEntryName: FieldOutputTypes['public']['VisaApplication']['portOfEntryName'];
+    processingAt: FieldOutputTypes['public']['VisaApplication']['processingAt'];
     productId: FieldOutputTypes['public']['VisaApplication']['productId'];
+    purpose: FieldOutputTypes['public']['VisaApplication']['purpose'];
+    revisionNote: FieldOutputTypes['public']['VisaApplication']['revisionNote'];
     status: FieldOutputTypes['public']['VisaApplication']['status'];
     totalUsdCents: FieldOutputTypes['public']['VisaApplication']['totalUsdCents'];
+    updatedAt: FieldOutputTypes['public']['VisaApplication']['updatedAt'];
     userId: FieldOutputTypes['public']['VisaApplication']['userId'];
+    applicants: public_VisaApplicant[];
+    booking: public_Booking | null;
+    documents: public_VisaDocument[];
+    events: public_EvoaStatusEvent[];
+    portOfEntry: public_Airport | null;
     user: public_User | null;
-    readonly [RelationKeys]?: 'user';
+    readonly [RelationKeys]?:
+      'applicants' | 'booking' | 'documents' | 'events' | 'portOfEntry' | 'user';
+  };
+  export type public_VisaDocument = {
+    applicantId: FieldOutputTypes['public']['VisaDocument']['applicantId'];
+    applicationId: FieldOutputTypes['public']['VisaDocument']['applicationId'];
+    createdAt: FieldOutputTypes['public']['VisaDocument']['createdAt'];
+    fileName: FieldOutputTypes['public']['VisaDocument']['fileName'];
+    id: FieldOutputTypes['public']['VisaDocument']['id'];
+    key: FieldOutputTypes['public']['VisaDocument']['key'];
+    mimeType: FieldOutputTypes['public']['VisaDocument']['mimeType'];
+    reviewNote: FieldOutputTypes['public']['VisaDocument']['reviewNote'];
+    reviewStatus: FieldOutputTypes['public']['VisaDocument']['reviewStatus'];
+    sizeBytes: FieldOutputTypes['public']['VisaDocument']['sizeBytes'];
+    slot: FieldOutputTypes['public']['VisaDocument']['slot'];
+    sortOrder: FieldOutputTypes['public']['VisaDocument']['sortOrder'];
+    url: FieldOutputTypes['public']['VisaDocument']['url'];
+    applicant: public_VisaApplicant | null;
+    application: public_VisaApplication;
+    readonly [RelationKeys]?: 'applicant' | 'application';
   };
 }
 
@@ -905,6 +1097,9 @@ export declare const models: {
     Contact: Models.public_Contact;
     Country: Models.public_Country;
     Destination: Models.public_Destination;
+    Driver: Models.public_Driver;
+    EvoaFormField: Models.public_EvoaFormField;
+    EvoaStatusEvent: Models.public_EvoaStatusEvent;
     FlightDetails: Models.public_FlightDetails;
     LoyaltyLevel: Models.public_LoyaltyLevel;
     Media: Models.public_Media;
@@ -928,9 +1123,13 @@ export declare const models: {
     ServiceLine: Models.public_ServiceLine;
     ServiceType: Models.public_ServiceType;
     Setting: Models.public_Setting;
+    TourDeparture: Models.public_TourDeparture;
     Traveler: Models.public_Traveler;
     User: Models.public_User;
+    Vehicle: Models.public_Vehicle;
+    VisaApplicant: Models.public_VisaApplicant;
     VisaApplication: Models.public_VisaApplication;
+    VisaDocument: Models.public_VisaDocument;
   };
 };
 
@@ -1431,6 +1630,12 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly departureId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly discountUsdCents: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
@@ -1439,6 +1644,12 @@ type ContractBase = Omit<
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
                   };
+                  readonly many: false;
+                };
+                readonly driverId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly driverOption: {
@@ -1465,10 +1676,34 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly many: false;
                 };
+                readonly greeterName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly greeterPhone: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly hotelName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly id: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly idempotencyKey: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly infantCount: {
@@ -1491,6 +1726,22 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly opsNote: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly opsStatus: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'waiting_documents'>;
+                  };
                   readonly many: false;
                 };
                 readonly pickupLabel: {
@@ -1585,6 +1836,22 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly many: false;
                 };
+                readonly vehicleCount: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 1>;
+                  };
+                  readonly many: false;
+                };
+                readonly vehicleId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
@@ -1600,13 +1867,38 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'Booking_departureId_idx';
+                  readonly columns: readonly ['departureId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Booking_driverId_idx';
+                  readonly columns: readonly ['driverId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Booking_idempotencyKey_key';
+                  readonly columns: readonly ['idempotencyKey'];
+                  readonly unique: true;
+                },
+                {
                   readonly name: 'Booking_invoiceNumber_key';
                   readonly columns: readonly ['invoiceNumber'];
                   readonly unique: true;
                 },
                 {
+                  readonly name: 'Booking_status_serviceAt_idx';
+                  readonly columns: readonly ['status', 'serviceAt'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Booking_userId_idx';
                   readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Booking_vehicleId_idx';
+                  readonly columns: readonly ['vehicleId'];
                   readonly unique: false;
                 },
               ];
@@ -1620,6 +1912,42 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Booking';
+                    readonly columns: readonly ['departureId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TourDeparture';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Booking';
+                    readonly columns: readonly ['driverId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Driver';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Booking';
+                    readonly columns: readonly ['vehicleId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Vehicle';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -1800,6 +2128,16 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly vehicleCount: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 1>;
+                  };
+                  readonly many: false;
+                };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
@@ -1903,6 +2241,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly nationality: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly notes: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -1992,6 +2336,16 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly voaEligible: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
                   readonly many: false;
                 };
               };
@@ -2097,6 +2451,328 @@ type ContractBase = Omit<
                 },
               ];
               foreignKeys: readonly [];
+            };
+            readonly Driver: {
+              columns: {
+                readonly active: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly languages: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly notes: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly phone: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly photoUrl: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly sortOrder: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
+            readonly EvoaFormField: {
+              columns: {
+                readonly active: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly helpEn: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly helpId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly key: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly labelEn: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly labelId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly maxFiles: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly options: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/jsonb@1', readonly []>;
+                  };
+                  readonly many: false;
+                };
+                readonly placeholderEn: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly placeholderId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly required: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                  readonly many: false;
+                };
+                readonly scope: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'applicant'>;
+                  };
+                  readonly many: false;
+                };
+                readonly showWhen: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly sortOrder: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly type: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'EvoaFormField_key_key';
+                  readonly columns: readonly ['key'];
+                  readonly unique: true;
+                },
+              ];
+              foreignKeys: readonly [];
+            };
+            readonly EvoaStatusEvent: {
+              columns: {
+                readonly actor: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'system'>;
+                  };
+                  readonly many: false;
+                };
+                readonly actorEmail: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly applicantId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly applicationId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly note: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly status: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'EvoaStatusEvent_applicationId_idx';
+                  readonly columns: readonly ['applicationId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'EvoaStatusEvent_createdAt_idx';
+                  readonly columns: readonly ['createdAt'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'EvoaStatusEvent';
+                    readonly columns: readonly ['applicationId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaApplication';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'EvoaStatusEvent';
+                    readonly columns: readonly ['applicantId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaApplicant';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
             };
             readonly FlightDetails: {
               columns: {
@@ -2756,6 +3432,16 @@ type ContractBase = Omit<
                   };
                   readonly many: false;
                 };
+                readonly durationDays: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
                 readonly durationLabel: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -2854,6 +3540,22 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly maxPax: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly minPax: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 1>;
+                  };
+                  readonly many: false;
+                };
                 readonly notIncluded: {
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'pg/jsonb@1';
@@ -2944,6 +3646,16 @@ type ContractBase = Omit<
                   };
                   readonly many: false;
                 };
+                readonly stockTotal: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 1>;
+                  };
+                  readonly many: false;
+                };
                 readonly title: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -2964,6 +3676,12 @@ type ContractBase = Omit<
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/text@1', 'from-sky-400 to-blue-600'>;
                   };
+                  readonly many: false;
+                };
+                readonly tourKind: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly transmission: {
@@ -4427,12 +5145,132 @@ type ContractBase = Omit<
               indexes: readonly [];
               foreignKeys: readonly [];
             };
+            readonly TourDeparture: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly date: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly notes: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly productId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly quota: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 10>;
+                  };
+                  readonly many: false;
+                };
+                readonly startTime: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', '08:00'>;
+                  };
+                  readonly many: false;
+                };
+                readonly status: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'open'>;
+                  };
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'TourDeparture_productId_date_idx';
+                  readonly columns: readonly ['productId', 'date'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TourDeparture';
+                    readonly columns: readonly ['productId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Product';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly Traveler: {
               columns: {
                 readonly bookingId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly dateOfBirth: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly docNote: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly docStatus: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'pending'>;
+                  };
                   readonly many: false;
                 };
                 readonly fullName: {
@@ -4451,6 +5289,31 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly nationality: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly passportExpiry: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly passportNumber: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly passportPhotoKey: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly sortOrder: {
@@ -4580,16 +5443,92 @@ type ContractBase = Omit<
                 },
               ];
             };
-            readonly VisaApplication: {
+            readonly Vehicle: {
               columns: {
-                readonly arrivalDate: {
+                readonly active: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly notes: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly photoUrl: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly plateNumber: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly seats: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 6>;
+                  };
+                  readonly many: false;
+                };
+                readonly sortOrder: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly updatedAt: {
                   readonly dataType: 'pg/timestamp';
                   readonly codecId: 'pg/timestamp-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
-                readonly code: {
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
+            readonly VisaApplicant: {
+              columns: {
+                readonly applicationId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
@@ -4616,7 +5555,23 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly extraAnswers: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/jsonb@1', {}>;
+                  };
+                  readonly many: false;
+                };
                 readonly fullName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly gender: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
@@ -4628,16 +5583,37 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly issuedAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly nationality: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
                   readonly many: false;
                 };
-                readonly note: {
+                readonly passportExpiryDate: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly passportIssueDate: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly passportIssuingCountry: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
+                  readonly nullable: false;
                   readonly many: false;
                 };
                 readonly passportNumber: {
@@ -4646,13 +5622,302 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly passportType: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'ordinary'>;
+                  };
+                  readonly many: false;
+                };
                 readonly phone: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly placeOfBirth: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly relation: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'other'>;
+                  };
+                  readonly many: false;
+                };
+                readonly revisionNote: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly sortOrder: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly status: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'pending'>;
+                  };
+                  readonly many: false;
+                };
+                readonly visaExpiresAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly visaNumber: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly visaPdfKey: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'VisaApplicant_applicationId_idx';
+                  readonly columns: readonly ['applicationId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'VisaApplicant_applicationId_passportNumber_key';
+                  readonly columns: readonly ['applicationId', 'passportNumber'];
+                  readonly unique: true;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaApplicant';
+                    readonly columns: readonly ['applicationId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaApplication';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly VisaApplication: {
+              columns: {
+                readonly arrivalDate: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly bookingId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly code: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly completedAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly contactName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly dateOfBirth: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly departureDate: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly departureFlightNumber: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly email: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly extraAnswers: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/jsonb@1', {}>;
+                  };
+                  readonly many: false;
+                };
+                readonly flightNumber: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly fullName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly hotelAddress: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly hotelCity: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly hotelName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly hotelPostalCode: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly nationality: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly note: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly officialTransactionRef: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly paidAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly passportNumber: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly phone: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly portOfEntryId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly portOfEntryName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly processingAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly productId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly purpose: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly revisionNote: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
@@ -4678,6 +5943,13 @@ type ContractBase = Omit<
                   };
                   readonly many: false;
                 };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly userId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -4689,9 +5961,19 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
+                  readonly name: 'VisaApplication_bookingId_idx';
+                  readonly columns: readonly ['bookingId'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'VisaApplication_code_key';
                   readonly columns: readonly ['code'];
                   readonly unique: true;
+                },
+                {
+                  readonly name: 'VisaApplication_status_idx';
+                  readonly columns: readonly ['status'];
+                  readonly unique: false;
                 },
                 {
                   readonly name: 'VisaApplication_userId_idx';
@@ -4709,6 +5991,167 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaApplication';
+                    readonly columns: readonly ['bookingId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Booking';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaApplication';
+                    readonly columns: readonly ['portOfEntryId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Airport';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly VisaDocument: {
+              columns: {
+                readonly applicantId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly applicationId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly fileName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly key: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly mimeType: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly reviewNote: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly reviewStatus: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'pending'>;
+                  };
+                  readonly many: false;
+                };
+                readonly sizeBytes: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly slot: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sortOrder: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly url: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'VisaDocument_applicantId_idx';
+                  readonly columns: readonly ['applicantId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'VisaDocument_applicationId_idx';
+                  readonly columns: readonly ['applicationId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'VisaDocument_key_idx';
+                  readonly columns: readonly ['key'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaDocument';
+                    readonly columns: readonly ['applicationId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaApplication';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaDocument';
+                    readonly columns: readonly ['applicantId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'VisaApplicant';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -4744,6 +6187,15 @@ type ContractBase = Omit<
     readonly Destination: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'Destination';
+    };
+    readonly Driver: { readonly namespace: 'public' & NamespaceId; readonly model: 'Driver' };
+    readonly EvoaFormField: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'EvoaFormField';
+    };
+    readonly EvoaStatusEvent: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'EvoaStatusEvent';
     };
     readonly FlightDetails: {
       readonly namespace: 'public' & NamespaceId;
@@ -4801,11 +6253,24 @@ type ContractBase = Omit<
       readonly model: 'ServiceType';
     };
     readonly Setting: { readonly namespace: 'public' & NamespaceId; readonly model: 'Setting' };
+    readonly TourDeparture: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'TourDeparture';
+    };
     readonly Traveler: { readonly namespace: 'public' & NamespaceId; readonly model: 'Traveler' };
     readonly User: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+    readonly Vehicle: { readonly namespace: 'public' & NamespaceId; readonly model: 'Vehicle' };
+    readonly VisaApplicant: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'VisaApplicant';
+    };
     readonly VisaApplication: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'VisaApplication';
+    };
+    readonly VisaDocument: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'VisaDocument';
     };
   };
   readonly domain: {
@@ -4946,6 +6411,17 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['airportId'];
+                };
+              };
+              readonly visaApplications: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaApplication';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['portOfEntryId'];
                 };
               };
             };
@@ -5191,9 +6667,17 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly departureId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly discountUsdCents: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly driverId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly driverOption: {
                 readonly nullable: true;
@@ -5211,8 +6695,24 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/float8@1' };
               };
+              readonly greeterName: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly greeterPhone: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly hotelName: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly id: {
                 readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly idempotencyKey: {
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly infantCount: {
@@ -5225,6 +6725,14 @@ type ContractBase = Omit<
               };
               readonly notes: {
                 readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly opsNote: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly opsStatus: {
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly pickupLabel: {
@@ -5287,6 +6795,14 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly vehicleCount: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly vehicleId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
             };
             readonly relations: {
               readonly addOns: {
@@ -5310,6 +6826,30 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['bookingId'];
+                };
+              };
+              readonly departure: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TourDeparture';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['departureId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly driver: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Driver';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['driverId'];
+                  readonly targetFields: readonly ['id'];
                 };
               };
               readonly flight: {
@@ -5366,6 +6906,29 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['id'];
                 };
               };
+              readonly vehicle: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Vehicle';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['vehicleId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly visaApplications: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaApplication';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['bookingId'];
+                };
+              };
             };
             readonly storage: {
               readonly table: 'Booking';
@@ -5376,15 +6939,23 @@ type ContractBase = Omit<
                 readonly childCount: { readonly column: 'childCount' };
                 readonly code: { readonly column: 'code' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly departureId: { readonly column: 'departureId' };
                 readonly discountUsdCents: { readonly column: 'discountUsdCents' };
+                readonly driverId: { readonly column: 'driverId' };
                 readonly driverOption: { readonly column: 'driverOption' };
                 readonly dropoffLabel: { readonly column: 'dropoffLabel' };
                 readonly dropoffLat: { readonly column: 'dropoffLat' };
                 readonly dropoffLng: { readonly column: 'dropoffLng' };
+                readonly greeterName: { readonly column: 'greeterName' };
+                readonly greeterPhone: { readonly column: 'greeterPhone' };
+                readonly hotelName: { readonly column: 'hotelName' };
                 readonly id: { readonly column: 'id' };
+                readonly idempotencyKey: { readonly column: 'idempotencyKey' };
                 readonly infantCount: { readonly column: 'infantCount' };
                 readonly invoiceNumber: { readonly column: 'invoiceNumber' };
                 readonly notes: { readonly column: 'notes' };
+                readonly opsNote: { readonly column: 'opsNote' };
+                readonly opsStatus: { readonly column: 'opsStatus' };
                 readonly pickupLabel: { readonly column: 'pickupLabel' };
                 readonly pickupLat: { readonly column: 'pickupLat' };
                 readonly pickupLng: { readonly column: 'pickupLng' };
@@ -5398,6 +6969,8 @@ type ContractBase = Omit<
                 readonly totalUsdCents: { readonly column: 'totalUsdCents' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
+                readonly vehicleCount: { readonly column: 'vehicleCount' };
+                readonly vehicleId: { readonly column: 'vehicleId' };
               };
             };
           };
@@ -5526,6 +7099,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly vehicleCount: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
             };
             readonly relations: {
               readonly booking: {
@@ -5582,6 +7159,7 @@ type ContractBase = Omit<
                 readonly totalUsdCents: { readonly column: 'totalUsdCents' };
                 readonly unitKind: { readonly column: 'unitKind' };
                 readonly unitUsdCents: { readonly column: 'unitUsdCents' };
+                readonly vehicleCount: { readonly column: 'vehicleCount' };
               };
             };
           };
@@ -5621,6 +7199,10 @@ type ContractBase = Omit<
               };
               readonly lastName: {
                 readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly nationality: {
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly notes: {
@@ -5671,6 +7253,7 @@ type ContractBase = Omit<
                 readonly identityNumber: { readonly column: 'identityNumber' };
                 readonly isGuestSelf: { readonly column: 'isGuestSelf' };
                 readonly lastName: { readonly column: 'lastName' };
+                readonly nationality: { readonly column: 'nationality' };
                 readonly notes: { readonly column: 'notes' };
                 readonly phone: { readonly column: 'phone' };
                 readonly phoneCountryCode: { readonly column: 'phoneCountryCode' };
@@ -5701,6 +7284,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly voaEligible: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
             };
             readonly relations: Record<string, never>;
             readonly storage: {
@@ -5712,6 +7299,7 @@ type ContractBase = Omit<
                 readonly dialCode: { readonly column: 'dialCode' };
                 readonly id: { readonly column: 'id' };
                 readonly name: { readonly column: 'name' };
+                readonly voaEligible: { readonly column: 'voaEligible' };
               };
             };
           };
@@ -5778,6 +7366,276 @@ type ContractBase = Omit<
                 readonly slug: { readonly column: 'slug' };
                 readonly sortOrder: { readonly column: 'sortOrder' };
                 readonly tone: { readonly column: 'tone' };
+              };
+            };
+          };
+          readonly Driver: {
+            readonly fields: {
+              readonly active: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly languages: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly notes: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly phone: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly photoUrl: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sortOrder: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: {
+              readonly bookings: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Booking';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['driverId'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'Driver';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly active: { readonly column: 'active' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly languages: { readonly column: 'languages' };
+                readonly name: { readonly column: 'name' };
+                readonly notes: { readonly column: 'notes' };
+                readonly phone: { readonly column: 'phone' };
+                readonly photoUrl: { readonly column: 'photoUrl' };
+                readonly sortOrder: { readonly column: 'sortOrder' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
+          readonly EvoaFormField: {
+            readonly fields: {
+              readonly active: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly helpEn: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly helpId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly key: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly labelEn: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly labelId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly maxFiles: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly options: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly placeholderEn: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly placeholderId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly required: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly scope: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly showWhen: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly sortOrder: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly type: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'EvoaFormField';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly active: { readonly column: 'active' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly helpEn: { readonly column: 'helpEn' };
+                readonly helpId: { readonly column: 'helpId' };
+                readonly id: { readonly column: 'id' };
+                readonly key: { readonly column: 'key' };
+                readonly labelEn: { readonly column: 'labelEn' };
+                readonly labelId: { readonly column: 'labelId' };
+                readonly maxFiles: { readonly column: 'maxFiles' };
+                readonly options: { readonly column: 'options' };
+                readonly placeholderEn: { readonly column: 'placeholderEn' };
+                readonly placeholderId: { readonly column: 'placeholderId' };
+                readonly required: { readonly column: 'required' };
+                readonly scope: { readonly column: 'scope' };
+                readonly showWhen: { readonly column: 'showWhen' };
+                readonly sortOrder: { readonly column: 'sortOrder' };
+                readonly type: { readonly column: 'type' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
+          readonly EvoaStatusEvent: {
+            readonly fields: {
+              readonly actor: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly actorEmail: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly applicantId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly applicationId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly note: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly applicant: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaApplicant';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['applicantId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly application: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaApplication';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['applicationId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'EvoaStatusEvent';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly actor: { readonly column: 'actor' };
+                readonly actorEmail: { readonly column: 'actorEmail' };
+                readonly applicantId: { readonly column: 'applicantId' };
+                readonly applicationId: { readonly column: 'applicationId' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly note: { readonly column: 'note' };
+                readonly status: { readonly column: 'status' };
               };
             };
           };
@@ -6303,6 +8161,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly durationDays: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly durationLabel: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -6354,6 +8216,14 @@ type ContractBase = Omit<
               readonly lineId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly maxPax: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly minPax: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
               readonly notIncluded: {
                 readonly nullable: false;
@@ -6407,6 +8277,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
               };
+              readonly stockTotal: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly title: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -6417,6 +8291,10 @@ type ContractBase = Omit<
               };
               readonly tone: {
                 readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly tourKind: {
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly transmission: {
@@ -6486,6 +8364,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'BookingItem';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['productId'];
+                };
+              };
+              readonly departures: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TourDeparture';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -6564,6 +8453,7 @@ type ContractBase = Omit<
                 readonly destinationId: { readonly column: 'destinationId' };
                 readonly direction: { readonly column: 'direction' };
                 readonly driverOption: { readonly column: 'driverOption' };
+                readonly durationDays: { readonly column: 'durationDays' };
                 readonly durationLabel: { readonly column: 'durationLabel' };
                 readonly durationLabelId: { readonly column: 'durationLabelId' };
                 readonly fromPriceUsdCents: { readonly column: 'fromPriceUsdCents' };
@@ -6577,6 +8467,8 @@ type ContractBase = Omit<
                 readonly leadTimeDays: { readonly column: 'leadTimeDays' };
                 readonly leadTimeHours: { readonly column: 'leadTimeHours' };
                 readonly lineId: { readonly column: 'lineId' };
+                readonly maxPax: { readonly column: 'maxPax' };
+                readonly minPax: { readonly column: 'minPax' };
                 readonly notIncluded: { readonly column: 'notIncluded' };
                 readonly notIncludedId: { readonly column: 'notIncludedId' };
                 readonly pickupPolicy: { readonly column: 'pickupPolicy' };
@@ -6590,9 +8482,11 @@ type ContractBase = Omit<
                 readonly serviceTypeId: { readonly column: 'serviceTypeId' };
                 readonly slug: { readonly column: 'slug' };
                 readonly specs: { readonly column: 'specs' };
+                readonly stockTotal: { readonly column: 'stockTotal' };
                 readonly title: { readonly column: 'title' };
                 readonly titleId: { readonly column: 'titleId' };
                 readonly tone: { readonly column: 'tone' };
+                readonly tourKind: { readonly column: 'tourKind' };
                 readonly transmission: { readonly column: 'transmission' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly vendor: { readonly column: 'vendor' };
@@ -7723,9 +9617,117 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly TourDeparture: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly date: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly notes: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly productId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly quota: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly startTime: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: {
+              readonly bookings: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Booking';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['departureId'];
+                };
+              };
+              readonly product: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Product';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['productId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'TourDeparture';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly date: { readonly column: 'date' };
+                readonly id: { readonly column: 'id' };
+                readonly notes: { readonly column: 'notes' };
+                readonly productId: { readonly column: 'productId' };
+                readonly quota: { readonly column: 'quota' };
+                readonly startTime: { readonly column: 'startTime' };
+                readonly status: { readonly column: 'status' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
           readonly Traveler: {
             readonly fields: {
               readonly bookingId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly dateOfBirth: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly docNote: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly docStatus: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -7739,6 +9741,26 @@ type ContractBase = Omit<
               };
               readonly kind: {
                 readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly nationality: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly passportExpiry: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly passportNumber: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly passportPhotoKey: {
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly sortOrder: {
@@ -7765,9 +9787,16 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly bookingId: { readonly column: 'bookingId' };
+                readonly dateOfBirth: { readonly column: 'dateOfBirth' };
+                readonly docNote: { readonly column: 'docNote' };
+                readonly docStatus: { readonly column: 'docStatus' };
                 readonly fullName: { readonly column: 'fullName' };
                 readonly id: { readonly column: 'id' };
                 readonly kind: { readonly column: 'kind' };
+                readonly nationality: { readonly column: 'nationality' };
+                readonly passportExpiry: { readonly column: 'passportExpiry' };
+                readonly passportNumber: { readonly column: 'passportNumber' };
+                readonly passportPhotoKey: { readonly column: 'passportPhotoKey' };
                 readonly sortOrder: { readonly column: 'sortOrder' };
               };
             };
@@ -7909,9 +9938,13 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly VisaApplication: {
+          readonly Vehicle: {
             readonly fields: {
-              readonly arrivalDate: {
+              readonly active: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
@@ -7919,7 +9952,76 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
-              readonly code: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly notes: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly photoUrl: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly plateNumber: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly seats: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly sortOrder: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: {
+              readonly bookings: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Booking';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['vehicleId'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'Vehicle';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly active: { readonly column: 'active' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly name: { readonly column: 'name' };
+                readonly notes: { readonly column: 'notes' };
+                readonly photoUrl: { readonly column: 'photoUrl' };
+                readonly plateNumber: { readonly column: 'plateNumber' };
+                readonly seats: { readonly column: 'seats' };
+                readonly sortOrder: { readonly column: 'sortOrder' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
+          readonly VisaApplicant: {
+            readonly fields: {
+              readonly applicationId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -7943,7 +10045,15 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly extraAnswers: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
               readonly fullName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly gender: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -7951,15 +10061,43 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly issuedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly nationality: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly note: {
+              readonly passportExpiryDate: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly passportIssueDate: {
                 readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly passportIssuingCountry: {
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly passportNumber: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly passportType: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -7967,7 +10105,257 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly placeOfBirth: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly relation: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly revisionNote: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sortOrder: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly visaExpiresAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly visaNumber: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly visaPdfKey: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly application: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaApplication';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['applicationId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly documents: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaDocument';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['applicantId'];
+                };
+              };
+              readonly events: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'EvoaStatusEvent';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['applicantId'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'VisaApplicant';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly applicationId: { readonly column: 'applicationId' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly dateOfBirth: { readonly column: 'dateOfBirth' };
+                readonly email: { readonly column: 'email' };
+                readonly extraAnswers: { readonly column: 'extraAnswers' };
+                readonly fullName: { readonly column: 'fullName' };
+                readonly gender: { readonly column: 'gender' };
+                readonly id: { readonly column: 'id' };
+                readonly issuedAt: { readonly column: 'issuedAt' };
+                readonly nationality: { readonly column: 'nationality' };
+                readonly passportExpiryDate: { readonly column: 'passportExpiryDate' };
+                readonly passportIssueDate: { readonly column: 'passportIssueDate' };
+                readonly passportIssuingCountry: { readonly column: 'passportIssuingCountry' };
+                readonly passportNumber: { readonly column: 'passportNumber' };
+                readonly passportType: { readonly column: 'passportType' };
+                readonly phone: { readonly column: 'phone' };
+                readonly placeOfBirth: { readonly column: 'placeOfBirth' };
+                readonly relation: { readonly column: 'relation' };
+                readonly revisionNote: { readonly column: 'revisionNote' };
+                readonly sortOrder: { readonly column: 'sortOrder' };
+                readonly status: { readonly column: 'status' };
+                readonly visaExpiresAt: { readonly column: 'visaExpiresAt' };
+                readonly visaNumber: { readonly column: 'visaNumber' };
+                readonly visaPdfKey: { readonly column: 'visaPdfKey' };
+              };
+            };
+          };
+          readonly VisaApplication: {
+            readonly fields: {
+              readonly arrivalDate: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly bookingId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly code: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly completedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly contactName: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly dateOfBirth: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly departureDate: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly departureFlightNumber: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly email: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly extraAnswers: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly flightNumber: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly fullName: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly hotelAddress: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly hotelCity: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly hotelName: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly hotelPostalCode: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly nationality: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly note: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly officialTransactionRef: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly paidAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly passportNumber: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly phone: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly portOfEntryId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly portOfEntryName: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly processingAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly productId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly purpose: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly revisionNote: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -7979,12 +10367,77 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly userId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
             };
             readonly relations: {
+              readonly applicants: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaApplicant';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['applicationId'];
+                };
+              };
+              readonly booking: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Booking';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['bookingId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly documents: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaDocument';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['applicationId'];
+                };
+              };
+              readonly events: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'EvoaStatusEvent';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['applicationId'];
+                };
+              };
+              readonly portOfEntry: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Airport';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['portOfEntryId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
@@ -8000,20 +10453,144 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly arrivalDate: { readonly column: 'arrivalDate' };
+                readonly bookingId: { readonly column: 'bookingId' };
                 readonly code: { readonly column: 'code' };
+                readonly completedAt: { readonly column: 'completedAt' };
+                readonly contactName: { readonly column: 'contactName' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly dateOfBirth: { readonly column: 'dateOfBirth' };
+                readonly departureDate: { readonly column: 'departureDate' };
+                readonly departureFlightNumber: { readonly column: 'departureFlightNumber' };
                 readonly email: { readonly column: 'email' };
+                readonly extraAnswers: { readonly column: 'extraAnswers' };
+                readonly flightNumber: { readonly column: 'flightNumber' };
                 readonly fullName: { readonly column: 'fullName' };
+                readonly hotelAddress: { readonly column: 'hotelAddress' };
+                readonly hotelCity: { readonly column: 'hotelCity' };
+                readonly hotelName: { readonly column: 'hotelName' };
+                readonly hotelPostalCode: { readonly column: 'hotelPostalCode' };
                 readonly id: { readonly column: 'id' };
                 readonly nationality: { readonly column: 'nationality' };
                 readonly note: { readonly column: 'note' };
+                readonly officialTransactionRef: { readonly column: 'officialTransactionRef' };
+                readonly paidAt: { readonly column: 'paidAt' };
                 readonly passportNumber: { readonly column: 'passportNumber' };
                 readonly phone: { readonly column: 'phone' };
+                readonly portOfEntryId: { readonly column: 'portOfEntryId' };
+                readonly portOfEntryName: { readonly column: 'portOfEntryName' };
+                readonly processingAt: { readonly column: 'processingAt' };
                 readonly productId: { readonly column: 'productId' };
+                readonly purpose: { readonly column: 'purpose' };
+                readonly revisionNote: { readonly column: 'revisionNote' };
                 readonly status: { readonly column: 'status' };
                 readonly totalUsdCents: { readonly column: 'totalUsdCents' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly VisaDocument: {
+            readonly fields: {
+              readonly applicantId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly applicationId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly fileName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly key: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly mimeType: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly reviewNote: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly reviewStatus: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sizeBytes: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly slot: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sortOrder: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly url: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly applicant: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaApplicant';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['applicantId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly application: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'VisaApplication';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['applicationId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'VisaDocument';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly applicantId: { readonly column: 'applicantId' };
+                readonly applicationId: { readonly column: 'applicationId' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly fileName: { readonly column: 'fileName' };
+                readonly id: { readonly column: 'id' };
+                readonly key: { readonly column: 'key' };
+                readonly mimeType: { readonly column: 'mimeType' };
+                readonly reviewNote: { readonly column: 'reviewNote' };
+                readonly reviewStatus: { readonly column: 'reviewStatus' };
+                readonly sizeBytes: { readonly column: 'sizeBytes' };
+                readonly slot: { readonly column: 'slot' };
+                readonly sortOrder: { readonly column: 'sortOrder' };
+                readonly url: { readonly column: 'url' };
               };
             };
           };
@@ -8166,6 +10743,100 @@ type ContractBase = Omit<
           readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Destination';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'Driver';
+            readonly field: 'createdAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'Driver';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'Driver';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'EvoaFormField';
+            readonly field: 'createdAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'EvoaFormField';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'EvoaFormField';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'EvoaStatusEvent';
+            readonly field: 'createdAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'EvoaStatusEvent';
             readonly field: 'id';
             readonly namespace: 'public';
           };
@@ -8506,6 +11177,43 @@ type ContractBase = Omit<
           };
         },
         {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'TourDeparture';
+            readonly field: 'createdAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'TourDeparture';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'TourDeparture';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
           readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Traveler';
@@ -8549,6 +11257,63 @@ type ContractBase = Omit<
             readonly params: { readonly precision: 3 };
           };
           readonly ref: {
+            readonly entry: 'Vehicle';
+            readonly field: 'createdAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'Vehicle';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'Vehicle';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'VisaApplicant';
+            readonly field: 'createdAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'VisaApplicant';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
             readonly entry: 'VisaApplication';
             readonly field: 'createdAt';
             readonly namespace: 'public';
@@ -8558,6 +11323,43 @@ type ContractBase = Omit<
           readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'VisaApplication';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'VisaApplication';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'VisaDocument';
+            readonly field: 'createdAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'VisaDocument';
             readonly field: 'id';
             readonly namespace: 'public';
           };

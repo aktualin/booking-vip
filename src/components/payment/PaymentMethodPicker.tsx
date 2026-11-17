@@ -1,8 +1,9 @@
 "use client";
 
 // The payment method picker — one radio card per active Xendit method
-// (Kartu Kredit/Debit). Shared by the booking wizard's payment step and the
-// transport flow's payment screen.
+// (Kartu Kredit/Debit, QRIS, Virtual Account). Shared by the booking
+// wizard's payment step and the transport flow's payment screen. Every
+// method redirects to the Xendit hosted checkout page.
 
 import { MastercardLogo, VisaLogo } from "@/components/icons";
 
@@ -16,6 +17,14 @@ const METHOD_META: Record<string, { title: string; hint: string }> = {
   CREDIT_CARD: {
     title: "Kartu Kredit / Debit",
     hint: "Visa, Mastercard & JCB — bayar aman lewat halaman checkout Xendit.",
+  },
+  QRIS: {
+    title: "QRIS",
+    hint: "Scan pakai aplikasi apa pun — e-wallet & mobile banking, langsung di halaman checkout.",
+  },
+  BANK_TRANSFER: {
+    title: "Virtual Account",
+    hint: "BCA, Mandiri, BNI, BRI, BSI, Permata — bayar lewat mobile banking, internet banking, atau ATM.",
   },
 };
 
@@ -55,6 +64,14 @@ export default function PaymentMethodPicker({
                   <VisaLogo width={30} height={12} />
                   <MastercardLogo width={19} height={14} />
                 </>
+              ) : method.code === "QRIS" ? (
+                <span className="text-[11px] font-extrabold tracking-wide text-ink">
+                  QRIS
+                </span>
+              ) : method.code === "BANK_TRANSFER" ? (
+                <span className="text-[11px] font-extrabold tracking-wide text-ink">
+                  VA
+                </span>
               ) : null}
             </span>
             <span className="min-w-0 flex-1">

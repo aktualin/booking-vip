@@ -2,8 +2,9 @@
 
 // The payment screen of the transport booking flow (/transport/booking):
 // the booking already exists, so picking a method and paying is all that is
-// left. Paying redirects to the Xendit hosted checkout page, where the card
-// form lives.
+// left. Every active Xendit method (card, QRIS, Virtual Account) redirects
+// to the Xendit hosted checkout page — the card form, QR code or VA number
+// lives there, never here.
 
 import { useEffect, useState } from "react";
 import { getPaymentMethods } from "@/app/actions/catalog";

@@ -58,6 +58,28 @@ export default function ProductsManager() {
       ),
     },
     {
+      key: "stock",
+      header: "Stok",
+      className: "text-right",
+      render: (row: AdminProductRow) => (
+        <span className="tabular-nums">{row.stockTotal}</span>
+      ),
+    },
+    {
+      key: "available",
+      header: "Tersedia",
+      className: "text-right",
+      render: (row: AdminProductRow) => (
+        <span
+          className={`tabular-nums ${
+            row.availableStock === 0 ? "font-medium text-danger" : "text-[var(--admin-muted)]"
+          }`}
+        >
+          {row.availableStock}
+        </span>
+      ),
+    },
+    {
       key: "packages",
       header: "Paket",
       className: "text-right",

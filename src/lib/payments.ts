@@ -4,13 +4,15 @@ import { db } from "@/prisma/db";
 import { convertUsdCentsToIdr, getUsdToIdrRate } from "@/lib/fx";
 import { recomputeUserPoints } from "@/lib/loyalty";
 import {
-  createCardSession,
+  createPaymentSession,
   failureUrl,
   getCardSession,
   mapGatewayStatus,
   successUrl,
   type GatewayPayment,
+  type PaymentChannel,
 } from "@/lib/xendit";
+import { sendBookingConfirmation } from "@/lib/notify";
 
 /**
  * The payment service.
@@ -19,9 +21,9 @@ import {
  * stores the provider references on the row, and applies the state transition
  * when the gateway tells us the money arrived.
  *
- * The gateway is Xendit (Payments API v3): Credit Card via a PAYMENT_LINK
- * Payment Session — the customer pays on Xendit's hosted checkout page.
- * Credentials live in the environment only.
+ * The gateway is Xendit (Payments API v3): Credit Card, QRIS and Virtual
+ * Account, each via a PAYMENT_LINK Payment Session — the customer pays on
+ * Xendit's hosted checkout page. Credentials live in the environment only.
  *
  * Prices are stored and displayed in USD. Xendit charges in IDR, so the
  * booking total (USD cents) is converted to whole rupiah with the live
@@ -35,6 +37,13 @@ import {
  *   - a webhook only confirms the booking when the amount matches;
  *   - a replayed webhook changes nothing (the event id is unique).
  */
+
+/** The Xendit channels a PaymentMethod can be bound to. */
+const SUPPORTED_CHANNELS: readonly PaymentChannel[] = [
+  "CREDIT_CARD",
+  "QRIS",
+  "VIRTUAL_ACCOUNT",
+];
 
 export type PaymentMethodDTO = {
   id: string;
@@ -160,18 +169,20 @@ export async function startPayment(params: {
     return { ok: false, error: "Metode pembayaran ini belum didukung." };
   }
 
-  const channel = (method.providerMethodCode ?? "").toUpperCase();
-  if (channel !== "CREDIT_CARD") {
+  const channel = (method.providerMethodCode ?? "").toUpperCase() as PaymentChannel;
+  if (!SUPPORTED_CHANNELS.includes(channel)) {
     return { ok: false, error: "Metode pembayaran ini belum didukung." };
   }
 
   // Re-use an open payment instead of creating a second one — as long as
-  // the hosted page has not expired in the meantime.
+  // it is the SAME method and the hosted page has not expired. Switching
+  // the method (e.g. card → QRIS) starts a fresh attempt instead.
   const existing = await getBookingPayment(booking.id);
   if (
     existing &&
     existing.status === "pending" &&
     existing.provider === "xendit" &&
+    existing.methodId === method.id &&
     existing.providerRef &&
     existing.checkoutUrl &&
     (!existing.expiresAt || existing.expiresAt.getTime() > Date.now())
@@ -201,7 +212,8 @@ export async function startPayment(params: {
   );
 
   const contact = contacts[0];
-  const payment: GatewayPayment = await createCardSession({
+  const payment: GatewayPayment = await createPaymentSession({
+    channel,
     referenceId: invoiceNumber,
     amountIdr,
     payerEmail: email,
@@ -329,6 +341,10 @@ export async function applyGatewayEvent(params: {
     return { outcome: "ignored" };
   }
 
+  // Every event family maps through the same table: session events
+  // (COMPLETED / EXPIRED), payment events (SUCCEEDED / FAILED) and the
+  // channel-level QRIS / VA events (qr.payment / va.payment — PAID /
+  // COMPLETED / EXPIRED / FAILED).
   const status = mapGatewayStatus(params.status);
 
   // A paid event only counts when the amount matches what we charged.
@@ -375,6 +391,15 @@ async function confirmPaidPayment(
   bookingId: string,
   raw?: unknown,
 ): Promise<void> {
+  // Was this attempt already paid? The confirmation writes stay idempotent
+  // either way, but the customer notification fires only on the first one.
+  const priorRows = await db.orm.public.Payment
+    .select("status")
+    .where((f) => f.id.eq(paymentId))
+    .limit(1)
+    .all();
+  const alreadyPaid = priorRows[0]?.status === "paid";
+
   await db.orm.public.Payment
     .where((f) => f.id.eq(paymentId))
     .update({
@@ -388,6 +413,127 @@ async function confirmPaidPayment(
     .update({ status: "confirmed" });
 
   await awardPointsForBooking(bookingId);
+
+  // e-VOA orders reuse this booking payment pipeline. Both the webhook and the
+  // return-page status refresh converge on confirmPaidPayment, so syncing the
+  // visa order here covers both paths with a single hook. It must never break
+  // the booking confirmation — any failure is logged and swallowed.
+  try {
+    const applications = await db.orm.public.VisaApplication
+      .select("id", "status")
+      .where((f) => f.bookingId.eq(bookingId))
+      .limit(1)
+      .all();
+    const application = applications[0];
+    if (application && application.status === "awaiting_payment") {
+      await db.orm.public.VisaApplication
+        .where((f) => f.id.eq(application.id))
+        .update({ status: "paid", paidAt: new Date() });
+      await db.orm.public.EvoaStatusEvent.create({
+        id: crypto.randomUUID(),
+        applicationId: application.id,
+        status: "paid",
+        actor: "system",
+        note: "Pembayaran diterima via Xendit.",
+      });
+    }
+  } catch (error) {
+    console.error("[payments] e-VOA status sync failed", error);
+  }
+
+  // The customer confirmation (WhatsApp when configured) — fire-and-forget.
+  // Only on the first paid transition, and it can never block or fail the
+  // confirmation: every error is logged inside the notifier.
+  if (!alreadyPaid) {
+    void notifyBookingConfirmed(bookingId).catch((error) => {
+      console.error("[payments] confirmation notification failed", error);
+    });
+  }
+}
+
+/**
+ * Assemble the booking summary and hand it to the notifier.
+ *
+ * Reads only what the message needs; any failure here is logged and
+ * swallowed — the booking is already confirmed at this point.
+ */
+async function notifyBookingConfirmed(bookingId: string): Promise<void> {
+  try {
+    const bookings = await db.orm.public.Booking
+      .select(
+        "code",
+        "serviceAt",
+        "adultCount",
+        "childCount",
+        "infantCount",
+        "totalUsdCents",
+        "invoiceNumber",
+        "hotelName",
+        "pickupLabel",
+        "departureId",
+      )
+      .where((f) => f.id.eq(bookingId))
+      .limit(1)
+      .all();
+    const booking = bookings[0];
+    if (!booking) return;
+
+    const contacts = await db.orm.public.Contact
+      .select("firstName", "lastName", "phoneCountryCode", "phone")
+      .where((f) => f.bookingId.eq(bookingId))
+      .limit(1)
+      .all();
+    const contact = contacts[0];
+
+    const items = await db.orm.public.BookingItem
+      .select("label", "packageLabel")
+      .where((f) => f.bookingId.eq(bookingId))
+      .limit(1)
+      .all();
+    const item = items[0];
+
+    let departureStartTime: string | null = null;
+    if (booking.departureId) {
+      try {
+        const departures = await db.orm.public.TourDeparture
+          .select("startTime")
+          .where((f) => f.id.eq(booking.departureId!))
+          .limit(1)
+          .all();
+        departureStartTime = departures[0]?.startTime ?? null;
+      } catch {
+        // Unmigrated DB — the message simply omits the departure time.
+      }
+    }
+
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+    await sendBookingConfirmation({
+      code: booking.code,
+      tourTitle: item?.label ?? "Pesanan Booking VIP",
+      packageLabel: item?.packageLabel ?? null,
+      serviceAt: new Date(booking.serviceAt).toISOString(),
+      departureStartTime,
+      adultCount: booking.adultCount,
+      childCount: booking.childCount,
+      infantCount: booking.infantCount,
+      hotelName: booking.hotelName ?? null,
+      pickupLabel: booking.pickupLabel ?? null,
+      totalUsdCents: booking.totalUsdCents,
+      invoiceNumber: booking.invoiceNumber ?? null,
+      contactName: contact
+        ? `${contact.firstName} ${contact.lastName}`.trim()
+        : "",
+      contactPhone: contact
+        ? e164Phone(contact.phoneCountryCode ?? "", contact.phone ?? "") ?? null
+        : null,
+      voucherUrl: `${appUrl}/voucher/${encodeURIComponent(booking.code)}`,
+    });
+  } catch (error) {
+    console.error("[payments] could not assemble the confirmation notification", error);
+  }
 }
 
 /** The status of a booking's payment — used by the return page. */

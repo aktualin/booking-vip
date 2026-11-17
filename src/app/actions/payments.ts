@@ -17,7 +17,12 @@ export type StartPaymentResult =
     }
   | { ok: false; error: string };
 
-/** Create the Xendit payment session and return the hosted checkout URL. */
+/**
+ * Create the Xendit payment session for the chosen method (CREDIT_CARD,
+ * QRIS or BANK_TRANSFER / Virtual Account) and return the hosted checkout
+ * URL. Every channel uses the same redirect model — the customer pays on
+ * Xendit's page and comes back via /payment/return.
+ */
 export async function startBookingPayment(params: {
   bookingCode: string;
   email: string;

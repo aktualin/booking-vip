@@ -1146,9 +1146,9 @@ async function seedLoyaltyLevels() {
 
 // ---------- Payment methods ----------
 // The methods the customer can pick on the payment page. The gateway is
-// Xendit: Credit Card is the only active channel. QRIS and the other
-// channels are kept as inactive rows — historical payments still reference
-// them — but they cannot be started.
+// Xendit: Credit Card, QRIS and Virtual Account (BANK_TRANSFER) are active
+// hosted-checkout channels. The remaining channels are kept as inactive
+// rows — historical payments still reference them — but cannot be started.
 const paymentMethods: {
   code: string;
   label: string;
@@ -1159,11 +1159,11 @@ const paymentMethods: {
 }[] = [
   {
     code: "BANK_TRANSFER",
-    label: "Transfer Bank (Virtual Account) — BCA, Mandiri, BNI, BRI, BSI, Permata",
-    provider: null,
-    providerMethodCode: null,
+    label: "Virtual Account — BCA, Mandiri, BNI, BRI, BSI, Permata",
+    provider: "xendit",
+    providerMethodCode: "VIRTUAL_ACCOUNT",
     sortOrder: 10,
-    active: false,
+    active: true,
   },
   {
     code: "CREDIT_CARD",
@@ -1184,10 +1184,10 @@ const paymentMethods: {
   {
     code: "QRIS",
     label: "QRIS — scan dengan aplikasi apa pun",
-    provider: null,
+    provider: "xendit",
     providerMethodCode: "QRIS",
     sortOrder: 40,
-    active: false,
+    active: true,
   },
   {
     code: "DIRECT_DEBIT",

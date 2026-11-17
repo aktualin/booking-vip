@@ -2,6 +2,7 @@
 
 import { db } from "@/prisma/db";
 import { getAdminSession } from "@/lib/admin/session";
+import { getAvailableStock } from "@/lib/stock";
 import {
   descendantPlaceIds,
   PLACE_KINDS,
@@ -21,6 +22,7 @@ import type {
   AdminServiceTypeRow,
   AdminStats,
 } from "@/types/admin";
+import type { TourItineraryDay, TourItineraryItem } from "@/types/tour";
 
 /**
  * Admin server actions.
@@ -33,7 +35,7 @@ import type {
  * The env flag alone is not authorization; it only switches the surface off.
  */
 
-async function assertAdmin(): Promise<void> {
+export async function assertAdmin(): Promise<void> {
   if (process.env.ADMIN_ENABLED !== "1") {
     throw new Error("admin disabled");
   }
@@ -77,6 +79,45 @@ function assertNaturalKeyFree(
   if (naturalOwner && naturalOwner.id !== existing?.id) {
     throw new Error(message);
   }
+}
+
+/**
+ * Sanitize a raw itinerary into the `TourItineraryDay[]` shape.
+ *
+ * Days are renumbered 1..n in order; each item keeps a valid "HH:MM" time
+ * (or an empty string) and a non-empty activity. Optional Indonesian texts
+ * (`titleId`, `activityId`) are kept only when non-empty.
+ */
+function sanitizeItinerary(value: unknown): TourItineraryDay[] {
+  if (!Array.isArray(value)) return [];
+  const days: TourItineraryDay[] = [];
+  for (const rawDay of value) {
+    if (!rawDay || typeof rawDay !== "object" || Array.isArray(rawDay)) continue;
+    const day = rawDay as Record<string, unknown>;
+    const title = typeof day.title === "string" ? day.title.trim() : "";
+    const titleId =
+      typeof day.titleId === "string" && day.titleId.trim() ? day.titleId.trim() : undefined;
+
+    const items: TourItineraryItem[] = [];
+    if (Array.isArray(day.items)) {
+      for (const rawItem of day.items) {
+        if (!rawItem || typeof rawItem !== "object" || Array.isArray(rawItem)) continue;
+        const item = rawItem as Record<string, unknown>;
+        const activity = typeof item.activity === "string" ? item.activity.trim() : "";
+        if (!activity) continue;
+        const rawTime = typeof item.time === "string" ? item.time.trim() : "";
+        const time = /^\d{2}:\d{2}$/.test(rawTime) ? rawTime : "";
+        const activityId =
+          typeof item.activityId === "string" && item.activityId.trim()
+            ? item.activityId.trim()
+            : undefined;
+        items.push({ time, activity, ...(activityId ? { activityId } : {}) });
+      }
+    }
+
+    days.push({ day: days.length + 1, title, ...(titleId ? { titleId } : {}), items });
+  }
+  return days;
 }
 
 // ---------------------------------------------------------------------------
@@ -352,6 +393,39 @@ export async function upsertProduct(input: {
   fromPriceUsdCents?: number | null;
   /** Free-form vehicle specs — [{ key, name }]. */
   specs?: { key: string; name: string }[];
+  /**
+   * Rental stock — how many units the vendor owns. Optional: on edit an
+   * omitted value keeps the current stock; on create the column default (1)
+   * applies.
+   */
+  stockTotal?: number;
+  /**
+   * Tour fields — optional: on edit an omitted value keeps the current
+   * value; on create the column defaults apply. `tourKind` is null for
+   * non-tour products.
+   */
+  tourKind?: "private" | "join_in" | null;
+  durationDays?: number;
+  minPax?: number;
+  maxPax?: number | null;
+  /** The tour destination — a place row of kind "destination". */
+  destinationId?: string | null;
+  /** Day-by-day itinerary — sanitized to the TourItineraryDay[] shape. */
+  itinerary?: TourItineraryDay[];
+  /** Indonesian title — null falls back to `title`. */
+  titleId?: string | null;
+  /** Indonesian description — null falls back to `description`. */
+  descriptionId?: string | null;
+  /** Indonesian duration label — null falls back to `durationLabel`. */
+  durationLabelId?: string | null;
+  /** Indonesian ribbon — null falls back to `ribbon`. */
+  ribbonId?: string | null;
+  /** Indonesian included list — null falls back to `included`. */
+  includedId?: string[] | null;
+  /** Indonesian not-included list — null falls back to `notIncluded`. */
+  notIncludedId?: string[] | null;
+  /** Indonesian requirements list — null falls back to `requirements`. */
+  requirementsId?: string[] | null;
   active?: boolean;
 }): Promise<{ ok: true; id: string }> {
   await assertAdmin();
@@ -376,6 +450,27 @@ export async function upsertProduct(input: {
     throw new Error("rating must be 0..5");
   }
   if (input.reviews != null) assertIntGte(input.reviews, "reviews");
+  if (input.stockTotal != null) assertIntGte(input.stockTotal, "stockTotal");
+
+  // Tour fields — validated only when supplied (an edit without them keeps
+  // the current values).
+  if (input.tourKind != null && input.tourKind !== "private" && input.tourKind !== "join_in") {
+    throw new Error("tourKind must be 'private' | 'join_in' | null");
+  }
+  if (input.durationDays != null) assertIntGte(input.durationDays, "durationDays");
+  const minPax = input.minPax ?? 1;
+  if (input.minPax != null) assertIntGte(input.minPax, "minPax", 1);
+  if (input.maxPax != null) {
+    assertIntGte(input.maxPax, "maxPax", 1);
+    if (input.maxPax < minPax) throw new Error("maxPax must be >= minPax");
+  }
+  if (input.destinationId) {
+    const destination = await db.orm.public.Airport
+      .select("id")
+      .where({ id: input.destinationId })
+      .first();
+    if (!destination) throw new Error("destination place not found");
+  }
 
   const isAddOn = input.isAddOn ?? false;
   assertBool(isAddOn, "isAddOn");
@@ -426,6 +521,33 @@ export async function upsertProduct(input: {
     durationLabel: input.durationLabel ?? null,
     fromPriceUsdCents: input.fromPriceUsdCents ?? null,
     specs: (input.specs ?? []) as unknown as [],
+    // Only write the stock when the operator supplied it — an edit without
+    // the field keeps the current value, a create falls back to the column
+    // default (1).
+    ...(input.stockTotal != null ? { stockTotal: input.stockTotal } : {}),
+    // Tour + bilingual columns follow the same write-if-supplied rule, so
+    // editing a non-tour product never touches its tour data.
+    ...(input.tourKind !== undefined ? { tourKind: input.tourKind } : {}),
+    ...(input.durationDays != null ? { durationDays: input.durationDays } : {}),
+    ...(input.minPax != null ? { minPax: input.minPax } : {}),
+    ...(input.maxPax !== undefined ? { maxPax: input.maxPax } : {}),
+    ...(input.destinationId !== undefined ? { destinationId: input.destinationId } : {}),
+    ...(input.itinerary !== undefined
+      ? { itinerary: sanitizeItinerary(input.itinerary) as unknown as [] }
+      : {}),
+    ...(input.titleId !== undefined ? { titleId: input.titleId } : {}),
+    ...(input.descriptionId !== undefined ? { descriptionId: input.descriptionId } : {}),
+    ...(input.durationLabelId !== undefined ? { durationLabelId: input.durationLabelId } : {}),
+    ...(input.ribbonId !== undefined ? { ribbonId: input.ribbonId } : {}),
+    ...(input.includedId !== undefined
+      ? { includedId: input.includedId === null ? null : (input.includedId as unknown as []) }
+      : {}),
+    ...(input.notIncludedId !== undefined
+      ? { notIncludedId: input.notIncludedId === null ? null : (input.notIncludedId as unknown as []) }
+      : {}),
+    ...(input.requirementsId !== undefined
+      ? { requirementsId: input.requirementsId === null ? null : (input.requirementsId as unknown as []) }
+      : {}),
     active,
   };
 
@@ -461,6 +583,8 @@ export async function upsertPackage(input: {
   fromUsdCents?: number | null;
   /** Short package description for the selectable card. */
   description?: string | null;
+  /** Indonesian package description — null falls back to `description`. */
+  descriptionId?: string | null;
   /** Free-form package info — [{ key, name, excluded? }]. */
   info?: { key: string; name: string; excluded?: boolean }[];
   sortOrder?: number;
@@ -534,6 +658,7 @@ export async function upsertPackage(input: {
     extraHourUsdCents: input.durationHours != null ? (input.extraHourUsdCents ?? null) : null,
     fromUsdCents: input.fromUsdCents ?? null,
     description: input.description ?? null,
+    descriptionId: input.descriptionId ?? null,
     info: (input.info ?? []) as unknown as [],
     sortOrder,
     active,
@@ -733,14 +858,32 @@ export async function listProducts(): Promise<AdminProductRow[]> {
       "durationLabel",
       "fromPriceUsdCents",
       "specs",
+      "stockTotal",
+      "tourKind",
+      "durationDays",
+      "minPax",
+      "maxPax",
+      "destinationId",
+      "itinerary",
+      "titleId",
+      "descriptionId",
+      "durationLabelId",
+      "ribbonId",
+      "includedId",
+      "notIncludedId",
+      "requirementsId",
       "active",
     )
     .include("line", (l) => l.select("label"))
     .include("serviceType", (t) => t.select("name"))
     .include("airport", (a) => a.select("name"))
+    .include("destination", (d) => d.select("name"))
     .include("packages", (p) => p.count())
     .orderBy((f) => f.title.asc())
     .all();
+
+  // Derived availability — one batched query for the whole table.
+  const available = await getAvailableStock(rows.map((r) => r.id));
 
   return rows.map((r) => ({
     id: r.id,
@@ -768,8 +911,24 @@ export async function listProducts(): Promise<AdminProductRow[]> {
     durationLabel: r.durationLabel,
     fromPriceUsdCents: r.fromPriceUsdCents,
     specs: (r.specs as { key: string; name: string }[]) ?? [],
+    tourKind: r.tourKind,
+    durationDays: r.durationDays,
+    minPax: r.minPax,
+    maxPax: r.maxPax,
+    destinationId: r.destinationId,
+    destinationName: r.destination?.name ?? null,
+    itinerary: (r.itinerary as TourItineraryDay[]) ?? [],
+    titleId: r.titleId,
+    descriptionId: r.descriptionId,
+    durationLabelId: r.durationLabelId,
+    ribbonId: r.ribbonId,
+    includedId: (r.includedId as string[] | null) ?? null,
+    notIncludedId: (r.notIncludedId as string[] | null) ?? null,
+    requirementsId: (r.requirementsId as string[] | null) ?? null,
     active: r.active,
     packageCount: r.packages,
+    stockTotal: r.stockTotal,
+    availableStock: available.get(r.id) ?? r.stockTotal,
   }));
 }
 
@@ -791,6 +950,7 @@ export async function listPackages(): Promise<AdminPackageRow[]> {
       "extraHourUsdCents",
       "fromUsdCents",
       "description",
+      "descriptionId",
       "info",
       "sortOrder",
       "active",
@@ -813,6 +973,7 @@ export async function listPackages(): Promise<AdminPackageRow[]> {
     extraHourUsdCents: r.extraHourUsdCents,
     fromUsdCents: r.fromUsdCents,
     description: r.description,
+    descriptionId: r.descriptionId,
     info: (r.info as { key: string; name: string; excluded?: boolean }[]) ?? [],
     sortOrder: r.sortOrder,
     active: r.active,

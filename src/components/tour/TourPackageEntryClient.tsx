@@ -6,7 +6,15 @@ import DateTimePopover from "@/components/ui/DateTimePopover";
 import PaxPopover, { DEFAULT_PAX, type PaxCounts } from "@/components/ui/PaxPopover";
 import PlaceSelect from "@/components/ui/PlaceSelect";
 import { SearchIcon } from "@/components/icons";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import type { PlaceNode } from "@/lib/places";
+
+/** How a tour is sold — the entry filter values. */
+const TOUR_KINDS = [
+  { value: "", key: "tour.kindAll" },
+  { value: "private", key: "tour.kindPrivate" },
+  { value: "join_in", key: "tour.kindJoinIn" },
+] as const;
 
 export type TourPackageEntryClientProps = {
   /** The destination hierarchy — the cities with the tourist spots below them. */
@@ -33,12 +41,14 @@ export default function TourPackageEntryClient({
   tourTypes,
 }: TourPackageEntryClientProps) {
   const router = useRouter();
+  const { t } = useLocale();
 
   const [destination, setDestination] = useState("");
   const [date, setDate] = useState(tomorrow);
   const [time, setTime] = useState("09:00");
   const [pax, setPax] = useState<PaxCounts>(DEFAULT_PAX);
   const [tourType, setTourType] = useState("");
+  const [kind, setKind] = useState("");
 
   const search = () => {
     const params = new URLSearchParams();
@@ -49,6 +59,7 @@ export default function TourPackageEntryClient({
     params.set("children", String(pax.children));
     params.set("infants", String(pax.infants));
     if (tourType) params.set("type", tourType);
+    if (kind) params.set("kind", kind);
 
     router.push(`/tour-package/paket?${params.toString()}`);
   };
@@ -113,12 +124,34 @@ export default function TourPackageEntryClient({
         </div>
       </div>
 
+      {/* Private vs join-in — how the tour is sold */}
+      <div className="mt-4">
+        <p className="mb-2 text-[12px] font-medium text-ink">{t("tour.kindLabel")}</p>
+        <div className="flex flex-wrap gap-2">
+          {TOUR_KINDS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setKind(option.value)}
+              className={`h-9 rounded-full border px-4 text-[12px] font-semibold transition-colors ${
+                kind === option.value
+                  ? "border-brand bg-brand-soft text-brand"
+                  : "border-line bg-white text-muted hover:bg-canvas"
+              }`}
+            >
+              {t(option.key)}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-6 flex flex-col items-start justify-between gap-3 border-t border-line pt-5 sm:flex-row sm:items-center">
         <p className="text-[13px] text-muted">
           {destination ? `${destination} · ` : ""}
           {pax.adults} dewasa
           {pax.children > 0 ? `, ${pax.children} anak` : ""}
           {pax.infants > 0 ? `, ${pax.infants} bayi` : ""}
+          {kind ? ` · ${t(kind === "private" ? "tour.kindPrivate" : "tour.kindJoinIn")}` : ""}
         </p>
         <button
           type="button"

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { applyGatewayEvent } from "@/lib/payments";
-import { verifyWebhookToken, type XenditWebhook } from "@/lib/xendit";
+import {
+  verifyWebhookToken,
+  type XenditChannelPaymentEvent,
+  type XenditWebhook,
+} from "@/lib/xendit";
 
 /**
  * The Xendit webhook (Payments API v3).
@@ -9,12 +13,19 @@ import { verifyWebhookToken, type XenditWebhook } from "@/lib/xendit";
  * header is verified first against XENDIT_WEBHOOK_VERIFICATION_TOKEN — an
  * event without a valid token changes nothing.
  *
- * Two event families arrive:
+ * The event families that arrive:
  *
  *   - `payment_session.completed` / `payment_session.expired` — the session
  *     is our provider reference; `completed` means the payment succeeded.
+ *     Covers every channel started through a session (card, QRIS, VA).
  *   - `payment.capture` / `payment.authorization` / `payment.failure` — the
  *     payment-level detail, correlated by our invoice reference.
+ *   - `qr.payment` (QRIS) / `va.payment` (Virtual Account) — the
+ *     channel-level status events. They arrive FLAT (no `data` envelope):
+ *     QRIS nests our reference in `qr_code.external_id`, VA carries
+ *     `external_id` directly. PAID / COMPLETED confirm (with the same
+ *     amount-match rule), EXPIRED resets the attempt to pending, FAILED
+ *     marks it failed.
  *
  * Legacy card events (`credit_card.authentication` / `credit_card.capture` /
  * `credit_card.tokenization`, e.g. the dashboard's test deliveries) carry
@@ -49,13 +60,19 @@ export async function POST(request: Request) {
   }
 
   const event = payload.event?.trim() ?? "";
-  const data = payload.data ?? {};
+  // The v3 session/payment events wrap their object in `data`; the
+  // channel-level qr.payment / va.payment events are flat — the payload
+  // itself is the object.
+  const data = (payload.data ?? payload) as NonNullable<XenditWebhook["data"]> &
+    XenditChannelPaymentEvent;
 
   const sessionId = data.payment_session_id?.trim();
   const paymentId = data.payment_id?.trim();
   const legacyId = data.id?.trim();
   const referenceId = data.reference_id?.trim();
-  const externalId = data.external_id?.trim();
+  // QRIS nests the merchant reference inside the QR code object.
+  const qrExternalId = data.qr_code?.external_id?.trim();
+  const externalId = data.external_id?.trim() || qrExternalId;
   const status = data.status ?? "";
 
   const objectId = sessionId || paymentId || legacyId || referenceId || externalId;

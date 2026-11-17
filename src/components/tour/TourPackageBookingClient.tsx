@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createBooking } from "@/app/actions/booking";
 import PaymentStep from "@/components/payment/PaymentStep";
-import type { TourPackageDTO } from "@/app/actions/catalog";
+import { getTourDepartures, type TourPackageDTO } from "@/app/actions/catalog";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { pickLang } from "@/lib/content";
+import type { TourDepartureDTO } from "@/types/tour";
 import type { PickedPoint } from "@/lib/picked-point";
 
 type Props = {
@@ -61,24 +64,57 @@ export default function TourPackageBookingClient({
     initial?.package ??
       (tours[0] ? `${tours[0].productSlug}::${tours[0].packageId}` : ""),
   );
+  const { t, lang, formatMoney } = useLocale();
+
   const [date, setDate] = useState(initial?.date ?? "");
   const [time, setTime] = useState("09:00");
   const [adult, setAdult] = useState(Math.max(1, initial?.adults ?? 2));
   const [child, setChild] = useState(initial?.children ?? 0);
+  const [infant, setInfant] = useState(Math.max(0, initial?.infants ?? 0));
+  const [hotelName, setHotelName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Join-in departures — fetched for the selected product, seats derived
+  // from the active bookings on the server.
+  const [departures, setDepartures] = useState<TourDepartureDTO[]>([]);
+  const [departuresLoading, setDeparturesLoading] = useState(false);
+  const [departureId, setDepartureId] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
 
   const selected = useMemo(
-    () => tours.find((t) => `${t.productSlug}::${t.packageId}` === tourSlug) ?? null,
+    () => tours.find((tour) => `${tour.productSlug}::${tour.packageId}` === tourSlug) ?? null,
     [tours, tourSlug],
   );
+
+  const isJoinIn = selected?.tourKind === "join_in";
+  const minPax = selected?.minPax ?? 1;
+  const maxPax = selected?.maxPax ?? null;
+  // Infants do not occupy a seat — only adults and children count.
+  const seats = adult + child;
+
+  const selectedDeparture = useMemo(
+    () => departures.find((d) => d.id === departureId) ?? null,
+    [departures, departureId],
+  );
+
+  // Join-in tours depart on the operator's schedule; private tours keep the
+  // free date picker below.
+  const effectiveDate = isJoinIn ? (selectedDeparture?.date.slice(0, 10) ?? "") : date;
+  const effectiveTime = isJoinIn ? (selectedDeparture?.startTime ?? "") : time;
+
+  const paxError =
+    seats < minPax
+      ? t("tour.minPaxError", { n: minPax })
+      : maxPax != null && seats > maxPax
+        ? t("tour.maxPaxError", { n: maxPax })
+        : null;
 
   // The packages are grouped by their parent type (the destination), the
   // same parent → child shape the airport line uses.
@@ -112,21 +148,61 @@ export default function TourPackageBookingClient({
   );
   const dates = useMemo(() => upcomingDates(minDate), [minDate]);
 
-  // Keep the selected date inside the allowed range.
+  // Keep the selected date inside the allowed range (private tours only —
+  // join-in dates come from the departure schedule).
   useEffect(() => {
+    if (isJoinIn) return;
     if (dates.length === 0) return;
     if (!date || date < dates[0]) setDate(dates[0]);
-  }, [dates, date]);
+  }, [dates, date, isJoinIn]);
+
+  // Load the departures of the selected join-in tour. The search date, when
+  // it matches a departure, is preselected.
+  const selectedProductId = selected?.productId ?? null;
+  const initialDate = initial?.date;
+  useEffect(() => {
+    if (!selectedProductId || !isJoinIn) {
+      setDepartures([]);
+      setDepartureId("");
+      return;
+    }
+    let cancelled = false;
+    setDeparturesLoading(true);
+    setDepartureId("");
+    getTourDepartures(selectedProductId).then((rows) => {
+      if (cancelled) return;
+      setDepartures(rows);
+      setDeparturesLoading(false);
+      const match = initialDate
+        ? rows.find((r) => r.date.slice(0, 10) === initialDate)
+        : undefined;
+      if (match && match.available >= adult + child) setDepartureId(match.id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProductId, isJoinIn, initialDate]);
+
+  // Keep the party inside the package's maximum size.
+  useEffect(() => {
+    if (maxPax == null) return;
+    if (adult + child > maxPax) {
+      const clampedAdult = Math.max(1, Math.min(adult, maxPax));
+      setAdult(clampedAdult);
+      setChild(Math.min(child, Math.max(0, maxPax - clampedAdult)));
+    }
+  }, [maxPax, adult, child]);
 
   const totalUsdCents = useMemo(() => {
     if (!selected) return 0;
-    if (selected.unitKind === "per_unit") return selected.adultUsdCents;
+    // A tour books one vehicle — no units stepper.
+    if (selected.unitKind === "per_unit") return selected.unitUsdCents;
     return (
       selected.adultUsdCents * adult +
       selected.childUsdCents * child +
-      selected.infantUsdCents * 0
+      selected.infantUsdCents * infant
     );
-  }, [selected, adult, child]);
+  }, [selected, adult, child, infant]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -137,10 +213,26 @@ export default function TourPackageBookingClient({
       return;
     }
 
+    if (paxError) {
+      setError(paxError);
+      return;
+    }
+
+    if (isJoinIn) {
+      if (!selectedDeparture) {
+        setError(t("tour.departureRequired"));
+        return;
+      }
+      if (seats > selectedDeparture.available) {
+        setError(t("tour.seatsNotEnough"));
+        return;
+      }
+    }
+
     setSubmitting(true);
     setError(null);
 
-    const serviceAt = new Date(`${date}T${time}:00`);
+    const serviceAt = new Date(`${effectiveDate}T${effectiveTime}:00`);
     if (!Number.isFinite(serviceAt.getTime())) {
       setError("Tanggal atau jam tidak valid.");
       setSubmitting(false);
@@ -153,8 +245,10 @@ export default function TourPackageBookingClient({
       serviceAt: serviceAt.toISOString(),
       adult,
       child,
-      infant: 0,
+      infant,
       units: selected.unitKind === "per_unit" ? 1 : undefined,
+      departureId: isJoinIn ? departureId : undefined,
+      hotelName: hotelName.trim() || undefined,
       addOns: [],
       contact: {
         firstName,
@@ -323,14 +417,22 @@ export default function TourPackageBookingClient({
                         >
                           <span className="min-w-0">
                             <span className="block text-[14px] font-semibold text-ink">
-                              {tour.title}
+                              {pickLang(tour.title, tour.titleId, lang)}
                             </span>
                             <span className="mt-0.5 block text-[12px] text-muted">
-                              {tour.durationLabel ?? tour.packageLabel}
+                              {tour.tourKind
+                                ? `${t(tour.tourKind === "private" ? "tour.kindPrivate" : "tour.kindJoinIn")} · `
+                                : ""}
+                              {pickLang(tour.durationLabel ?? tour.packageLabel, tour.durationLabelId, lang)}
                             </span>
                           </span>
-                          <span className="shrink-0 text-[14px] font-bold text-ink">
-                            ${(tour.adultUsdCents / 100).toFixed(2)}
+                          <span className="shrink-0 text-right">
+                            <span className="block text-[14px] font-bold text-ink">
+                              ${(tour.adultUsdCents / 100).toFixed(2)}
+                            </span>
+                            <span className="block text-[11px] font-normal text-muted">
+                              {t(tour.unitKind === "per_pax" ? "tour.perPax" : "tour.perUnit")}
+                            </span>
                           </span>
                         </button>
                       );
@@ -342,48 +444,101 @@ export default function TourPackageBookingClient({
           )}
         </section>
 
-        {/* When */}
+        {/* When — join-in tours pick a scheduled departure; private tours
+            keep the free date + time picker with the lead-time logic. */}
         <section className="rounded-2xl border border-line bg-white p-5">
           <h2 className="text-[15px] font-bold tracking-[-0.01em] text-ink">
-            Tanggal &amp; jam keberangkatan
+            {isJoinIn ? t("tour.departureLabel") : "Tanggal & jam keberangkatan"}
           </h2>
 
-          <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1.5 block text-[12px] font-medium text-ink">Tanggal</span>
-              <select
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
-              >
-                {dates.map((d) => (
-                  <option key={d} value={d}>
-                    {new Date(`${d}T00:00:00`).toLocaleDateString("id-ID", {
-                      weekday: "short",
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
+          {isJoinIn ? (
+            <div className="mt-4">
+              {departuresLoading ? (
+                <p className="text-[13px] text-muted">{t("tour.departureLoading")}</p>
+              ) : departures.length === 0 ? (
+                <p className="rounded-xl border border-line bg-canvas px-4 py-3 text-[13px] text-muted">
+                  {t("tour.departureEmpty")}
+                </p>
+              ) : (
+                <label className="block">
+                  <span className="mb-1.5 block text-[12px] font-medium text-ink">
+                    {t("tour.departureLabel")}
+                  </span>
+                  <select
+                    value={departureId}
+                    onChange={(e) => setDepartureId(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                  >
+                    <option value="">{t("tour.departurePlaceholder")}</option>
+                    {departures.map((d) => {
+                      const day = new Date(`${d.date.slice(0, 10)}T00:00:00`).toLocaleDateString(
+                        lang === "id" ? "id-ID" : "en-US",
+                        { weekday: "long", day: "2-digit", month: "short" },
+                      );
+                      const full = d.available <= 0;
+                      const notEnough = !full && d.available < seats;
+                      const seatsLabel = full
+                        ? t("tour.seatsFull")
+                        : notEnough
+                          ? t("tour.seatsNotEnough")
+                          : t("tour.seatsLeft", { n: d.available });
+                      return (
+                        <option key={d.id} value={d.id} disabled={full || notEnough}>
+                          {`${day} · ${d.startTime} · ${seatsLabel}`}
+                        </option>
+                      );
                     })}
-                  </option>
-                ))}
-              </select>
-            </label>
+                  </select>
+                </label>
+              )}
+              <p className="mt-3 text-[12px] text-muted">{t("tour.joinInHint")}</p>
+              {selectedDeparture && seats > selectedDeparture.available ? (
+                <p className="mt-2 text-[12px] font-medium text-danger">
+                  {t("tour.seatsNotEnough")} — {t("tour.seatsLeft", { n: selectedDeparture.available })}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1.5 block text-[12px] font-medium text-ink">Tanggal</span>
+                  <select
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                  >
+                    {dates.map((d) => (
+                      <option key={d} value={d}>
+                        {new Date(`${d}T00:00:00`).toLocaleDateString("id-ID", {
+                          weekday: "short",
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-[12px] font-medium text-ink">Jam</span>
-              <select
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
-              >
-                {TIME_SLOTS.map((slot) => (
-                  <option key={slot} value={slot}>
-                    {slot}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+                <label className="block">
+                  <span className="mb-1.5 block text-[12px] font-medium text-ink">Jam</span>
+                  <select
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                  >
+                    {TIME_SLOTS.map((slot) => (
+                      <option key={slot} value={slot}>
+                        {slot}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <p className="mt-3 text-[12px] text-muted">{t("tour.privateHint")}</p>
+            </>
+          )}
         </section>
 
         {/* Travellers */}
@@ -392,15 +547,17 @@ export default function TourPackageBookingClient({
             Penumpang
           </h2>
 
-          <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3.5 sm:grid-cols-3">
             <label className="block">
               <span className="mb-1.5 block text-[12px] font-medium text-ink">Dewasa</span>
               <input
                 type="number"
                 min={1}
-                max={20}
+                max={maxPax ?? 20}
                 value={adult}
-                onChange={(e) => setAdult(Math.max(1, Number(e.target.value) || 1))}
+                onChange={(e) =>
+                  setAdult(Math.max(1, Math.min(maxPax ?? 20, Number(e.target.value) || 1)))
+                }
                 className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
               />
             </label>
@@ -410,9 +567,33 @@ export default function TourPackageBookingClient({
               <input
                 type="number"
                 min={0}
-                max={10}
+                max={maxPax != null ? Math.max(0, maxPax - adult) : 10}
                 value={child}
-                onChange={(e) => setChild(Math.max(0, Number(e.target.value) || 0))}
+                onChange={(e) =>
+                  setChild(
+                    Math.max(
+                      0,
+                      Math.min(
+                        maxPax != null ? Math.max(0, maxPax - adult) : 10,
+                        Number(e.target.value) || 0,
+                      ),
+                    ),
+                  )
+                }
+                className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-[12px] font-medium text-ink">
+                {t("tour.infant")}
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={infant}
+                onChange={(e) => setInfant(Math.max(0, Math.min(10, Number(e.target.value) || 0)))}
                 className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
               />
             </label>
@@ -420,7 +601,39 @@ export default function TourPackageBookingClient({
 
           <p className="mt-3 text-[12px] text-muted">
             Data penumpang tidak disimpan — cukup jumlah penumpang yang dibutuhkan.
+            {` ${t("tour.infantNote")}`}
           </p>
+          {minPax > 1 || maxPax != null ? (
+            <p className="mt-1.5 text-[12px] text-muted">
+              {minPax > 1 ? t("tour.minPaxHint", { n: minPax }) : ""}
+              {minPax > 1 && maxPax != null ? " · " : ""}
+              {maxPax != null ? t("tour.maxPaxHint", { n: maxPax }) : ""}
+            </p>
+          ) : null}
+          {paxError ? (
+            <p className="mt-1.5 text-[12px] font-medium text-danger">{paxError}</p>
+          ) : null}
+        </section>
+
+        {/* Hotel pickup */}
+        <section className="rounded-2xl border border-line bg-white p-5">
+          <h2 className="text-[15px] font-bold tracking-[-0.01em] text-ink">
+            {t("tour.pickupTitle")}
+          </h2>
+
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-[12px] font-medium text-ink">
+              {t("tour.hotelLabel")}
+            </span>
+            <input
+              type="text"
+              value={hotelName}
+              onChange={(e) => setHotelName(e.target.value)}
+              placeholder={t("tour.hotelPlaceholder")}
+              className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+            />
+          </label>
+          <p className="mt-2 text-[12px] text-muted">{t("tour.hotelHint")}</p>
         </section>
 
         {/* Contact */}
@@ -507,14 +720,14 @@ export default function TourPackageBookingClient({
             <div className="flex items-start justify-between gap-4">
               <dt className="text-muted">Paket</dt>
               <dd className="text-right font-medium text-ink">
-                {selected?.title ?? "—"}
+                {selected ? pickLang(selected.title, selected.titleId, lang) : "—"}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-4">
               <dt className="text-muted">Tanggal</dt>
               <dd className="text-right font-medium text-ink">
-                {date
-                  ? new Date(`${date}T00:00:00`).toLocaleDateString("id-ID", {
+                {effectiveDate
+                  ? new Date(`${effectiveDate}T00:00:00`).toLocaleDateString("id-ID", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
@@ -524,15 +737,61 @@ export default function TourPackageBookingClient({
             </div>
             <div className="flex items-center justify-between gap-4">
               <dt className="text-muted">Jam</dt>
-              <dd className="text-right font-medium text-ink">{time}</dd>
+              <dd className="text-right font-medium text-ink">{effectiveTime || "—"}</dd>
             </div>
             <div className="flex items-center justify-between gap-4">
               <dt className="text-muted">Penumpang</dt>
               <dd className="text-right font-medium text-ink">
                 {adult} dewasa{child > 0 ? `, ${child} anak` : ""}
+                {infant > 0 ? `, ${infant} bayi` : ""}
               </dd>
             </div>
+            {hotelName.trim() ? (
+              <div className="flex items-start justify-between gap-4">
+                <dt className="text-muted">{t("tour.pickupTitle")}</dt>
+                <dd className="text-right font-medium text-ink">{hotelName.trim()}</dd>
+              </div>
+            ) : null}
           </dl>
+
+          {/* Price breakdown */}
+          {selected ? (
+            <dl className="mt-4 space-y-2 border-t border-line pt-4 text-[12px]">
+              {selected.unitKind === "per_unit" ? (
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted">{t("tour.unitLine")}</dt>
+                  <dd className="font-medium text-ink">
+                    {formatMoney(selected.unitUsdCents / 100)}
+                  </dd>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-4">
+                    <dt className="text-muted">{t("tour.adultsLine", { n: adult })}</dt>
+                    <dd className="font-medium text-ink">
+                      {formatMoney((selected.adultUsdCents * adult) / 100)}
+                    </dd>
+                  </div>
+                  {child > 0 ? (
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-muted">{t("tour.childrenLine", { n: child })}</dt>
+                      <dd className="font-medium text-ink">
+                        {formatMoney((selected.childUsdCents * child) / 100)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {infant > 0 ? (
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-muted">{t("tour.infantsLine", { n: infant })}</dt>
+                      <dd className="font-medium text-ink">
+                        {formatMoney((selected.infantUsdCents * infant) / 100)}
+                      </dd>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </dl>
+          ) : null}
 
           <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
             <span className="text-[13px] font-semibold text-ink">Total</span>
@@ -543,7 +802,12 @@ export default function TourPackageBookingClient({
 
           <button
             type="submit"
-            disabled={submitting || tours.length === 0}
+            disabled={
+              submitting ||
+              tours.length === 0 ||
+              !!paxError ||
+              (isJoinIn && (!selectedDeparture || seats > selectedDeparture.available))
+            }
             className="mt-5 h-11 w-full rounded-xl bg-brand text-[14px] font-semibold text-white transition-opacity hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Memproses…" : "Konfirmasi pesanan"}

@@ -4,11 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BoxIcon,
+  CarIcon,
+  CompassIcon,
   LayersIcon,
   ListIcon,
   MapPinIcon,
+  PassportIcon,
+  PlaneIcon,
   TagIcon,
+  TicketIcon,
 } from "@/components/icons";
+import { TRANSACTION_LINES } from "@/lib/admin/transaction-lines";
 
 type NavItem = {
   href: string;
@@ -30,6 +36,31 @@ const catalogItems: NavItem[] = [
 const settingsItems: NavItem[] = [
   { href: "/admin/settings/popup", label: "Popup Homepage", icon: <ListIcon width={16} height={16} /> },
   { href: "/admin/settings/tax", label: "Pajak", icon: <TagIcon width={16} height={16} /> },
+  { href: "/admin/settings/evoa-fields", label: "Form Dinamis e-VOA", icon: <ListIcon width={16} height={16} /> },
+];
+
+/** One transaction menu per service line — icons mirror the service rail. */
+const transactionIcons: Record<string, React.ReactNode> = {
+  transport: <CarIcon width={16} height={16} />,
+  "tour-package": <CompassIcon width={16} height={16} />,
+  "fast-track": <TicketIcon width={16} height={16} />,
+  "vip-service": <PlaneIcon width={16} height={16} />,
+  evoa: <PassportIcon width={16} height={16} />,
+};
+
+const transactionItems: NavItem[] = TRANSACTION_LINES.map((line) => ({
+  href: `/admin/transactions/${line.slug}`,
+  label: line.name,
+  icon: transactionIcons[line.slug] ?? <ListIcon width={16} height={16} />,
+}));
+
+const operationalItems: NavItem[] = [
+  { href: "/admin/visa", label: "Pengajuan e-VOA", icon: <PassportIcon width={16} height={16} /> },
+  { href: "/admin/orders", label: "Orders", icon: <TicketIcon width={16} height={16} /> },
+  { href: "/admin/bookings", label: "Transaksi", icon: <ListIcon width={16} height={16} /> },
+  { href: "/admin/tour-departures", label: "Departure Tour", icon: <MapPinIcon width={16} height={16} /> },
+  { href: "/admin/roster/drivers", label: "Driver", icon: <BoxIcon width={16} height={16} /> },
+  { href: "/admin/roster/vehicles", label: "Vehicle", icon: <BoxIcon width={16} height={16} /> },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -74,6 +105,42 @@ export default function AdminSidebar() {
           Catalog
         </p>
         {catalogItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors ${
+              isActive(pathname, item.href)
+                ? "bg-[var(--admin-hover)] font-medium text-[var(--admin-ink)]"
+                : "text-[var(--admin-muted)] hover:bg-[var(--admin-hover)] hover:text-[var(--admin-ink)]"
+            }`}
+          >
+            {item.icon}
+            {item.label}
+          </Link>
+        ))}
+
+        <p className="px-3 pb-2 pt-6 text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--admin-muted)]">
+          Operasional
+        </p>
+        {operationalItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors ${
+              isActive(pathname, item.href)
+                ? "bg-[var(--admin-hover)] font-medium text-[var(--admin-ink)]"
+                : "text-[var(--admin-muted)] hover:bg-[var(--admin-hover)] hover:text-[var(--admin-ink)]"
+            }`}
+          >
+            {item.icon}
+            {item.label}
+          </Link>
+        ))}
+
+        <p className="px-3 pb-2 pt-6 text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--admin-muted)]">
+          Transaksi
+        </p>
+        {transactionItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}

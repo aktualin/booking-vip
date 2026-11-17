@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/sections/Footer";
 import BottomTabBar from "@/components/sections/BottomTabBar";
-import ProductDetail from "@/components/sections/ProductDetail";
+import TourDetailClient from "@/components/tour/TourDetailClient";
 
 export const metadata: Metadata = {
   title: "Tour Package Details - Booking VIP",
@@ -17,7 +17,7 @@ export default function TourPackageDetailPage() {
       </Suspense>
       <main className="flex-1">
         <Suspense>
-          <ProductDetail lineSlug="tour-package" />
+          <TourDetailClient />
         </Suspense>
       </main>
       <Footer />

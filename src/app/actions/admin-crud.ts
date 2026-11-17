@@ -3,6 +3,7 @@
 import { db } from "@/prisma/db";
 import { getAdminSession } from "@/lib/admin/session";
 import { PLACE_KINDS, type PlaceKind } from "@/lib/places";
+import type { TourItineraryDay } from "@/types/tour";
 import {
   setProductAddOns,
   setProductAmenities,
@@ -15,6 +16,11 @@ import {
   upsertServiceLine,
   upsertServiceType,
 } from "./admin";
+import {
+  upsertDriver,
+  upsertTourDeparture,
+  upsertVehicle,
+} from "./admin-tour";
 
 /**
  * The admin create / update / delete layer.
@@ -42,7 +48,10 @@ export type AdminEntityTable =
   | "place"
   | "serviceLine"
   | "amenity"
-  | "promoCode";
+  | "promoCode"
+  | "driver"
+  | "vehicle"
+  | "tourDeparture";
 
 export type AdminSaveResult =
   | { ok: true; message: string }
@@ -61,6 +70,9 @@ const LABELS: Record<AdminEntityTable, string> = {
   serviceLine: "Service line",
   amenity: "Amenity",
   promoCode: "Promo",
+  driver: "Driver",
+  vehicle: "Kendaraan",
+  tourDeparture: "Jadwal keberangkatan",
 };
 
 /**
@@ -103,6 +115,16 @@ function asBoolean(value: unknown): boolean {
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map((item) => String(item).trim()).filter(Boolean);
+}
+
+/**
+ * A string list that falls back to the English column when empty — the
+ * bilingual Json? lists (includedId, …) store null, never an empty array.
+ */
+function asOptionalStringArray(value: unknown): string[] | null {
+  if (value == null) return null;
+  const list = asStringArray(value);
+  return list.length > 0 ? list : null;
 }
 
 /** Parse a free-form key/value list — [{ key, name, excluded? }]. */
@@ -178,6 +200,24 @@ function explainError(message: string): { error: string; field?: string } {
   if (lower.includes("direction")) {
     return { field: "direction", error: "Arah harus Arrival, Departure atau Both." };
   }
+  if (lower.includes("stocktotal")) {
+    return { field: "stockTotal", error: "Stok total harus bilangan bulat ≥ 0." };
+  }
+  if (lower.includes("tourkind")) {
+    return { field: "tourKind", error: "Jenis tour harus Private atau Join-in." };
+  }
+  if (lower.includes("durationdays")) {
+    return { field: "durationDays", error: "Durasi (hari) harus bilangan bulat ≥ 0." };
+  }
+  if (lower.includes("maxpax")) {
+    return { field: "maxPax", error: "Maks pax harus ≥ min pax (atau dikosongkan)." };
+  }
+  if (lower.includes("minpax")) {
+    return { field: "minPax", error: "Min pax harus bilangan bulat ≥ 1." };
+  }
+  if (lower.includes("destination")) {
+    return { field: "destinationId", error: "Place destinasi tidak ditemukan." };
+  }
 
   return { error: message };
 }
@@ -244,6 +284,20 @@ export async function saveAdminEntity(input: {
           durationLabel: asOptionalString(values.durationLabel),
           fromPriceUsdCents: asNumber(values.fromPriceUsdCents),
           specs: asKeyValueArray(values.specs),
+          stockTotal: asNumber(values.stockTotal) ?? undefined,
+          tourKind: (asString(values.tourKind) || null) as "private" | "join_in" | null,
+          durationDays: asNumber(values.durationDays) ?? 0,
+          minPax: asNumber(values.minPax) ?? 1,
+          maxPax: asNumber(values.maxPax),
+          destinationId: asOptionalString(values.destinationId),
+          itinerary: values.itinerary as TourItineraryDay[],
+          titleId: asOptionalString(values.titleId),
+          descriptionId: asOptionalString(values.descriptionId),
+          durationLabelId: asOptionalString(values.durationLabelId),
+          ribbonId: asOptionalString(values.ribbonId),
+          includedId: asOptionalStringArray(values.includedId),
+          notIncludedId: asOptionalStringArray(values.notIncludedId),
+          requirementsId: asOptionalStringArray(values.requirementsId),
           active: asBoolean(values.active),
         });
 
@@ -283,6 +337,7 @@ export async function saveAdminEntity(input: {
           extraHourUsdCents: asNumber(values.extraHourUsdCents),
           fromUsdCents: asNumber(values.fromUsdCents),
           description: asOptionalString(values.description),
+          descriptionId: asOptionalString(values.descriptionId),
           info: asKeyValueArray(values.info),
           sortOrder: asNumber(values.sortOrder) ?? 0,
           active: asBoolean(values.active),
@@ -431,6 +486,44 @@ export async function saveAdminEntity(input: {
         return { ok: true, message: `Promo berhasil disimpan.` };
       }
 
+      case "driver": {
+        return await upsertDriver({
+          id,
+          name: asString(values.name),
+          phone: asString(values.phone),
+          languages: asOptionalString(values.languages),
+          photoUrl: asOptionalString(values.photoUrl),
+          notes: asOptionalString(values.notes),
+          active: asBoolean(values.active),
+          sortOrder: asNumber(values.sortOrder) ?? 0,
+        });
+      }
+
+      case "vehicle": {
+        return await upsertVehicle({
+          id,
+          name: asString(values.name),
+          plateNumber: asOptionalString(values.plateNumber),
+          seats: asNumber(values.seats) ?? 6,
+          photoUrl: asOptionalString(values.photoUrl),
+          notes: asOptionalString(values.notes),
+          active: asBoolean(values.active),
+          sortOrder: asNumber(values.sortOrder) ?? 0,
+        });
+      }
+
+      case "tourDeparture": {
+        return await upsertTourDeparture({
+          id,
+          productId: asString(values.productId),
+          date: asString(values.date),
+          startTime: asString(values.startTime) || "08:00",
+          quota: asNumber(values.quota) ?? 10,
+          status: asString(values.status) || "open",
+          notes: asOptionalString(values.notes),
+        });
+      }
+
       default:
         return { ok: false, error: "Jenis data tidak dikenal." };
     }
@@ -484,6 +577,27 @@ export async function getAdminEntityName(input: {
     case "promoCode": {
       const row = await db.orm.public.PromoCode.select("code").where({ id: input.id }).first();
       return row?.code ?? null;
+    }
+    case "driver": {
+      const row = await db.orm.public.Driver.select("name").where({ id: input.id }).first();
+      return row?.name ?? null;
+    }
+    case "vehicle": {
+      const row = await db.orm.public.Vehicle.select("name").where({ id: input.id }).first();
+      return row?.name ?? null;
+    }
+    case "tourDeparture": {
+      const row = await db.orm.public.TourDeparture
+        .select("productId", "date", "startTime")
+        .where({ id: input.id })
+        .first();
+      if (!row) return null;
+      const product = await db.orm.public.Product
+        .select("title")
+        .where({ id: row.productId })
+        .first();
+      // The same label the list shows — product · ISO day · start time.
+      return `${product?.title ?? "Produk"} · ${new Date(row.date).toISOString().slice(0, 10)} ${row.startTime}`;
     }
     default:
       return null;
@@ -648,6 +762,51 @@ export async function deleteAdminEntity(input: {
         // Bookings only store the promo *code* as text, so nothing else
         // has to be cleaned up.
         await db.orm.public.PromoCode.where((f) => f.id.eq(id)).deleteAll();
+        break;
+      }
+
+      case "driver": {
+        const used = await db.orm.public.Booking
+          .where((f) => f.driverId.eq(id))
+          .aggregate((a) => ({ n: a.count() }));
+        if (used.n > 0) {
+          return {
+            ok: false,
+            error: `Driver masih ditugaskan pada ${used.n} booking. Lepaskan penugasan driver pada booking terkait terlebih dahulu.`,
+          };
+        }
+
+        await db.orm.public.Driver.where((f) => f.id.eq(id)).deleteAll();
+        break;
+      }
+
+      case "vehicle": {
+        const used = await db.orm.public.Booking
+          .where((f) => f.vehicleId.eq(id))
+          .aggregate((a) => ({ n: a.count() }));
+        if (used.n > 0) {
+          return {
+            ok: false,
+            error: `Kendaraan masih ditugaskan pada ${used.n} booking. Lepaskan penugasan kendaraan pada booking terkait terlebih dahulu.`,
+          };
+        }
+
+        await db.orm.public.Vehicle.where((f) => f.id.eq(id)).deleteAll();
+        break;
+      }
+
+      case "tourDeparture": {
+        const used = await db.orm.public.Booking
+          .where((f) => f.departureId.eq(id))
+          .aggregate((a) => ({ n: a.count() }));
+        if (used.n > 0) {
+          return {
+            ok: false,
+            error: `Jadwal masih dipakai pada ${used.n} booking. Batalkan atau pindahkan booking terkait terlebih dahulu.`,
+          };
+        }
+
+        await db.orm.public.TourDeparture.where((f) => f.id.eq(id)).deleteAll();
         break;
       }
 

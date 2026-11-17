@@ -53,7 +53,7 @@ export default function PackagesForm({
       { name: "infantUsdCents", label: "Harga Bayi", kind: "money" },
       { name: "unitUsdCents", label: "Harga Unit", kind: "money" },
       { name: "durationHours", label: "Durasi (jam)", kind: "number" },
-      { name: "extraHourUsdCents", label: "Biaya Jam Tambahan", kind: "money" },
+      { name: "extraHourUsdCents", label: "Biaya overtime per jam", kind: "money" },
       {
         name: "fromUsdCents",
         label: "Harga Coret (promo)",
@@ -61,6 +61,13 @@ export default function PackagesForm({
         hint: "Harga asal yang dicoret — kosongkan bila tidak ada promo",
       },
       { name: "description", label: "Deskripsi Paket", kind: "textarea", wide: true },
+      {
+        name: "descriptionId",
+        label: "Deskripsi Paket (ID)",
+        kind: "textarea",
+        wide: true,
+        hint: "Kosongkan untuk memakai deskripsi EN",
+      },
       {
         name: "info",
         label: "Info Paket (key/value)",
@@ -88,6 +95,7 @@ export default function PackagesForm({
       extraHourUsdCents: row?.extraHourUsdCents ?? null,
       fromUsdCents: row?.fromUsdCents ?? null,
       description: row?.description ?? "",
+      descriptionId: row?.descriptionId ?? "",
       info: row?.info ?? [],
       sortOrder: row?.sortOrder ?? 0,
       active: row?.active ?? true,
@@ -109,6 +117,14 @@ export default function PackagesForm({
       loadError={rowError}
       rowMissing={missing}
       entityName={row?.label ?? null}
+      renderPreview={(values) =>
+        values.unitKind === "per_unit" ? (
+          <p className="mt-4 rounded-lg border border-[var(--admin-line)] bg-[var(--admin-hover)] px-3 py-2 text-[12px] text-[var(--admin-muted)]">
+            Harga per mobil/unit — bukan per orang. Untuk tour private, satu paket mencakup
+            seluruh mobil hingga kapasitas maksimumnya.
+          </p>
+        ) : null
+      }
     />
   );
 }

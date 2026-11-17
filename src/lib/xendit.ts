@@ -5,17 +5,18 @@ import { timingSafeEqual } from "node:crypto";
 /**
  * The Xendit gateway — Payments API (v3), Payment Sessions.
  *
- * One channel is integrated: Credit Card via a PAYMENT_LINK session. The
- * server creates a session and the customer is redirected to Xendit's hosted
- * checkout page (`payment_link_url`), where the card form and 3DS live — raw
+ * Three channels are integrated, all through a hosted PAYMENT_LINK session:
+ * Credit Card, QRIS and Virtual Account (bank transfer). The server creates
+ * a session and the customer is redirected to Xendit's hosted checkout page
+ * (`payment_link_url`), where the card form / QR code / VA number live — raw
  * card data never touches this server (PCI SAQ A).
  *
- * Prices are stored and displayed in USD. Xendit charges Indonesian cards
- * in IDR, so the server converts the booking total (USD cents) to whole
- * rupiah at session creation (see `src/lib/fx.ts` — Frankfurter API with a
- * fallback) and creates the session with `currency: "IDR"`. The rate used
- * and the IDR amount are frozen on the payment row. The customer-facing
- * display stays USD everywhere; the conversion is server-side plumbing.
+ * Prices are stored and displayed in USD. Xendit charges in IDR, so the
+ * server converts the booking total (USD cents) to whole rupiah at session
+ * creation (see `src/lib/fx.ts` — Frankfurter API with a fallback) and
+ * creates the session with `currency: "IDR"`. The rate used and the IDR
+ * amount are frozen on the payment row. The customer-facing display stays
+ * USD everywhere; the conversion is server-side plumbing.
  *
  * Authentication is HTTP Basic with the secret API key. Incoming webhooks
  * are verified with the `x-callback-token` header against the webhook
@@ -28,6 +29,23 @@ import { timingSafeEqual } from "node:crypto";
  *
  * Return URLs must be HTTPS — local development needs an HTTPS tunnel.
  */
+
+/** The payment channels we start sessions for (PaymentMethod.providerMethodCode). */
+export type PaymentChannel = "CREDIT_CARD" | "QRIS" | "VIRTUAL_ACCOUNT";
+
+/**
+ * The Virtual Account bank channels offered on the hosted checkout page.
+ * Channel codes per the Xendit channel documentation (all support Payment
+ * Link); BCA is the default when a single bank is requested.
+ */
+export const VA_CHANNEL_CODES = [
+  "BCA_VIRTUAL_ACCOUNT",
+  "MANDIRI_VIRTUAL_ACCOUNT",
+  "BNI_VIRTUAL_ACCOUNT",
+  "BRI_VIRTUAL_ACCOUNT",
+  "BSI_VIRTUAL_ACCOUNT",
+  "PERMATA_VIRTUAL_ACCOUNT",
+] as const;
 
 /** The gateway statuses we care about, mapped onto ours. */
 export type GatewayStatus =
@@ -125,6 +143,25 @@ export type XenditLegacyEvent = {
   three_ds_version?: string;
 };
 
+/**
+ * The channel-level payment events of QRIS (`qr.payment`) and Virtual
+ * Account (`va.payment`). Unlike the v3 session/payment events these arrive
+ * FLAT (no `data` envelope): the fields sit at the top level of the body.
+ * QRIS nests the merchant reference in `qr_code.external_id`; VA carries
+ * `external_id` directly. Both use our invoice number as the reference.
+ */
+export type XenditChannelPaymentEvent = {
+  id?: string;
+  payment_id?: string;
+  external_id?: string;
+  reference_id?: string;
+  amount?: number;
+  status?: string;
+  currency?: string;
+  bank_code?: string;
+  qr_code?: { id?: string; external_id?: string };
+};
+
 /** The webhook envelope — session-level, payment-level and legacy events. */
 export type XenditWebhook = {
   event?: string;
@@ -132,7 +169,7 @@ export type XenditWebhook = {
   created?: string;
   api_version?: string | null;
   data?: XenditSession & XenditPaymentEvent & XenditLegacyEvent;
-};
+} & XenditChannelPaymentEvent;
 
 /** Is the Xendit gateway configured? */
 export function isXenditConfigured(): boolean {
@@ -228,16 +265,8 @@ function cleanName(value: string, fallback: string): string {
   return cleaned || fallback;
 }
 
-/**
- * Create a PAYMENT_LINK session for a card payment in IDR and return its
- * hosted checkout URL.
- *
- * The customer enters the card on Xendit's hosted page; 3DS and the result
- * are handled there. `referenceId` is our invoice number (max 64 chars).
- * `amountIdr` is the whole-rupiah amount the server converted from the USD
- * total — Xendit IDR amounts are integers without decimals.
- */
-export async function createCardSession(input: {
+/** The money + customer + redirect parameters shared by every channel. */
+export type PaymentSessionInput = {
   referenceId: string;
   amountIdr: number;
   payerEmail: string;
@@ -250,8 +279,41 @@ export async function createCardSession(input: {
   description: string;
   successRedirectUrl: string;
   failureRedirectUrl: string;
-}): Promise<GatewayPayment> {
+};
+
+/**
+ * Create a PAYMENT_LINK session in IDR for one of our channels and return
+ * its hosted checkout URL.
+ *
+ * The customer pays on Xendit's hosted page — the card form + 3DS for
+ * CREDIT_CARD, the scannable QR for QRIS, the VA number + instructions for
+ * VIRTUAL_ACCOUNT. `referenceId` is our invoice number (max 64 chars).
+ * `amountIdr` is the whole-rupiah amount the server converted from the USD
+ * total — Xendit IDR amounts are integers without decimals.
+ *
+ * Channel selection uses `allowed_payment_channels` (the Sessions API has
+ * no per-request `payment_method` object — that shape belongs to the
+ * Payment Requests API). QRIS uses the documented channel code "QRIS";
+ * Virtual Account offers the six documented Indonesian VA bank channels
+ * (BCA first) so the customer picks the bank on the hosted page.
+ */
+export async function createPaymentSession(
+  input: PaymentSessionInput & {
+    channel: PaymentChannel;
+    /** Override the VA bank channels (defaults to all six, BCA first). */
+    vaChannelCodes?: string[];
+  },
+): Promise<GatewayPayment> {
   const amount = Math.max(1, Math.round(input.amountIdr));
+
+  const allowedChannels =
+    input.channel === "CREDIT_CARD"
+      ? ["CARDS"]
+      : input.channel === "QRIS"
+        ? ["QRIS"]
+        : input.vaChannelCodes && input.vaChannelCodes.length > 0
+          ? input.vaChannelCodes
+          : [...VA_CHANNEL_CODES];
 
   const payload = await xenditFetch<XenditSession>("POST", "/sessions", {
     reference_id: input.referenceId.slice(0, 64),
@@ -261,7 +323,7 @@ export async function createCardSession(input: {
     currency: "IDR",
     country: "ID",
     allow_save_payment_method: "DISABLED",
-    allowed_payment_channels: ["CARDS"],
+    allowed_payment_channels: allowedChannels,
     description: input.description.slice(0, 1000),
     customer: {
       reference_id: input.customerReferenceId.replace(/[^A-Za-z0-9]/g, "").slice(0, 64),
@@ -293,6 +355,16 @@ export async function createCardSession(input: {
       : new Date(Date.now() + SESSION_TTL_MS),
     raw: payload,
   };
+}
+
+/**
+ * Create a card PAYMENT_LINK session — the original entry point, kept as a
+ * thin wrapper over `createPaymentSession`.
+ */
+export async function createCardSession(
+  input: PaymentSessionInput,
+): Promise<GatewayPayment> {
+  return createPaymentSession({ ...input, channel: "CREDIT_CARD" });
 }
 
 /** Read a payment session back from Xendit by its id. */
