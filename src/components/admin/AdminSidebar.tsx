@@ -37,6 +37,7 @@ const settingsItems: NavItem[] = [
   { href: "/admin/settings/popup", label: "Popup Homepage", icon: <ListIcon width={16} height={16} /> },
   { href: "/admin/settings/tax", label: "Pajak", icon: <TagIcon width={16} height={16} /> },
   { href: "/admin/settings/evoa-fields", label: "Form Dinamis e-VOA", icon: <ListIcon width={16} height={16} /> },
+  { href: "/admin/settings/cancellation", label: "Pembatalan Tour", icon: <TicketIcon width={16} height={16} /> },
 ];
 
 /** One transaction menu per service line — icons mirror the service rail. */

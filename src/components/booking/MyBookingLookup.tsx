@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getBookingByCode } from "@/app/actions/booking";
+import VipTracking from "@/components/booking/VipTracking";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { BookingLookupDTO } from "@/types";
 
@@ -225,6 +226,8 @@ export default function MyBookingLookup() {
               </span>
             </div>
           </div>
+
+          <VipTracking booking={booking} />
         </div>
       )}
     </div>

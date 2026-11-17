@@ -11,6 +11,7 @@ import type { PackageDTO, ProductDetailDTO } from "@/types";
 import { getProduct } from "@/app/actions/catalog";
 import { pickLang } from "@/lib/content";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import TourDepartureCalendar from "@/components/tour/TourDepartureCalendar";
 
 /**
  * The tour detail — hero, package selector, day-by-day itinerary and the
@@ -261,13 +262,36 @@ export default function TourDetailClient() {
             </div>
           ) : null}
 
+          {/* Departure availability calendar (join-in tours only) */}
+          {product.tourKind === "join_in" || product.tourKind === "private" ? (
+            <TourDepartureCalendar
+              productId={product.id}
+              tourKind={product.tourKind ?? null}
+              productSlug={product.slug}
+              packageId={selected?.id ?? ""}
+            />
+          ) : null}
+
           {/* Day-by-day itinerary */}
           {itinerary.length > 0 ? (
             <div className="mb-6">
-              <h2 className="mb-2 text-lg font-extrabold text-ink">{t("tour.itinerary")}</h2>
+              <div className="mb-2 flex items-center gap-3">
+                <h2 className="text-lg font-extrabold text-ink">{t("tour.itinerary")}</h2>
+                {(product.durationDays ?? 0) > 1 ? (
+                  <Badge variant="brand">
+                    {t("tour.itinerary.nights", { n: product.durationDays ?? 0, m: (product.durationDays ?? 0) - 1 })}
+                  </Badge>
+                ) : null}
+              </div>
               {itinerary.length > 1 ? (
                 <TabPills
-                  items={itinerary.map((day) => t("tour.day", { n: day.day }))}
+                  items={itinerary.map((day) =>
+                    pickLang(
+                      `Day ${day.day}`,
+                      `Hari ${day.day}`,
+                      lang,
+                    ),
+                  )}
                   active={Math.min(dayTab, itinerary.length - 1)}
                   onChange={setDayTab}
                   variant="bordered"
@@ -276,21 +300,37 @@ export default function TourDetailClient() {
               ) : null}
               {activeDay ? (
                 <div className="rounded-xl border border-line bg-white p-4">
-                  <p className="text-[13px] font-bold text-ink">
-                    {t("tour.day", { n: activeDay.day })} — {pickLang(activeDay.title, activeDay.titleId, lang)}
+                  <p className="text-[14px] font-bold text-ink">
+                    {lang === "id" ? "Hari" : "Day"} {activeDay.day}
+                    {pickLang(activeDay.title, activeDay.titleId, lang)
+                      ? ` — ${pickLang(activeDay.title, activeDay.titleId, lang)}`
+                      : ""}
                   </p>
-                  <ul className="mt-3 space-y-2.5">
-                    {activeDay.items.map((item, i) => (
-                      <li key={i} className="flex items-start gap-3 text-[13px]">
-                        <span className="w-12 shrink-0 font-mono text-[12px] font-semibold text-brand">
-                          {item.time}
-                        </span>
-                        <span className="text-muted">
-                          {pickLang(item.activity, item.activityId, lang)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  {activeDay.items.length === 0 ? (
+                    <p className="mt-3 text-[12px] italic text-muted">
+                      {t("tour.itinerary.noItems")}
+                    </p>
+                  ) : (
+                    /* Timeline layout: vertical line connecting items */
+                    <div className="relative mt-4 pl-6">
+                      {/* Vertical timeline line */}
+                      <div className="absolute left-[7px] top-1 bottom-1 w-0.5 bg-line" />
+                      <div className="space-y-4">
+                        {activeDay.items.map((item, i) => (
+                          <div key={i} className="relative flex items-start gap-3">
+                            {/* Timeline dot */}
+                            <div className="absolute -left-6 top-1.5 h-3.5 w-3.5 rounded-full border-2 border-brand bg-white" />
+                            <span className="w-14 shrink-0 font-mono text-[12px] font-semibold text-brand">
+                              {item.time}
+                            </span>
+                            <span className="text-[13px] leading-relaxed text-muted">
+                              {pickLang(item.activity, item.activityId, lang)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>

@@ -1,0 +1,2243 @@
+[
+  {
+    "id": "table.EvoaFormField",
+    "label": "Create table \"EvoaFormField\"",
+    "summary": "Creates table \"EvoaFormField\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "EvoaFormField"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"EvoaFormField\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaFormField\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"EvoaFormField\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"EvoaFormField\"",
+        "sql": "CREATE TABLE \"public\".\"EvoaFormField\" (\n  \"active\" bool DEFAULT true NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"helpEn\" text,\n  \"helpId\" text,\n  \"id\" text NOT NULL,\n  \"key\" text NOT NULL,\n  \"labelEn\" text NOT NULL,\n  \"labelId\" text,\n  \"maxFiles\" int4,\n  \"options\" jsonb DEFAULT '[]'::jsonb NOT NULL,\n  \"placeholderEn\" text,\n  \"placeholderId\" text,\n  \"required\" bool DEFAULT false NOT NULL,\n  \"scope\" text DEFAULT 'applicant' NOT NULL,\n  \"showWhen\" jsonb,\n  \"sortOrder\" int4 DEFAULT 0 NOT NULL,\n  \"type\" text NOT NULL,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"EvoaFormField\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaFormField\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"EvoaFormField\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.EvoaStatusEvent",
+    "label": "Create table \"EvoaStatusEvent\"",
+    "summary": "Creates table \"EvoaStatusEvent\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "EvoaStatusEvent"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"EvoaStatusEvent\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaStatusEvent\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"EvoaStatusEvent\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"EvoaStatusEvent\"",
+        "sql": "CREATE TABLE \"public\".\"EvoaStatusEvent\" (\n  \"actor\" text DEFAULT 'system' NOT NULL,\n  \"actorEmail\" text,\n  \"applicantId\" text,\n  \"applicationId\" text NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"note\" text,\n  \"status\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"EvoaStatusEvent\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaStatusEvent\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"EvoaStatusEvent\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.VisaApplicant",
+    "label": "Create table \"VisaApplicant\"",
+    "summary": "Creates table \"VisaApplicant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "VisaApplicant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"VisaApplicant\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplicant\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"VisaApplicant\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"VisaApplicant\"",
+        "sql": "CREATE TABLE \"public\".\"VisaApplicant\" (\n  \"applicationId\" text NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"dateOfBirth\" timestamp(3) NOT NULL,\n  \"email\" text NOT NULL,\n  \"extraAnswers\" jsonb DEFAULT '{}'::jsonb NOT NULL,\n  \"fullName\" text NOT NULL,\n  \"gender\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"issuedAt\" timestamp(3),\n  \"nationality\" text NOT NULL,\n  \"passportExpiryDate\" timestamp(3) NOT NULL,\n  \"passportIssueDate\" timestamp(3),\n  \"passportIssuingCountry\" text NOT NULL,\n  \"passportNumber\" text NOT NULL,\n  \"passportType\" text DEFAULT 'ordinary' NOT NULL,\n  \"phone\" text NOT NULL,\n  \"placeOfBirth\" text NOT NULL,\n  \"relation\" text DEFAULT 'other' NOT NULL,\n  \"revisionNote\" text,\n  \"sortOrder\" int4 DEFAULT 0 NOT NULL,\n  \"status\" text DEFAULT 'pending' NOT NULL,\n  \"visaExpiresAt\" timestamp(3),\n  \"visaNumber\" text,\n  \"visaPdfKey\" text,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"VisaApplicant\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplicant\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"VisaApplicant\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.VisaDocument",
+    "label": "Create table \"VisaDocument\"",
+    "summary": "Creates table \"VisaDocument\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "VisaDocument"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"VisaDocument\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"VisaDocument\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"VisaDocument\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"VisaDocument\"",
+        "sql": "CREATE TABLE \"public\".\"VisaDocument\" (\n  \"applicantId\" text,\n  \"applicationId\" text NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"fileName\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"key\" text NOT NULL,\n  \"mimeType\" text NOT NULL,\n  \"reviewNote\" text,\n  \"reviewStatus\" text DEFAULT 'pending' NOT NULL,\n  \"sizeBytes\" int4 NOT NULL,\n  \"slot\" text NOT NULL,\n  \"sortOrder\" int4 DEFAULT 0 NOT NULL,\n  \"url\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"VisaDocument\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"VisaDocument\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"VisaDocument\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.completedAt",
+    "label": "Add column \"completedAt\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "completedAt",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"completedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "completedAt"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"completedAt\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"completedAt\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"completedAt\" timestamp(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"completedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "completedAt"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"completedAt\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"completedAt\" has type \"timestamp(3) without time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "completedAt",
+          "timestamp(3) without time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.contactName",
+    "label": "Add column \"contactName\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "contactName",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"contactName\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "contactName"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"contactName\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"contactName\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"contactName\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"contactName\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "contactName"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"contactName\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"contactName\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "contactName",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.departureDate",
+    "label": "Add column \"departureDate\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "departureDate",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"departureDate\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "departureDate"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"departureDate\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"departureDate\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"departureDate\" timestamp(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"departureDate\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "departureDate"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"departureDate\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"departureDate\" has type \"timestamp(3) without time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "departureDate",
+          "timestamp(3) without time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.departureFlightNumber",
+    "label": "Add column \"departureFlightNumber\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "departureFlightNumber",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"departureFlightNumber\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "departureFlightNumber"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"departureFlightNumber\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"departureFlightNumber\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"departureFlightNumber\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"departureFlightNumber\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "departureFlightNumber"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"departureFlightNumber\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"departureFlightNumber\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "departureFlightNumber",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.extraAnswers",
+    "label": "Add column \"extraAnswers\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "extraAnswers",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"extraAnswers\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "extraAnswers"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"extraAnswers\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"extraAnswers\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"extraAnswers\" jsonb DEFAULT '{}'::jsonb NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"extraAnswers\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "extraAnswers"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"extraAnswers\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"extraAnswers\" has type \"jsonb\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "extraAnswers",
+          "jsonb"
+        ]
+      },
+      {
+        "description": "verify column \"extraAnswers\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "extraAnswers",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.flightNumber",
+    "label": "Add column \"flightNumber\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "flightNumber",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"flightNumber\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "flightNumber"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"flightNumber\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"flightNumber\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"flightNumber\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"flightNumber\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "flightNumber"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"flightNumber\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"flightNumber\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "flightNumber",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.hotelAddress",
+    "label": "Add column \"hotelAddress\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "hotelAddress",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"hotelAddress\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelAddress"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"hotelAddress\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"hotelAddress\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"hotelAddress\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"hotelAddress\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelAddress"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"hotelAddress\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"hotelAddress\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelAddress",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.hotelCity",
+    "label": "Add column \"hotelCity\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "hotelCity",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"hotelCity\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelCity"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"hotelCity\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"hotelCity\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"hotelCity\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"hotelCity\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelCity"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"hotelCity\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"hotelCity\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelCity",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.hotelName",
+    "label": "Add column \"hotelName\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "hotelName",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"hotelName\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelName"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"hotelName\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"hotelName\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"hotelName\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"hotelName\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelName"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"hotelName\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"hotelName\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelName",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.hotelPostalCode",
+    "label": "Add column \"hotelPostalCode\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "hotelPostalCode",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"hotelPostalCode\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelPostalCode"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"hotelPostalCode\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"hotelPostalCode\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"hotelPostalCode\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"hotelPostalCode\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelPostalCode"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"hotelPostalCode\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"hotelPostalCode\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "hotelPostalCode",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.officialTransactionRef",
+    "label": "Add column \"officialTransactionRef\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "officialTransactionRef",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"officialTransactionRef\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "officialTransactionRef"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"officialTransactionRef\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"officialTransactionRef\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"officialTransactionRef\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"officialTransactionRef\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "officialTransactionRef"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"officialTransactionRef\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"officialTransactionRef\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "officialTransactionRef",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.paidAt",
+    "label": "Add column \"paidAt\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "paidAt",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"paidAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "paidAt"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"paidAt\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"paidAt\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"paidAt\" timestamp(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"paidAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "paidAt"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"paidAt\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"paidAt\" has type \"timestamp(3) without time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "paidAt",
+          "timestamp(3) without time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.portOfEntryId",
+    "label": "Add column \"portOfEntryId\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "portOfEntryId",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"portOfEntryId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "portOfEntryId"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"portOfEntryId\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"portOfEntryId\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"portOfEntryId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"portOfEntryId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "portOfEntryId"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"portOfEntryId\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"portOfEntryId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "portOfEntryId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.portOfEntryName",
+    "label": "Add column \"portOfEntryName\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "portOfEntryName",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"portOfEntryName\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "portOfEntryName"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"portOfEntryName\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"portOfEntryName\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"portOfEntryName\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"portOfEntryName\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "portOfEntryName"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"portOfEntryName\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"portOfEntryName\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "portOfEntryName",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.processingAt",
+    "label": "Add column \"processingAt\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "processingAt",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"processingAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "processingAt"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"processingAt\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"processingAt\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"processingAt\" timestamp(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"processingAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "processingAt"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"processingAt\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"processingAt\" has type \"timestamp(3) without time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "processingAt",
+          "timestamp(3) without time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.purpose",
+    "label": "Add column \"purpose\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "purpose",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"purpose\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "purpose"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"purpose\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"purpose\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"purpose\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"purpose\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "purpose"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"purpose\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"purpose\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "purpose",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.revisionNote",
+    "label": "Add column \"revisionNote\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "revisionNote",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"revisionNote\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "revisionNote"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"revisionNote\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"revisionNote\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"revisionNote\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"revisionNote\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "revisionNote"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"revisionNote\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"revisionNote\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "revisionNote",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.dropNotNull.VisaApplication.dateOfBirth",
+    "label": "Drop NOT NULL on \"VisaApplication\".\"dateOfBirth\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "dateOfBirth",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"dateOfBirth\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "dateOfBirth"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"dateOfBirth\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"dateOfBirth\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ALTER COLUMN \"dateOfBirth\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"dateOfBirth\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "dateOfBirth",
+          "YES"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.dropNotNull.VisaApplication.fullName",
+    "label": "Drop NOT NULL on \"VisaApplication\".\"fullName\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "fullName",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"fullName\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "fullName"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"fullName\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"fullName\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ALTER COLUMN \"fullName\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"fullName\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "fullName",
+          "YES"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.dropNotNull.VisaApplication.nationality",
+    "label": "Drop NOT NULL on \"VisaApplication\".\"nationality\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "nationality",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"nationality\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "nationality"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"nationality\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"nationality\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ALTER COLUMN \"nationality\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"nationality\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "nationality",
+          "YES"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.dropNotNull.VisaApplication.passportNumber",
+    "label": "Drop NOT NULL on \"VisaApplication\".\"passportNumber\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "passportNumber",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"passportNumber\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "passportNumber"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"passportNumber\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"passportNumber\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ALTER COLUMN \"passportNumber\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"passportNumber\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "passportNumber",
+          "YES"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.VisaApplication.updatedAt",
+    "label": "Add column updatedAt to VisaApplication",
+    "summary": "Adds column updatedAt to table VisaApplication",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "VisaApplication"
+      }
+    },
+    "operationClass": "additive",
+    "precheck": [
+      {
+        "description": "ensure column \"updatedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "updatedAt"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"updatedAt\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"updatedAt\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"updatedAt\" timestamp(3) DEFAULT ('epoch') NOT NULL"
+      },
+      {
+        "description": "drop temporary default from column \"updatedAt\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ALTER COLUMN \"updatedAt\" DROP DEFAULT"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"updatedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "updatedAt"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"updatedAt\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"updatedAt\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "updatedAt",
+          "NO"
+        ]
+      },
+      {
+        "description": "verify column \"updatedAt\" has no default after temporary default removal",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"column_default\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "updatedAt"
+        ]
+      },
+      {
+        "description": "verify column \"updatedAt\" has type \"timestamp(3) without time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "updatedAt",
+          "timestamp(3) without time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.EvoaFormField.EvoaFormField_key_key",
+    "label": "Create index \"EvoaFormField_key_key\" on \"EvoaFormField\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "EvoaFormField_key_key",
+        "table": "EvoaFormField"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"EvoaFormField_key_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaFormField_key_key\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"EvoaFormField_key_key\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"EvoaFormField_key_key\"",
+        "sql": "CREATE UNIQUE INDEX \"EvoaFormField_key_key\" ON \"public\".\"EvoaFormField\" (\"key\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"EvoaFormField_key_key\" exists on \"EvoaFormField\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaFormField_key_key\"",
+          "i",
+          "I",
+          "\"public\".\"EvoaFormField\"",
+          "btree",
+          "[\"key\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.EvoaStatusEvent.EvoaStatusEvent_applicationId_idx",
+    "label": "Create index \"EvoaStatusEvent_applicationId_idx\" on \"EvoaStatusEvent\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "EvoaStatusEvent_applicationId_idx",
+        "table": "EvoaStatusEvent"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"EvoaStatusEvent_applicationId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaStatusEvent_applicationId_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"EvoaStatusEvent_applicationId_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"EvoaStatusEvent_applicationId_idx\"",
+        "sql": "CREATE INDEX \"EvoaStatusEvent_applicationId_idx\" ON \"public\".\"EvoaStatusEvent\" (\"applicationId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"EvoaStatusEvent_applicationId_idx\" exists on \"EvoaStatusEvent\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaStatusEvent_applicationId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"EvoaStatusEvent\"",
+          "btree",
+          "[\"applicationId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.EvoaStatusEvent.EvoaStatusEvent_createdAt_idx",
+    "label": "Create index \"EvoaStatusEvent_createdAt_idx\" on \"EvoaStatusEvent\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "EvoaStatusEvent_createdAt_idx",
+        "table": "EvoaStatusEvent"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"EvoaStatusEvent_createdAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaStatusEvent_createdAt_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"EvoaStatusEvent_createdAt_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"EvoaStatusEvent_createdAt_idx\"",
+        "sql": "CREATE INDEX \"EvoaStatusEvent_createdAt_idx\" ON \"public\".\"EvoaStatusEvent\" (\"createdAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"EvoaStatusEvent_createdAt_idx\" exists on \"EvoaStatusEvent\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"EvoaStatusEvent_createdAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"EvoaStatusEvent\"",
+          "btree",
+          "[\"createdAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.VisaApplicant.VisaApplicant_applicationId_idx",
+    "label": "Create index \"VisaApplicant_applicationId_idx\" on \"VisaApplicant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "VisaApplicant_applicationId_idx",
+        "table": "VisaApplicant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"VisaApplicant_applicationId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplicant_applicationId_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"VisaApplicant_applicationId_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"VisaApplicant_applicationId_idx\"",
+        "sql": "CREATE INDEX \"VisaApplicant_applicationId_idx\" ON \"public\".\"VisaApplicant\" (\"applicationId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"VisaApplicant_applicationId_idx\" exists on \"VisaApplicant\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplicant_applicationId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"VisaApplicant\"",
+          "btree",
+          "[\"applicationId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.VisaApplicant.VisaApplicant_applicationId_passportNumber_key",
+    "label": "Create index \"VisaApplicant_applicationId_passportNumber_key\" on \"VisaApplicant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "VisaApplicant_applicationId_passportNumber_key",
+        "table": "VisaApplicant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"VisaApplicant_applicationId_passportNumber_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplicant_applicationId_passportNumber_key\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"VisaApplicant_applicationId_passportNumber_key\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"VisaApplicant_applicationId_passportNumber_key\"",
+        "sql": "CREATE UNIQUE INDEX \"VisaApplicant_applicationId_passportNumber_key\" ON \"public\".\"VisaApplicant\" (\"applicationId\", \"passportNumber\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"VisaApplicant_applicationId_passportNumber_key\" exists on \"VisaApplicant\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplicant_applicationId_passportNumber_key\"",
+          "i",
+          "I",
+          "\"public\".\"VisaApplicant\"",
+          "btree",
+          "[\"applicationId\",\"passportNumber\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.VisaApplication.VisaApplication_status_idx",
+    "label": "Create index \"VisaApplication_status_idx\" on \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "VisaApplication_status_idx",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"VisaApplication_status_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplication_status_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"VisaApplication_status_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"VisaApplication_status_idx\"",
+        "sql": "CREATE INDEX \"VisaApplication_status_idx\" ON \"public\".\"VisaApplication\" (\"status\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"VisaApplication_status_idx\" exists on \"VisaApplication\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplication_status_idx\"",
+          "i",
+          "I",
+          "\"public\".\"VisaApplication\"",
+          "btree",
+          "[\"status\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.VisaDocument.VisaDocument_applicantId_idx",
+    "label": "Create index \"VisaDocument_applicantId_idx\" on \"VisaDocument\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "VisaDocument_applicantId_idx",
+        "table": "VisaDocument"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"VisaDocument_applicantId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"VisaDocument_applicantId_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"VisaDocument_applicantId_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"VisaDocument_applicantId_idx\"",
+        "sql": "CREATE INDEX \"VisaDocument_applicantId_idx\" ON \"public\".\"VisaDocument\" (\"applicantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"VisaDocument_applicantId_idx\" exists on \"VisaDocument\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"VisaDocument_applicantId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"VisaDocument\"",
+          "btree",
+          "[\"applicantId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.VisaDocument.VisaDocument_applicationId_idx",
+    "label": "Create index \"VisaDocument_applicationId_idx\" on \"VisaDocument\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "VisaDocument_applicationId_idx",
+        "table": "VisaDocument"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"VisaDocument_applicationId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"VisaDocument_applicationId_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"VisaDocument_applicationId_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"VisaDocument_applicationId_idx\"",
+        "sql": "CREATE INDEX \"VisaDocument_applicationId_idx\" ON \"public\".\"VisaDocument\" (\"applicationId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"VisaDocument_applicationId_idx\" exists on \"VisaDocument\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"VisaDocument_applicationId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"VisaDocument\"",
+          "btree",
+          "[\"applicationId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.VisaDocument.VisaDocument_key_idx",
+    "label": "Create index \"VisaDocument_key_idx\" on \"VisaDocument\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "VisaDocument_key_idx",
+        "table": "VisaDocument"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"VisaDocument_key_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"VisaDocument_key_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"VisaDocument_key_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"VisaDocument_key_idx\"",
+        "sql": "CREATE INDEX \"VisaDocument_key_idx\" ON \"public\".\"VisaDocument\" (\"key\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"VisaDocument_key_idx\" exists on \"VisaDocument\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"VisaDocument_key_idx\"",
+          "i",
+          "I",
+          "\"public\".\"VisaDocument\"",
+          "btree",
+          "[\"key\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.EvoaStatusEvent.EvoaStatusEvent_applicationId_fkey",
+    "label": "Add foreign key \"EvoaStatusEvent_applicationId_fkey\" on \"EvoaStatusEvent\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "EvoaStatusEvent_applicationId_fkey",
+        "table": "EvoaStatusEvent"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"EvoaStatusEvent_applicationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "EvoaStatusEvent_applicationId_fkey",
+          "public",
+          "\"public\".\"EvoaStatusEvent\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"EvoaStatusEvent_applicationId_fkey\" on \"EvoaStatusEvent\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"EvoaStatusEvent_applicationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"EvoaStatusEvent\"\nADD CONSTRAINT \"EvoaStatusEvent_applicationId_fkey\"\nFOREIGN KEY (\"applicationId\")\nREFERENCES \"public\".\"VisaApplication\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"EvoaStatusEvent_applicationId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "EvoaStatusEvent_applicationId_fkey",
+          "public",
+          "\"public\".\"EvoaStatusEvent\"",
+          "f",
+          "[\"applicationId\"]",
+          "\"public\".\"VisaApplication\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.EvoaStatusEvent.EvoaStatusEvent_applicantId_fkey",
+    "label": "Add foreign key \"EvoaStatusEvent_applicantId_fkey\" on \"EvoaStatusEvent\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "EvoaStatusEvent_applicantId_fkey",
+        "table": "EvoaStatusEvent"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"EvoaStatusEvent_applicantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "EvoaStatusEvent_applicantId_fkey",
+          "public",
+          "\"public\".\"EvoaStatusEvent\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"EvoaStatusEvent_applicantId_fkey\" on \"EvoaStatusEvent\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"EvoaStatusEvent_applicantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"EvoaStatusEvent\"\nADD CONSTRAINT \"EvoaStatusEvent_applicantId_fkey\"\nFOREIGN KEY (\"applicantId\")\nREFERENCES \"public\".\"VisaApplicant\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"EvoaStatusEvent_applicantId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "EvoaStatusEvent_applicantId_fkey",
+          "public",
+          "\"public\".\"EvoaStatusEvent\"",
+          "f",
+          "[\"applicantId\"]",
+          "\"public\".\"VisaApplicant\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.VisaApplicant.VisaApplicant_applicationId_fkey",
+    "label": "Add foreign key \"VisaApplicant_applicationId_fkey\" on \"VisaApplicant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "VisaApplicant_applicationId_fkey",
+        "table": "VisaApplicant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"VisaApplicant_applicationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "VisaApplicant_applicationId_fkey",
+          "public",
+          "\"public\".\"VisaApplicant\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"VisaApplicant_applicationId_fkey\" on \"VisaApplicant\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"VisaApplicant_applicationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplicant\"\nADD CONSTRAINT \"VisaApplicant_applicationId_fkey\"\nFOREIGN KEY (\"applicationId\")\nREFERENCES \"public\".\"VisaApplication\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"VisaApplicant_applicationId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "VisaApplicant_applicationId_fkey",
+          "public",
+          "\"public\".\"VisaApplicant\"",
+          "f",
+          "[\"applicationId\"]",
+          "\"public\".\"VisaApplication\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.VisaApplication.VisaApplication_portOfEntryId_fkey",
+    "label": "Add foreign key \"VisaApplication_portOfEntryId_fkey\" on \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "VisaApplication_portOfEntryId_fkey",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"VisaApplication_portOfEntryId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "VisaApplication_portOfEntryId_fkey",
+          "public",
+          "\"public\".\"VisaApplication\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"VisaApplication_portOfEntryId_fkey\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"VisaApplication_portOfEntryId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\"\nADD CONSTRAINT \"VisaApplication_portOfEntryId_fkey\"\nFOREIGN KEY (\"portOfEntryId\")\nREFERENCES \"public\".\"Airport\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"VisaApplication_portOfEntryId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "VisaApplication_portOfEntryId_fkey",
+          "public",
+          "\"public\".\"VisaApplication\"",
+          "f",
+          "[\"portOfEntryId\"]",
+          "\"public\".\"Airport\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.VisaDocument.VisaDocument_applicationId_fkey",
+    "label": "Add foreign key \"VisaDocument_applicationId_fkey\" on \"VisaDocument\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "VisaDocument_applicationId_fkey",
+        "table": "VisaDocument"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"VisaDocument_applicationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "VisaDocument_applicationId_fkey",
+          "public",
+          "\"public\".\"VisaDocument\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"VisaDocument_applicationId_fkey\" on \"VisaDocument\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"VisaDocument_applicationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"VisaDocument\"\nADD CONSTRAINT \"VisaDocument_applicationId_fkey\"\nFOREIGN KEY (\"applicationId\")\nREFERENCES \"public\".\"VisaApplication\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"VisaDocument_applicationId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "VisaDocument_applicationId_fkey",
+          "public",
+          "\"public\".\"VisaDocument\"",
+          "f",
+          "[\"applicationId\"]",
+          "\"public\".\"VisaApplication\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.VisaDocument.VisaDocument_applicantId_fkey",
+    "label": "Add foreign key \"VisaDocument_applicantId_fkey\" on \"VisaDocument\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "VisaDocument_applicantId_fkey",
+        "table": "VisaDocument"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"VisaDocument_applicantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "VisaDocument_applicantId_fkey",
+          "public",
+          "\"public\".\"VisaDocument\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"VisaDocument_applicantId_fkey\" on \"VisaDocument\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"VisaDocument_applicantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"VisaDocument\"\nADD CONSTRAINT \"VisaDocument_applicantId_fkey\"\nFOREIGN KEY (\"applicantId\")\nREFERENCES \"public\".\"VisaApplicant\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"VisaDocument_applicantId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "VisaDocument_applicantId_fkey",
+          "public",
+          "\"public\".\"VisaDocument\"",
+          "f",
+          "[\"applicantId\"]",
+          "\"public\".\"VisaApplicant\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

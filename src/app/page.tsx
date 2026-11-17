@@ -1,11 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import {
-  ArticleCard,
-  DestinationCard,
-  PromoCard,
-  ProductCard,
-} from "@/components/cards";
+import { ArticleCard, PromoCard } from "@/components/cards";
+import AirportVipFeature from "@/components/sections/AirportVipFeature";
 import BottomTabBar from "@/components/sections/BottomTabBar";
 import BannerStrip from "@/components/sections/BannerStrip";
 import Footer from "@/components/sections/Footer";
@@ -25,29 +21,14 @@ import {
   serviceSeoLinks as staticServiceSeoLinks,
   serviceSeoTabs as staticServiceSeoTabs,
 } from "@/data/home";
-import type { CatalogDTO, CopyDTO, HomeContentDTO, SeoLinkDTO } from "@/types";
-
-/**
- * Tabs of a service line — bilingual copy, DB-sourced with a static
- * (English-only) fallback. The active language is picked in the client
- * (`SectionBand`), so no DB read happens at prerender.
- */
-function lineTabs(content: HomeContentDTO | null, slug: string, fallback: string[]): CopyDTO[] {
-  const line = content?.lines.find((l) => l.slug === slug);
-  if (!line || line.tabs.length === 0) return fallback.map((t) => ({ en: t, id: null }));
-  return line.tabs;
-}
-
-/** The products of a line, straight from its DB-backed catalog. */
-function lineProducts(content: HomeContentDTO | null, slug: string): CatalogDTO["products"] {
-  return content?.catalogs[slug]?.products ?? [];
-}
+import { serviceNav } from "@/data/services";
+import type { SeoLinkDTO } from "@/types";
 
 /** Bilingual links of a `SeoLink` group, in the shape `SeoLinkGrid` expects. */
 function seoLinksOf(links: SeoLinkDTO[], group: string) {
   return links
     .filter((l) => l.group === group)
-    .map((l) => ({ label: l.label.en, labelId: l.label.id, service: l.service ?? "", tags: l.tags }));
+    .map((l) => ({ label: l.label.en, labelId: l.label.id, service: l.service ?? "", tags: l.tags, href: l.href }));
 }
 
 /** "All" + the distinct `service` values of a `SeoLink` group. */
@@ -100,21 +81,21 @@ function HomeBodySkeleton() {
   );
 }
 
-/** Everything on the home page that comes from the database. */
+/**
+ * Everything on the home page that comes from the database.
+ *
+ * Single-service home: only the Airport VIP Service is featured (the other
+ * lines keep their routes but are no longer shown here). Promos, banners,
+ * articles and the SEO sections stay DB-driven.
+ */
 async function HomeBody() {
   await connection();
 
   const content = await getHomeContent();
 
-  const vipProducts = lineProducts(content, "vip-service");
-  const transportProducts = lineProducts(content, "transport");
-  const tourProducts = lineProducts(content, "tour-package");
-  const evoaProducts = lineProducts(content, "evoa");
-
   const promos = content && content.promos.length > 0 ? content.promos : [];
   const banners = content?.banners ?? [];
   const articles = content && content.articles.length > 0 ? content.articles : [];
-  const destinations = content && content.destinations.length > 0 ? content.destinations : [];
 
   const recommendationLinks =
     content && content.seoLinks.length > 0
@@ -133,10 +114,20 @@ async function HomeBody() {
       ? seoTabsOf(content.seoLinks, "services")
       : staticServiceSeoTabs;
 
-  const [fastTrackBanner, evoaBanner, corporateBanner] = banners;
+  // Banners are positional: [fast track, eVOA (hidden), corporate].
+  const [fastTrackBanner, , corporateBanner] = banners;
 
-  // Promos are scoped to a service line, so the filter tabs are the lines.
-  const promoTabs = ["All", ...(content?.lines.map((l) => l.label) ?? [])];
+  // Promos are scoped to a service line, but the home is single-service now:
+  // only the visible line gets a tab. The nav entry points at the booking
+  // tool (/airport-vip) while its DB line slug stays `vip-service` — the
+  // same alias HeroSearch and BookingPanel use.
+  const navSlugs = new Set(serviceNav.map((s) => s.href.replace(/^\//, "")));
+  const visibleLines = (content?.lines ?? []).filter(
+    (l) =>
+      navSlugs.has(l.slug) ||
+      (l.slug === "vip-service" && navSlugs.has("airport-vip"))
+  );
+  const promoTabs = ["All", ...new Set(visibleLines.map((l) => l.label))];
 
   return (
     <>
@@ -151,25 +142,20 @@ async function HomeBody() {
         </SectionBand>
       ) : null}
 
-      {/* 1 — Airport VIP Service */}
+      {/* Airport VIP Service — the single featured service */}
       <SectionBand
         eyebrow="Airport VIP Service ✈️"
         title="Breeze through the airport"
-        tabsCopy={lineTabs(content, "vip-service", ["All", "Meet & Greet", "Fast Track", "Lounge", "Porter"])}
-        seeAll="See all VIP services"
-        seeAllHref="/vip-service"
+        seeAll="Book VIP service"
+        seeAllHref="/airport-vip"
         eyebrowKey="home.vipEyebrow"
         titleKey="home.vipTitle"
         seeAllKey="home.vipSeeAll"
       >
-        <Carousel>
-          {vipProducts.map((p) => (
-            <ProductCard key={p.slug} product={p} href={`/vip-service/${p.slug}`} />
-          ))}
-        </Carousel>
+        <AirportVipFeature />
       </SectionBand>
 
-      {/* VIP banner */}
+      {/* Fast Track banner */}
       <BannerStrip
         title="Skip the queues with Fast Track Immigration"
         subtitle="A dedicated greeter and priority lanes, from arrival to departure"
@@ -183,89 +169,7 @@ async function HomeBody() {
         subtitleCopy={fastTrackBanner?.subtitle}
         ctaCopy={fastTrackBanner?.cta}
         imageUrl={fastTrackBanner?.imageUrl}
-        href={fastTrackBanner?.ctaHref}
-      />
-
-      {/* 2 — Transport */}
-      <SectionBand
-        eyebrow="Transport 🚘"
-        title="Private transfers & chauffeur service"
-        tabsCopy={lineTabs(content, "transport", ["All", "Sedan", "SUV", "Van", "Limousine"])}
-        seeAll="See all transport"
-        seeAllHref="/transport"
-        eyebrowKey="home.transportEyebrow"
-        titleKey="home.transportTitle"
-        seeAllKey="home.transportSeeAll"
-      >
-        <Carousel>
-          {transportProducts.map((p) => (
-            <ProductCard key={p.slug} product={p} href={`/transport/${p.slug}`} />
-          ))}
-        </Carousel>
-      </SectionBand>
-
-      {/* 3 — Tour Package */}
-      <SectionBand
-        eyebrow="Tour Package 🗺️"
-        title="Curated tours across Indonesia"
-        tabsCopy={lineTabs(content, "tour-package", ["All", "Bali", "Labuan Bajo", "Yogyakarta", "Lombok", "Papua"])}
-        seeAll="See all tours"
-        seeAllHref="/tour-package"
-        eyebrowKey="home.tourEyebrow"
-        titleKey="home.tourTitle"
-        seeAllKey="home.tourSeeAll"
-      >
-        <Carousel>
-          {tourProducts.map((p) => (
-            <ProductCard key={p.slug} product={p} href={`/tour-package/${p.slug}`} />
-          ))}
-        </Carousel>
-      </SectionBand>
-
-      {/* Tour destinations */}
-      {destinations.length > 0 ? (
-        <SectionBand title="Popular destinations" emoji="📌" seeAll="See all!" titleKey="home.destinationsTitle" seeAllKey="home.destinationsSeeAll">
-          <Carousel>
-            {destinations.map((d) => (
-              <DestinationCard key={d.slug} dest={d} />
-            ))}
-          </Carousel>
-        </SectionBand>
-      ) : null}
-
-      {/* 4 — eVOA */}
-      <SectionBand
-        eyebrow="eVOA 🛂"
-        title="Electronic Visa on Arrival, made easy"
-        tabsCopy={lineTabs(content, "evoa", ["All", "Tourist", "Business", "Express", "Transit"])}
-        seeAll="Check eligibility"
-        seeAllHref="/evoa"
-        eyebrowKey="home.evoaEyebrow"
-        titleKey="home.evoaTitle"
-        seeAllKey="home.evoaSeeAll"
-      >
-        <Carousel>
-          {evoaProducts.map((p) => (
-            <ProductCard key={p.slug} product={p} href={`/evoa/${p.slug}`} />
-          ))}
-        </Carousel>
-      </SectionBand>
-
-      {/* eVOA banner */}
-      <BannerStrip
-        title="Apply for your eVOA online in minutes"
-        subtitle="No embassy visit — get approved and receive it by email"
-        cta="Apply now"
-        tone="from-violet-600 to-purple-800"
-        compact
-        titleKey="banner.evoaTitle"
-        subtitleKey="banner.evoaSubtitle"
-        ctaKey="banner.evoaCta"
-        titleCopy={evoaBanner?.title}
-        subtitleCopy={evoaBanner?.subtitle}
-        ctaCopy={evoaBanner?.cta}
-        imageUrl={evoaBanner?.imageUrl}
-        href={evoaBanner?.ctaHref}
+        href={fastTrackBanner?.ctaHref ?? "/airport-vip"}
       />
 
       {/* Promos */}

@@ -1,0 +1,269 @@
+[
+  {
+    "id": "table.WalletTransaction",
+    "label": "Create table \"WalletTransaction\"",
+    "summary": "Creates table \"WalletTransaction\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WalletTransaction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"WalletTransaction\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WalletTransaction\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"WalletTransaction\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"WalletTransaction\"",
+        "sql": "CREATE TABLE \"public\".\"WalletTransaction\" (\n  \"amountUsdCents\" int4 NOT NULL,\n  \"balanceAfterUsdCents\" int4 NOT NULL,\n  \"bookingId\" text,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"note\" text,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"WalletTransaction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"WalletTransaction\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"WalletTransaction\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.walletBalanceUsdCents",
+    "label": "Add column \"walletBalanceUsdCents\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "walletBalanceUsdCents",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"walletBalanceUsdCents\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "walletBalanceUsdCents"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"walletBalanceUsdCents\" on \"User\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"walletBalanceUsdCents\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"walletBalanceUsdCents\" int4 DEFAULT 0 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"walletBalanceUsdCents\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "walletBalanceUsdCents"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"walletBalanceUsdCents\" on \"User\""
+        }
+      },
+      {
+        "description": "verify column \"walletBalanceUsdCents\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "walletBalanceUsdCents",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"walletBalanceUsdCents\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "walletBalanceUsdCents",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.WalletTransaction.WalletTransaction_bookingId_kind_key",
+    "label": "Create index \"WalletTransaction_bookingId_kind_key\" on \"WalletTransaction\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "WalletTransaction_bookingId_kind_key",
+        "table": "WalletTransaction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"WalletTransaction_bookingId_kind_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WalletTransaction_bookingId_kind_key\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"WalletTransaction_bookingId_kind_key\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"WalletTransaction_bookingId_kind_key\"",
+        "sql": "CREATE UNIQUE INDEX \"WalletTransaction_bookingId_kind_key\" ON \"public\".\"WalletTransaction\" (\"bookingId\", \"kind\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"WalletTransaction_bookingId_kind_key\" exists on \"WalletTransaction\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"WalletTransaction_bookingId_kind_key\"",
+          "i",
+          "I",
+          "\"public\".\"WalletTransaction\"",
+          "btree",
+          "[\"bookingId\",\"kind\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.WalletTransaction.WalletTransaction_userId_createdAt_idx",
+    "label": "Create index \"WalletTransaction_userId_createdAt_idx\" on \"WalletTransaction\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "WalletTransaction_userId_createdAt_idx",
+        "table": "WalletTransaction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"WalletTransaction_userId_createdAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WalletTransaction_userId_createdAt_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"WalletTransaction_userId_createdAt_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"WalletTransaction_userId_createdAt_idx\"",
+        "sql": "CREATE INDEX \"WalletTransaction_userId_createdAt_idx\" ON \"public\".\"WalletTransaction\" (\"userId\", \"createdAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"WalletTransaction_userId_createdAt_idx\" exists on \"WalletTransaction\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"WalletTransaction_userId_createdAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"WalletTransaction\"",
+          "btree",
+          "[\"userId\",\"createdAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.WalletTransaction.WalletTransaction_userId_fkey",
+    "label": "Add foreign key \"WalletTransaction_userId_fkey\" on \"WalletTransaction\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "WalletTransaction_userId_fkey",
+        "table": "WalletTransaction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"WalletTransaction_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "WalletTransaction_userId_fkey",
+          "public",
+          "\"public\".\"WalletTransaction\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"WalletTransaction_userId_fkey\" on \"WalletTransaction\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"WalletTransaction_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"WalletTransaction\"\nADD CONSTRAINT \"WalletTransaction_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"WalletTransaction_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "WalletTransaction_userId_fkey",
+          "public",
+          "\"public\".\"WalletTransaction\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "r",
+          "c"
+        ]
+      }
+    ]
+  }
+]

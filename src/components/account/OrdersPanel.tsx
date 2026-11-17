@@ -5,10 +5,13 @@ import Link from "next/link";
 import AccountPageHeader from "@/components/account/AccountPageHeader";
 import {
   listMyOrders,
-  listMyVisaApplications,
   type MyOrderDTO,
-  type VisaApplicationDTO,
 } from "@/app/actions/account";
+import {
+  listMyEvoaOrders,
+  type EvoaOrderSummaryDTO,
+} from "@/app/actions/evoa-tracking";
+import { EVOA_STATUS_LABELS } from "@/lib/evoa-shared";
 
 /**
  * The order history.
@@ -18,17 +21,17 @@ import {
  */
 export default function OrdersPanel() {
   const [orders, setOrders] = useState<MyOrderDTO[]>([]);
-  const [applications, setApplications] = useState<VisaApplicationDTO[]>([]);
+  const [evoaOrders, setEvoaOrders] = useState<EvoaOrderSummaryDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
       const [orderRows, visaRows] = await Promise.all([
         listMyOrders(),
-        listMyVisaApplications(),
+        listMyEvoaOrders(),
       ]);
       setOrders(orderRows);
-      setApplications(visaRows);
+      setEvoaOrders(visaRows);
     } finally {
       setLoading(false);
     }
@@ -114,12 +117,20 @@ export default function OrdersPanel() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      <Link
-                        href={`/account/orders/${encodeURIComponent(order.code)}/invoice`}
-                        className="text-[12px] font-semibold text-brand transition-opacity hover:opacity-80"
-                      >
-                        Unduh invoice
-                      </Link>
+                      <div className="flex items-center justify-end gap-3">
+                        <Link
+                          href={`/account/orders/${encodeURIComponent(order.code)}`}
+                          className="text-[12px] font-semibold text-brand transition-opacity hover:opacity-80"
+                        >
+                          Lacak
+                        </Link>
+                        <Link
+                          href={`/account/orders/${encodeURIComponent(order.code)}/invoice`}
+                          className="text-[12px] font-semibold text-muted transition-colors hover:text-ink"
+                        >
+                          Unduh invoice
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -139,7 +150,7 @@ export default function OrdersPanel() {
 
         {loading ? (
           <p className="px-5 py-10 text-center text-[13px] text-muted">Memuat…</p>
-        ) : applications.length === 0 ? (
+        ) : evoaOrders.length === 0 ? (
           <p className="px-5 py-10 text-center text-[13px] text-muted">
             Belum ada pengajuan visa.
           </p>
@@ -152,10 +163,7 @@ export default function OrdersPanel() {
                     Nomor
                   </th>
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Nama
-                  </th>
-                  <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Paspor
+                    Pemohon
                   </th>
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
                     Kedatangan
@@ -163,19 +171,27 @@ export default function OrdersPanel() {
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
                     Status
                   </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {applications.map((application) => (
-                  <tr key={application.id}>
-                    <td className="px-5 py-3.5 font-mono text-[12px] font-semibold text-ink">
-                      {application.code}
+                {evoaOrders.map((application) => (
+                  <tr key={application.id} className="transition-colors hover:bg-canvas/40">
+                    <td className="px-5 py-3.5">
+                      <Link
+                        href={`/account/visa/${encodeURIComponent(application.code)}`}
+                        className="font-mono text-[12px] font-semibold text-brand transition-opacity hover:opacity-80"
+                      >
+                        {application.code}
+                      </Link>
                     </td>
-                    <td className="px-5 py-3.5 text-[13px] text-ink">
-                      {application.fullName}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px] text-muted">
-                      {application.passportNumber}
+                    <td className="px-5 py-3.5">
+                      <p className="text-[13px] text-ink">{application.primaryName}</p>
+                      <p className="mt-0.5 text-[11px] text-muted">
+                        {application.applicantCount} pemohon
+                      </p>
                     </td>
                     <td className="px-5 py-3.5 text-[13px] text-muted">
                       {new Date(application.arrivalDate).toLocaleDateString("id-ID", {
@@ -186,8 +202,16 @@ export default function OrdersPanel() {
                     </td>
                     <td className="px-5 py-3.5">
                       <span className="inline-flex rounded-full bg-canvas px-2.5 py-0.5 text-[11px] font-medium text-muted">
-                        {application.status}
+                        {EVOA_STATUS_LABELS[application.status]?.id ?? application.status}
                       </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <Link
+                        href={`/account/visa/${encodeURIComponent(application.code)}`}
+                        className="text-[12px] font-semibold text-brand transition-opacity hover:opacity-80"
+                      >
+                        Lacak
+                      </Link>
                     </td>
                   </tr>
                 ))}

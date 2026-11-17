@@ -36,6 +36,8 @@ export type CountryOption = {
   code: string;
   name: string;
   dialCode: string;
+  /** Whether citizens of this country can get a Visa on Arrival. */
+  voaEligible: boolean;
 };
 
 export type AirlineOption = {
@@ -78,7 +80,7 @@ export type AirportServiceOption = {
 export async function listWizardCountries(): Promise<CountryOption[]> {
   try {
     const rows = await db.orm.public.Country
-      .select("code", "name", "dialCode")
+      .select("code", "name", "dialCode", "voaEligible")
       .where((f) => f.active.eq(true))
       .orderBy((f) => f.name.asc())
       .all();
@@ -87,6 +89,7 @@ export async function listWizardCountries(): Promise<CountryOption[]> {
       code: row.code,
       name: row.name,
       dialCode: row.dialCode,
+      voaEligible: row.voaEligible,
     }));
   } catch (error) {
     console.error("[airport-vip] could not load countries", error);

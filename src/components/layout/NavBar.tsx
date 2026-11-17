@@ -7,7 +7,7 @@ import Container from "@/components/ui/Container";
 import { CloseIcon, MenuIcon, SearchIcon } from "@/components/icons";
 import { serviceNav } from "@/data/services";
 import { useLocale, type Lang } from "@/components/providers/LocaleProvider";
-import { SERVICE_SLUG_KEYS } from "@/lib/serviceLabels";
+import { SERVICE_LABEL_KEYS } from "@/lib/serviceLabels";
 import type { DictKey } from "@/i18n";
 
 /** The rotating search placeholders, as dictionary keys. */
@@ -19,7 +19,8 @@ const PLACEHOLDER_KEYS: DictKey[] = [
 ];
 
 /**
- * Primary navigation bar: the search field plus the four service menus.
+ * Primary navigation bar: the search field plus the single service menu
+ * (Airport VIP Service → the /airport-vip booking tool) and My Booking.
  * Rendered on every page — over the hero on the home page (`overlay`),
  * on a solid white bar on the service sub-pages (`solid`).
  */
@@ -50,10 +51,10 @@ export default function NavBar({
     setMenuOpen(false);
   }, [pathname]);
 
-  /** Translated service label — eVOA (no key) keeps its brand label. */
-  const navLabel = (href: string, fallback: string) => {
-    const key = SERVICE_SLUG_KEYS[href.replace(/^\//, "")];
-    return key ? t(key) : fallback;
+  /** Translated service label — unknown labels keep their brand name. */
+  const navLabel = (label: string) => {
+    const key = SERVICE_LABEL_KEYS[label];
+    return key ? t(key) : label;
   };
 
   const submit = (e: React.FormEvent) => {
@@ -87,10 +88,11 @@ export default function NavBar({
           />
         </form>
 
-        {/* Service menus */}
+        {/* Service menu — the single Airport VIP Service entry */}
         <ul className="no-scrollbar hidden items-center gap-1 lg:ml-auto lg:flex lg:gap-2">
           {serviceNav.map((s) => {
-            const active = pathname === s.href;
+            const active =
+              pathname === s.href || pathname.startsWith(`${s.href}/`);
             return (
               <li key={s.href}>
                 <Link
@@ -103,25 +105,11 @@ export default function NavBar({
                         : "text-white/90 hover:bg-white/10"
                   }`}
                 >
-                  {navLabel(s.href, s.label)}
+                  {navLabel(s.label)}
                 </Link>
               </li>
             );
           })}
-          <li>
-            <Link
-              href="/airport-vip"
-              className={`block whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold transition-colors ${
-                pathname === "/airport-vip"
-                  ? "bg-brand-soft text-brand"
-                  : solid
-                    ? "text-ink hover:bg-canvas"
-                    : "text-white/90 hover:bg-white/10"
-              }`}
-            >
-              Fast Track
-            </Link>
-          </li>
           <li>
             <Link
               href="/my-booking"
@@ -165,7 +153,8 @@ export default function NavBar({
           <Container className="py-2">
             <ul className="flex flex-col">
               {serviceNav.map((s) => {
-                const active = pathname === s.href;
+                const active =
+                  pathname === s.href || pathname.startsWith(`${s.href}/`);
                 return (
                   <li key={s.href}>
                     <Link
@@ -183,25 +172,11 @@ export default function NavBar({
                       >
                         {s.short}
                       </span>
-                      {navLabel(s.href, s.label)}
+                      {navLabel(s.label)}
                     </Link>
                   </li>
                 );
               })}
-              <li>
-                <Link
-                  href="/airport-vip"
-                  className={`flex items-center gap-2 rounded-lg px-2 py-2.5 text-sm font-semibold ${
-                    pathname === "/airport-vip"
-                      ? "bg-brand-soft text-brand"
-                      : solid
-                        ? "text-ink"
-                        : "text-white/90"
-                  }`}
-                >
-                  Fast Track
-                </Link>
-              </li>
               <li>
                 <Link
                   href="/my-booking"

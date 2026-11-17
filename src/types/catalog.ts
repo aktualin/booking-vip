@@ -59,6 +59,7 @@ export type AddOnDTO = {
 };
 
 export type ProductDetailDTO = {
+  id: string;
   slug: string;
   lineSlug: string;
   title: string;

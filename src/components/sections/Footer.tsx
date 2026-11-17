@@ -62,22 +62,31 @@ export default function Footer() {
             </div>
           </div>
 
-          {Object.entries(footerColumns).map(([heading, items]) => (
-            <div key={heading}>
-              <h3 className="mb-3 text-sm font-bold text-white">
-                {HEADING_KEYS[heading] ? t(HEADING_KEYS[heading]) : heading}
-              </h3>
-              <ul className="space-y-2 text-sm">
-                {items.map((i) => (
-                  <li key={i}>
-                    <Link href={serviceRoutes[i] ?? "#"} className="hover:text-white">
-                      {ITEM_KEYS[i] ? t(ITEM_KEYS[i]) : i}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {Object.entries(footerColumns).map(([heading, items]) => {
+            // Single-service pivot: the Services column only lists lines
+            // that are still navigable (serviceNav → /airport-vip). The
+            // hidden lines keep their pages but are not linked from here.
+            const visibleItems =
+              heading === "Services"
+                ? items.filter((i) => serviceRoutes[i])
+                : items;
+            return (
+              <div key={heading}>
+                <h3 className="mb-3 text-sm font-bold text-white">
+                  {HEADING_KEYS[heading] ? t(HEADING_KEYS[heading]) : heading}
+                </h3>
+                <ul className="space-y-2 text-sm">
+                  {visibleItems.map((i) => (
+                    <li key={i}>
+                      <Link href={serviceRoutes[i] ?? "#"} className="hover:text-white">
+                        {ITEM_KEYS[i] ? t(ITEM_KEYS[i]) : i}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </div>
 
         {/* Lower: partner / secure / awards / social */}

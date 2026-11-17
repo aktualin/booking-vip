@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -53,6 +53,105 @@ const BALI_TEMPLATE = {
     "Tips driver",
     "Overtime di luar jam paket",
   ],
+};
+
+/** Multi-day itinerary templates — each fills both itinerary AND durationDays. */
+const ITINERARY_TEMPLATES: Record<string, { days: TourItineraryDay[]; durationDays: number }> = {
+  "1d": {
+    durationDays: 0,
+    days: [
+      {
+        day: 1,
+        title: "Full Day Tour",
+        titleId: "Tur Sehari Penuh",
+        items: [
+          { time: "08:00", activity: "Hotel pickup", activityId: "Penjemputan hotel" },
+          { time: "09:00", activity: "Morning sightseeing", activityId: "Wisata pagi" },
+          { time: "12:00", activity: "Lunch break", activityId: "Istirahat makan siang" },
+          { time: "13:00", activity: "Afternoon activities", activityId: "Aktivitas sore" },
+          { time: "16:00", activity: "Final stops", activityId: "Perhentian terakhir" },
+          { time: "17:30", activity: "Return to hotel", activityId: "Kembali ke hotel" },
+          { time: "18:00", activity: "Drop-off", activityId: "Antar kembali" },
+        ],
+      },
+    ],
+  },
+  "2d1n": {
+    durationDays: 2,
+    days: [
+      {
+        day: 1,
+        title: "Arrival & Exploration",
+        titleId: "Kedatangan & Eksplorasi",
+        items: [
+          { time: "08:00", activity: "Hotel pickup", activityId: "Penjemputan hotel" },
+          { time: "09:30", activity: "Morning sightseeing", activityId: "Wisata pagi" },
+          { time: "12:00", activity: "Lunch", activityId: "Makan siang" },
+          { time: "13:30", activity: "Afternoon activities", activityId: "Aktivitas sore" },
+          { time: "17:00", activity: "Check-in hotel", activityId: "Check-in hotel" },
+          { time: "19:00", activity: "Dinner recommendation", activityId: "Rekomendasi makan malam" },
+        ],
+      },
+      {
+        day: 2,
+        title: "Main Tour & Departure",
+        titleId: "Tur Utama & Kepulangan",
+        items: [
+          { time: "07:00", activity: "Breakfast", activityId: "Sarapan" },
+          { time: "08:00", activity: "Main attractions", activityId: "Objek wisata utama" },
+          { time: "12:00", activity: "Lunch", activityId: "Makan siang" },
+          { time: "13:30", activity: "Final stops", activityId: "Perhentian terakhir" },
+          { time: "16:00", activity: "Return to hotel", activityId: "Kembali ke hotel" },
+          { time: "18:00", activity: "Drop-off", activityId: "Antar kembali" },
+        ],
+      },
+    ],
+  },
+  "3d2n": {
+    durationDays: 3,
+    days: [
+      {
+        day: 1,
+        title: "Arrival & Exploration",
+        titleId: "Kedatangan & Eksplorasi",
+        items: [
+          { time: "08:00", activity: "Hotel pickup", activityId: "Penjemputan hotel" },
+          { time: "09:30", activity: "Morning sightseeing", activityId: "Wisata pagi" },
+          { time: "12:00", activity: "Lunch", activityId: "Makan siang" },
+          { time: "13:30", activity: "Afternoon activities", activityId: "Aktivitas sore" },
+          { time: "17:00", activity: "Check-in hotel", activityId: "Check-in hotel" },
+          { time: "19:00", activity: "Dinner recommendation", activityId: "Rekomendasi makan malam" },
+        ],
+      },
+      {
+        day: 2,
+        title: "Full Day Tour",
+        titleId: "Tur Sehari Penuh",
+        items: [
+          { time: "07:00", activity: "Breakfast", activityId: "Sarapan" },
+          { time: "08:00", activity: "Main attractions", activityId: "Objek wisata utama" },
+          { time: "12:00", activity: "Lunch", activityId: "Makan siang" },
+          { time: "13:30", activity: "Cultural experiences", activityId: "Pengalaman budaya" },
+          { time: "16:00", activity: "Scenic viewpoints", activityId: "Pemandangan alam" },
+          { time: "18:00", activity: "Return to hotel", activityId: "Kembali ke hotel" },
+          { time: "19:30", activity: "Dinner", activityId: "Makan malam" },
+        ],
+      },
+      {
+        day: 3,
+        title: "Departure Day",
+        titleId: "Hari Kepulangan",
+        items: [
+          { time: "07:00", activity: "Breakfast", activityId: "Sarapan" },
+          { time: "08:00", activity: "Last-minute shopping", activityId: "Belanja terakhir" },
+          { time: "10:00", activity: "Souvenir stop", activityId: "Toko oleh-oleh" },
+          { time: "12:00", activity: "Lunch", activityId: "Makan siang" },
+          { time: "14:00", activity: "Airport transfer", activityId: "Transfer bandara" },
+          { time: "16:00", activity: "Drop-off", activityId: "Antar kembali" },
+        ],
+      },
+    ],
+  },
 };
 
 /**
@@ -212,10 +311,32 @@ function ProductForm({
     });
   };
 
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+  const templateMenuRef = useRef<HTMLDivElement>(null);
+
   const applyBaliTemplate = () => {
     setValues((prev) => ({ ...prev, ...BALI_TEMPLATE }));
     setTemplateNonce((n) => n + 1);
+    setTemplateMenuOpen(false);
     showAdminToast("Template Bali diterapkan ke daftar Termasuk / Tidak Termasuk (EN & ID).");
+  };
+
+  const applyItineraryTemplate = (key: string) => {
+    const tpl = ITINERARY_TEMPLATES[key];
+    if (!tpl) return;
+    setValues((prev) => ({
+      ...prev,
+      itinerary: tpl.days,
+      durationDays: tpl.durationDays,
+    }));
+    setTemplateNonce((n) => n + 1);
+    setTemplateMenuOpen(false);
+    const labels: Record<string, string> = {
+      "1d": "Tur Sehari (10 jam)",
+      "2d1n": "2 Hari 1 Malam",
+      "3d2n": "3 Hari 2 Malam",
+    };
+    showAdminToast(`Template "${labels[key] ?? key}" diterapkan ke itinerary.`);
   };
 
   const fields = useMemo<FieldSpec[]>(
@@ -417,14 +538,55 @@ function ProductForm({
           <div className="mt-6 border-t border-[var(--admin-line)] pt-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-[15px] font-semibold tracking-[-0.01em]">Tour</h2>
-              <button
-                type="button"
-                onClick={applyBaliTemplate}
-                className={adminClass.buttonSecondary}
-                title="Isi daftar Termasuk / Tidak Termasuk dengan standar tur Bali (EN & ID)"
-              >
-                Template Bali
-              </button>
+              <div className="relative" ref={templateMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setTemplateMenuOpen((v) => !v)}
+                  className={adminClass.buttonSecondary}
+                  title="Pilih template untuk mengisi itinerary atau daftar termasuk/tidak termasuk"
+                >
+                  📋 Template ▾
+                </button>
+                {templateMenuOpen ? (
+                  <div className="absolute right-0 z-50 mt-1 w-64 rounded-lg border border-[var(--admin-line)] bg-white py-1 shadow-lg">
+                    <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--admin-muted)]">
+                      Itinerary
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => applyItineraryTemplate("1d")}
+                      className="block w-full px-3 py-2 text-left text-[12px] hover:bg-[var(--admin-hover)]"
+                    >
+                      Tur Sehari (10 jam)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyItineraryTemplate("2d1n")}
+                      className="block w-full px-3 py-2 text-left text-[12px] hover:bg-[var(--admin-hover)]"
+                    >
+                      2 Hari 1 Malam
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyItineraryTemplate("3d2n")}
+                      className="block w-full px-3 py-2 text-left text-[12px] hover:bg-[var(--admin-hover)]"
+                    >
+                      3 Hari 2 Malam
+                    </button>
+                    <div className="my-1 border-t border-[var(--admin-line)]" />
+                    <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--admin-muted)]">
+                      Include / Exclude
+                    </p>
+                    <button
+                      type="button"
+                      onClick={applyBaliTemplate}
+                      className="block w-full px-3 py-2 text-left text-[12px] hover:bg-[var(--admin-hover)]"
+                    >
+                      Template Bali (Termasuk / Tidak Termasuk)
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -452,14 +614,12 @@ function ProductForm({
               <ItineraryEditor
                 value={(values.itinerary as TourItineraryDay[]) ?? []}
                 onChange={(v) => setValue("itinerary", v)}
+                durationDays={values.durationDays as number}
+                onDurationChange={(d) => setValue("durationDays", d)}
               />
               {fieldErrors.itinerary ? (
                 <span className="mt-1 block text-[11px] text-danger">{fieldErrors.itinerary}</span>
-              ) : (
-                <span className="mt-1 block text-[11px] text-[var(--admin-muted)]">
-                  Hari diberi nomor otomatis. Teks (ID) opsional — kosongkan untuk memakai teks EN.
-                </span>
-              )}
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -480,29 +640,62 @@ function ProductForm({
 /**
  * The day-by-day itinerary editor — a dynamic list of days, each with rows
  * of { time, activity, activityId }. Day numbers follow the list order.
+ *
+ * Supports:
+ * - Adding / removing days (with confirmation when items exist)
+ * - Item reorder within a day (up/down buttons)
+ * - Collapsible day sections for long itineraries
+ * - Auto-sync of durationDays when days change
+ * - Duration hint display
  */
 function ItineraryEditor({
   value,
   onChange,
+  durationDays,
+  onDurationChange,
 }: {
   value: TourItineraryDay[];
   onChange: (value: TourItineraryDay[]) => void;
+  durationDays: number;
+  onDurationChange: (d: number) => void;
 }) {
-  const renumber = (days: TourItineraryDay[]) =>
+  const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
+
+  const renumber = (days: TourItineraryDay[]): TourItineraryDay[] =>
     days.map((day, index) => ({ ...day, day: index + 1 }));
+
+  /** Sync durationDays: days.length > 1 → days.length, else 0. */
+  const syncDuration = (days: TourItineraryDay[]) => {
+    const newDuration = days.length > 1 ? days.length : 0;
+    if (newDuration !== durationDays) {
+      onDurationChange(newDuration);
+    }
+  };
+
+  const updateDays = (next: TourItineraryDay[]) => {
+    const renumbered = renumber(next);
+    onChange(renumbered);
+    syncDuration(renumbered);
+  };
 
   const updateDay = (index: number, patch: Partial<TourItineraryDay>) => {
     onChange(renumber(value.map((day, i) => (i === index ? { ...day, ...patch } : day))));
   };
 
-  const updateItem = (dayIndex: number, itemIndex: number, patch: Partial<TourItineraryDay["items"][number]>) => {
+  const updateItem = (
+    dayIndex: number,
+    itemIndex: number,
+    patch: Partial<TourItineraryDay["items"][number]>,
+  ) => {
     onChange(
       renumber(
         value.map((day, i) =>
           i === dayIndex
             ? {
                 ...day,
-                items: day.items.map((item, j) => (j === itemIndex ? { ...item, ...patch } : item)),
+                items: day.items.map((item, j) =>
+                  j === itemIndex ? { ...item, ...patch } : item,
+                ),
               }
             : day,
         ),
@@ -510,104 +703,215 @@ function ItineraryEditor({
     );
   };
 
+  const moveItem = (dayIndex: number, itemIndex: number, direction: -1 | 1) => {
+    const day = value[dayIndex];
+    const targetIndex = itemIndex + direction;
+    if (targetIndex < 0 || targetIndex >= day.items.length) return;
+    const newItems = [...day.items];
+    [newItems[itemIndex], newItems[targetIndex]] = [newItems[targetIndex], newItems[itemIndex]];
+    updateDay(dayIndex, { items: newItems });
+  };
+
+  const removeDay = (dayIndex: number) => {
+    const day = value[dayIndex];
+    if (day.items.length > 0 && day.items.some((it) => it.activity.trim() !== "")) {
+      if (!window.confirm(`Hapus Hari ${dayIndex + 1}? Hari ini memiliki ${day.items.length} aktivitas.`)) {
+        return;
+      }
+    }
+    updateDays(value.filter((_, i) => i !== dayIndex));
+  };
+
+  const addDay = () => {
+    updateDays([
+      ...value,
+      { day: value.length + 1, title: "", titleId: "", items: [{ time: "", activity: "" }] },
+    ]);
+  };
+
+  const toggleCollapse = (dayIndex: number) => {
+    setCollapsedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dayIndex)) next.delete(dayIndex);
+      else next.add(dayIndex);
+      return next;
+    });
+  };
+
+  // Duration hint
+  const durationHint =
+    value.length > 1
+      ? `Durasi otomatis: ${value.length} hari ${value.length - 1} malam`
+      : value.length === 1
+        ? "Tur sehari (tanpa menginap)"
+        : "Belum ada hari";
+
   return (
     <div className="space-y-3">
+      {/* Duration hint */}
+      <div className="flex items-center gap-2 rounded-lg border border-[var(--admin-line)] bg-[var(--admin-hover)] px-3 py-2">
+        <span className="text-[12px] font-semibold text-[var(--admin-ink)]">⏱️</span>
+        <span className="text-[12px] text-[var(--admin-ink)]">{durationHint}</span>
+      </div>
+
       {value.length === 0 ? (
-        <p className="text-[12px] text-[var(--admin-muted)]">Belum ada hari — tambahkan hari pertama.</p>
+        <p className="text-[12px] text-[var(--admin-muted)]">
+          Belum ada hari — tambahkan hari pertama atau pilih template di atas.
+        </p>
       ) : null}
 
-      {value.map((day, dayIndex) => (
-        <div key={dayIndex} className="rounded-lg border border-[var(--admin-line)] p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`${adminClass.label} w-14 shrink-0`}>Hari {dayIndex + 1}</span>
-            <input
-              type="text"
-              value={day.title}
-              placeholder="Day title (EN)"
-              aria-label={`Judul hari ${dayIndex + 1} (EN)`}
-              onChange={(e) => updateDay(dayIndex, { title: e.target.value })}
-              className={`${adminClass.input} min-w-40 flex-1`}
-            />
-            <input
-              type="text"
-              value={day.titleId ?? ""}
-              placeholder="Judul hari (ID)"
-              aria-label={`Judul hari ${dayIndex + 1} (ID)`}
-              onChange={(e) => updateDay(dayIndex, { titleId: e.target.value })}
-              className={`${adminClass.input} min-w-40 flex-1`}
-            />
-            <button
-              type="button"
-              aria-label={`Hapus hari ${dayIndex + 1}`}
-              title="Hapus hari"
-              onClick={() => onChange(renumber(value.filter((_, i) => i !== dayIndex)))}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--admin-line)] text-[var(--admin-muted)] hover:bg-[var(--admin-hover)]"
+      {value.map((day, dayIndex) => {
+        const isCollapsed = collapsedDays.has(dayIndex);
+        return (
+          <div
+            key={dayIndex}
+            className="overflow-hidden rounded-lg border border-[var(--admin-line)] transition-all"
+          >
+            {/* Day header — always visible, clickable to collapse */}
+            <div
+              className="flex cursor-pointer select-none items-center gap-2 bg-[var(--admin-hover)] px-3 py-2"
+              onClick={() => toggleCollapse(dayIndex)}
             >
-              ×
-            </button>
-          </div>
+              <span className="text-[11px] text-[var(--admin-muted)]">
+                {isCollapsed ? "▶" : "▼"}
+              </span>
+              <span className={`${adminClass.label} shrink-0`}>Hari {dayIndex + 1}</span>
+              <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--admin-ink)]">
+                {day.title || "(tanpa judul)"}
+              </span>
+              <span className="shrink-0 text-[11px] text-[var(--admin-muted)]">
+                {day.items.length} item
+              </span>
+            </div>
 
-          <div className="mt-2 space-y-2">
-            {day.items.map((item, itemIndex) => (
-              <div key={itemIndex} className="flex flex-wrap items-center gap-2">
-                <input
-                  type="time"
-                  value={item.time}
-                  aria-label={`Jam item ${itemIndex + 1} hari ${dayIndex + 1}`}
-                  onChange={(e) => updateItem(dayIndex, itemIndex, { time: e.target.value })}
-                  className={`${adminClass.input} w-28 shrink-0 tabular-nums`}
-                />
-                <input
-                  type="text"
-                  value={item.activity}
-                  placeholder="Activity (EN)"
-                  aria-label={`Aktivitas item ${itemIndex + 1} (EN)`}
-                  onChange={(e) => updateItem(dayIndex, itemIndex, { activity: e.target.value })}
-                  className={`${adminClass.input} min-w-40 flex-1`}
-                />
-                <input
-                  type="text"
-                  value={item.activityId ?? ""}
-                  placeholder="Aktivitas (ID)"
-                  aria-label={`Aktivitas item ${itemIndex + 1} (ID)`}
-                  onChange={(e) => updateItem(dayIndex, itemIndex, { activityId: e.target.value })}
-                  className={`${adminClass.input} min-w-40 flex-1`}
-                />
-                <button
-                  type="button"
-                  aria-label={`Hapus item ${itemIndex + 1}`}
-                  onClick={() =>
-                    updateDay(dayIndex, { items: day.items.filter((_, j) => j !== itemIndex) })
-                  }
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--admin-line)] text-[var(--admin-muted)] hover:bg-[var(--admin-hover)]"
-                >
-                  ×
-                </button>
+            {/* Day body — collapsible */}
+            {!isCollapsed ? (
+              <div className="p-3">
+                {/* Title inputs */}
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={day.title}
+                    placeholder="Day title (EN)"
+                    aria-label={`Judul hari ${dayIndex + 1} (EN)`}
+                    onChange={(e) => updateDay(dayIndex, { title: e.target.value })}
+                    className={`${adminClass.input} min-w-40 flex-1`}
+                  />
+                  <input
+                    type="text"
+                    value={day.titleId ?? ""}
+                    placeholder="Judul hari (ID)"
+                    aria-label={`Judul hari ${dayIndex + 1} (ID)`}
+                    onChange={(e) => updateDay(dayIndex, { titleId: e.target.value })}
+                    className={`${adminClass.input} min-w-40 flex-1`}
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Hapus hari ${dayIndex + 1}`}
+                    title="Hapus Hari"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeDay(dayIndex);
+                    }}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--admin-line)] text-[var(--admin-muted)] hover:bg-red-50 hover:text-danger"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Items */}
+                <div className="space-y-2">
+                  {day.items.length === 0 ? (
+                    <p className="text-[11px] italic text-[var(--admin-muted)]">Belum ada aktivitas</p>
+                  ) : null}
+                  {day.items.map((item, itemIndex) => (
+                    <div key={itemIndex} className="flex flex-wrap items-center gap-2">
+                      {/* Reorder buttons */}
+                      <div className="flex shrink-0 flex-col gap-0.5">
+                        <button
+                          type="button"
+                          aria-label="Pindah ke atas"
+                          disabled={itemIndex === 0}
+                          onClick={() => moveItem(dayIndex, itemIndex, -1)}
+                          className="flex h-5 w-6 items-center justify-center rounded text-[10px] text-[var(--admin-muted)] hover:bg-[var(--admin-hover)] disabled:opacity-30"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Pindah ke bawah"
+                          disabled={itemIndex === day.items.length - 1}
+                          onClick={() => moveItem(dayIndex, itemIndex, 1)}
+                          className="flex h-5 w-6 items-center justify-center rounded text-[10px] text-[var(--admin-muted)] hover:bg-[var(--admin-hover)] disabled:opacity-30"
+                        >
+                          ▼
+                        </button>
+                      </div>
+                      <input
+                        type="time"
+                        value={item.time}
+                        aria-label={`Jam item ${itemIndex + 1} hari ${dayIndex + 1}`}
+                        onChange={(e) => updateItem(dayIndex, itemIndex, { time: e.target.value })}
+                        className={`${adminClass.input} w-28 shrink-0 tabular-nums`}
+                      />
+                      <input
+                        type="text"
+                        value={item.activity}
+                        placeholder="Activity (EN)"
+                        aria-label={`Aktivitas item ${itemIndex + 1} (EN)`}
+                        onChange={(e) =>
+                          updateItem(dayIndex, itemIndex, { activity: e.target.value })
+                        }
+                        className={`${adminClass.input} min-w-40 flex-1`}
+                      />
+                      <input
+                        type="text"
+                        value={item.activityId ?? ""}
+                        placeholder="Aktivitas (ID)"
+                        aria-label={`Aktivitas item ${itemIndex + 1} (ID)`}
+                        onChange={(e) =>
+                          updateItem(dayIndex, itemIndex, { activityId: e.target.value })
+                        }
+                        className={`${adminClass.input} min-w-40 flex-1`}
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Hapus item ${itemIndex + 1}`}
+                        onClick={() =>
+                          updateDay(dayIndex, {
+                            items: day.items.filter((_, j) => j !== itemIndex),
+                          })
+                        }
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--admin-line)] text-[var(--admin-muted)] hover:bg-[var(--admin-hover)]"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateDay(dayIndex, {
+                        items: [...day.items, { time: "", activity: "" }],
+                      })
+                    }
+                    className="inline-flex h-8 items-center rounded-lg border border-[var(--admin-line)] px-3 text-[12px] font-semibold text-[var(--admin-ink)] hover:bg-[var(--admin-hover)]"
+                  >
+                    + Tambah item
+                  </button>
+                </div>
               </div>
-            ))}
-            <button
-              type="button"
-              onClick={() =>
-                updateDay(dayIndex, { items: [...day.items, { time: "", activity: "" }] })
-              }
-              className="inline-flex h-8 items-center rounded-lg border border-[var(--admin-line)] px-3 text-[12px] font-semibold text-[var(--admin-ink)] hover:bg-[var(--admin-hover)]"
-            >
-              + Tambah item
-            </button>
+            ) : null}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <button
         type="button"
-        onClick={() =>
-          onChange(
-            renumber([...value, { day: value.length + 1, title: "", items: [{ time: "", activity: "" }] }]),
-          )
-        }
+        onClick={addDay}
         className={adminClass.buttonSecondary}
       >
-        + Tambah hari
+        + Tambah Hari
       </button>
     </div>
   );

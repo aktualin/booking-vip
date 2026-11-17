@@ -7,11 +7,12 @@ import { getAdminAuth } from "@/lib/firebase";
 import {
   createEmailPasswordAccount,
   deleteFirebaseUser,
+  mintIdToken,
   sendEmailVerificationEmail,
   sendPasswordResetEmail,
   signInWithPassword,
 } from "@/lib/identity";
-import { ADMIN_ROLE, syncAccount } from "@/lib/accounts";
+import { ADMIN_ROLE, getAccount, syncAccount } from "@/lib/accounts";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import {
   USER_SESSION_COOKIE,
@@ -59,6 +60,71 @@ async function issueUserSession(
     path: "/",
     maxAge: ttl,
   });
+}
+
+/**
+ * Sliding refresh of the customer session cookie.
+ *
+ * The browser calls this periodically while the tab is visible (see
+ * `SessionRefresh`); the cookie is re-issued with its full original TTL, so
+ * an active session never expires and the customer is not asked to sign in
+ * again every 8 hours.
+ *
+ * Identity can be proven two ways:
+ *  - a fresh id token from the browser Firebase SDK (Google sign-ins keep a
+ *    client-side user), verified with revocation checking, or
+ *  - the current session cookie itself. Password sign-ins run entirely
+ *    server-side, so the browser SDK has no user for them; the cookie is
+ *    verified (revocation checked) and a fresh id token is minted server-side
+ *    to re-issue it.
+ *
+ * The same role rule as login applies: the account must exist and must not
+ * be an admin. Every failure collapses into `{ ok: false }` — the next
+ * interval retries, and a truly dead session falls back to the login flow.
+ */
+export async function refreshUserSession(idToken?: string): Promise<{ ok: boolean }> {
+  try {
+    let uid: string | null = null;
+    let freshIdToken: string | null = null;
+    let cookieUid: string | null = null;
+    let cookieRemember = false;
+
+    const cookie = (await cookies()).get(USER_SESSION_COOKIE)?.value;
+    if (cookie) {
+      try {
+        const decoded = await getAdminAuth().verifySessionCookie(cookie, true);
+        cookieUid = decoded.uid;
+        uid = decoded.uid;
+        // Keep the lifetime the session was created with, so a "remember me"
+        // session keeps its 14 days instead of dropping to 8 hours.
+        cookieRemember = decoded.exp - decoded.iat > USER_SESSION_TTL_SECONDS;
+      } catch {
+        // Expired or revoked — a fresh id token below can still renew.
+      }
+    }
+
+    if (idToken) {
+      const decoded = await getAdminAuth().verifyIdToken(idToken, true);
+      uid = decoded.uid;
+      freshIdToken = idToken;
+    }
+
+    if (!uid) return { ok: false };
+
+    const account = await getAccount(uid);
+    if (!account || account.role === ADMIN_ROLE) return { ok: false };
+
+    if (!freshIdToken) {
+      freshIdToken = await mintIdToken(uid);
+      if (!freshIdToken) return { ok: false };
+    }
+
+    // Only inherit "remember me" when the cookie belongs to the same account.
+    await issueUserSession(freshIdToken, cookieRemember && cookieUid === uid);
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
 }
 
 /** Server action backing the customer login form. */

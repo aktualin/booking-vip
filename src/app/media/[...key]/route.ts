@@ -10,6 +10,9 @@
 // reachability of a CDN hostname.
 
 import { getObjectMeta } from "@/lib/storage";
+import { db } from "@/prisma/db";
+import { getUserSession } from "@/lib/user/session";
+import { getAdminSession } from "@/lib/admin/session";
 
 export async function GET(
   _request: Request,
@@ -24,6 +27,42 @@ export async function GET(
     if (!object) return new Response("Not found", { status: 404 });
 
     const contentType = object.contentType ?? "application/octet-stream";
+
+    // e-VOA documents are PII (passport scans, photos, issued visas): only
+    // the order owner or a signed-in admin may read them. A missing row or
+    // a foreign session gets the same 404 as a missing object — no leaking
+    // whether a key exists.
+    if (key.startsWith("evoa-docs/")) {
+      const isAllowedType =
+        contentType.startsWith("image/") || contentType === "application/pdf";
+      if (!isAllowedType) return new Response("Not found", { status: 404 });
+
+      const doc = await db.orm.public.VisaDocument
+        .select("applicationId")
+        .where({ key })
+        .first();
+      if (!doc) return new Response("Not found", { status: 404 });
+
+      const order = await db.orm.public.VisaApplication
+        .select("userId")
+        .where({ id: doc.applicationId })
+        .first();
+
+      const [user, admin] = await Promise.all([getUserSession(), getAdminSession()]);
+      const allowed = admin != null || (user != null && order?.userId === user.uid);
+      if (!allowed) return new Response("Not found", { status: 404 });
+
+      return new Response(new Uint8Array(object.body), {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          // Private — never share a passport scan through a CDN cache.
+          "Cache-Control": "private, max-age=3600",
+          "Content-Length": String(object.body.byteLength),
+        },
+      });
+    }
+
     // Site images are always allowed. Renter identity documents may be PDFs,
     // but only under the dedicated `renter-docs/` prefix — nothing else.
     const isImage = contentType.startsWith("image/");

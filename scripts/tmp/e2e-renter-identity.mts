@@ -1,5 +1,6 @@
 // End-to-end: transport booking wizard → renter identity upload (R2) →
-// signature canvas (R2) → createBooking → assert Contact identity persisted.
+// signature canvas (R2) → createBooking → Xendit hosted checkout redirect →
+// assert Contact identity + the IDR payment row persisted.
 // Run: node --experimental-strip-types --conditions react-server scripts/tmp/e2e-renter-identity.mts
 import { createRequire } from "node:module";
 import "dotenv/config";
@@ -78,30 +79,67 @@ try {
   log("signature saved to R2: true");
   await page.screenshot({ path: "scripts/tmp/e2e-renter-signature.png", fullPage: true });
 
-  // 7. Continue → payment → submit.
+  // 7. Continue → payment step. Xendit flow: CREDIT_CARD is the only active
+  // method (no QRIS), and there is no embedded card form — the card form
+  // lives on Xendit's hosted checkout page.
   await page.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
-  await page.getByRole("button", { name: "Pesan Sekarang" }).waitFor({ timeout: 20000 });
-  await page.getByRole("button", { name: "Pesan Sekarang" }).click();
+  const payBtn = page.getByRole("button", { name: "Bayar Sekarang" });
+  await payBtn.waitFor({ timeout: 20000 });
+  const radios = page.getByRole("radio");
+  const radioCount = await radios.count();
+  const cardLabel = await page.getByText("Kartu Kredit / Debit").count();
+  const qrisCount = await page.getByText("QRIS", { exact: false }).count();
+  const cardInputs = await page.locator('input[autocomplete="cc-number"]').count();
+  log(
+    "payment methods (want 1 card only):", radioCount,
+    "| card label present:", cardLabel > 0,
+    "| QRIS (want 0):", qrisCount,
+    "| embedded card inputs (want 0):", cardInputs,
+  );
+  await page.screenshot({ path: "scripts/tmp/e2e-renter-payment.png", fullPage: true });
 
-  // 8. Result step shows the booking code.
-  await page.waitForFunction(() => /BV-[A-Z0-9]{6}/.test(document.body.innerText), { timeout: 40000 });
-  const bodyText = await page.evaluate(() => document.body.innerText);
-  const code = bodyText.match(/BV-[A-Z0-9]{6}/)?.[0];
+  // 8. Pay: createBooking (once) → startBookingPayment(CREDIT_CARD) →
+  // redirect to Xendit's hosted checkout. There is no result step; the
+  // wizard stashes { code, email } in localStorage for the return page.
+  await payBtn.click();
+  await page.waitForFunction(
+    () => localStorage.getItem("booking-vip:last-booking") !== null,
+    { timeout: 40000 },
+  );
+  const code = await page.evaluate(() => {
+    const raw = localStorage.getItem("booking-vip:last-booking");
+    return raw ? (JSON.parse(raw) as { code: string }).code : undefined;
+  });
+  if (!code) throw new Error("no booking code in localStorage after pay");
   log("booking code:", code);
-  await page.screenshot({ path: "scripts/tmp/e2e-renter-result.png", fullPage: true });
+  await page.waitForURL((url) => url.hostname.endsWith("xendit.co"), { timeout: 60000 });
+  log("redirected to Xendit checkout:", page.url());
+  await page.screenshot({ path: "scripts/tmp/e2e-renter-checkout.png", fullPage: true }).catch(() => {});
 
-  // 9. Assert the identity + signature persisted on Contact.
+  // 9. Assert the identity + signature persisted on Contact, and the payment
+  // row froze the IDR charge (display stays USD; Xendit charges IDR).
   const booking = (await db.orm.public.Booking.select("id").where({ code }).limit(1).all())[0];
   if (!booking) throw new Error("booking not found in DB: " + code);
   const contact = (await db.orm.public.Contact
     .select("identityNumber", "idType", "idDocumentUrl", "signatureUrl")
     .where({ bookingId: booking.id }).limit(1).all())[0];
   log("Contact persisted:", JSON.stringify(contact));
+  const payment = (await db.orm.public.Payment
+    .select("provider", "status", "providerCurrency", "providerAmountCents", "fxRate", "checkoutUrl")
+    .where({ bookingId: booking.id }).limit(1).all())[0];
+  log("Payment persisted:", JSON.stringify(payment));
   const ok =
     contact?.identityNumber === ID_NUMBER &&
     contact?.idType === "ktp" &&
     !!contact?.idDocumentUrl?.startsWith("/media/renter-docs/") &&
-    !!contact?.signatureUrl?.startsWith("/media/signatures/");
+    !!contact?.signatureUrl?.startsWith("/media/signatures/") &&
+    radioCount === 1 && cardLabel > 0 && qrisCount === 0 && cardInputs === 0 &&
+    payment?.provider === "xendit" &&
+    payment?.status === "pending" &&
+    payment?.providerCurrency === "IDR" &&
+    (payment?.providerAmountCents ?? 0) > 0 &&
+    (payment?.fxRate ?? 0) > 0 &&
+    !!payment?.checkoutUrl;
   log(ok ? "E2E PASS" : "E2E FAIL");
 } catch (e) {
   await page.screenshot({ path: "scripts/tmp/e2e-renter-error.png", fullPage: true }).catch(() => {});

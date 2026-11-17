@@ -2,6 +2,7 @@
 
 import { db } from "@/prisma/db";
 import { parseBookingRules, type BookingRules } from "@/lib/bookingRules";
+import { getAvailableStock } from "@/lib/stock";
 
 /**
  * The transport rental readers — the results list and the vehicle detail.
@@ -43,6 +44,10 @@ export type TransportResultItem = {
   discountPercent: number;
   electric: boolean;
   serviceTypeName: string | null;
+  /** How many units of this vehicle the vendor owns (rental stock). */
+  stockTotal: number;
+  /** Units still bookable right now (stockTotal minus active reservations). */
+  availableStock: number;
 };
 
 export type TransportSort = "recommended" | "price_asc" | "price_desc" | "discount";
@@ -96,6 +101,10 @@ export type TransportDetailDTO = {
   rules: BookingRules;
   leadTimeHours: number;
   leadTimeDays: number;
+  /** How many units of this vehicle the vendor owns (rental stock). */
+  stockTotal: number;
+  /** Units still bookable right now (stockTotal minus active reservations). */
+  availableStock: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -172,6 +181,7 @@ type ProductRow = {
   specs: unknown;
   fromPriceUsdCents: number | null;
   serviceTypeId: string | null;
+  stockTotal: number;
 };
 
 /** Load the active transport products with their cheapest package price. */
@@ -194,6 +204,7 @@ async function loadFleet(): Promise<
       "specs",
       "fromPriceUsdCents",
       "serviceTypeId",
+      "stockTotal",
     )
     .where((f) => f.lineId.eq(lineId))
     .where((f) => f.active.eq(true))
@@ -204,6 +215,10 @@ async function loadFleet(): Promise<
   if (products.length === 0) return [];
 
   const productIds = products.map((p) => p.id);
+
+  // One stock lookup for the whole fleet — cars with no available unit are
+  // hidden from the results (and therefore from every page of the search).
+  const stock = await getAvailableStock(productIds);
 
   // Only daily-rental packages make a vehicle part of the rental fleet —
   // point-to-point transfers (per_unit) stay out of the "/hari" results.
@@ -252,6 +267,10 @@ async function loadFleet(): Promise<
     // A vehicle without any active package is not bookable — hide it.
     if (net == null) continue;
 
+    // A vehicle with no available stock is hidden everywhere.
+    const availableStock = stock.get(product.id) ?? 0;
+    if (availableStock <= 0) continue;
+
     const specs = parseSpecs(product.specs);
     const from = product.fromPriceUsdCents;
     const hasPromo = from != null && from > net;
@@ -272,6 +291,8 @@ async function loadFleet(): Promise<
         ? (typeNames.get(product.serviceTypeId) ?? null)
         : null,
       serviceTypeId: product.serviceTypeId,
+      stockTotal: product.stockTotal,
+      availableStock,
     });
   }
 
@@ -368,6 +389,7 @@ export async function getTransportDetail(
         "specs",
         "leadTimeHours",
         "leadTimeDays",
+        "stockTotal",
       )
       .where((f) => f.slug.eq(slug))
       .where((f) => f.active.eq(true))
@@ -377,6 +399,11 @@ export async function getTransportDetail(
 
     const product = products[0];
     if (!product) return null;
+
+    // The detail page stays reachable for a sold-out car (the UI shows the
+    // stock state); the listings hide it and createBooking refuses it.
+    const stock = await getAvailableStock([product.id]);
+    const availableStock = stock.get(product.id) ?? 0;
 
     const packages = await db.orm.public.ProductPackage
       .select(
@@ -442,6 +469,8 @@ export async function getTransportDetail(
       rules: parseBookingRules(settings[0]?.value),
       leadTimeHours: product.leadTimeHours,
       leadTimeDays: product.leadTimeDays,
+      stockTotal: product.stockTotal,
+      availableStock,
     };
   } catch (error) {
     console.error("[transport] could not load the vehicle", error);

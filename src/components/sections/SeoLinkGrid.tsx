@@ -16,11 +16,25 @@ export type SeoLink = {
   labelId?: string | null;
   service: string;
   tags?: string[];
+  /** Operator-set target (DB `SeoLink.href`) — wins for hidden services. */
+  href?: string | null;
 };
 
 const serviceRoutes = Object.fromEntries(
   serviceNav.map((s) => [s.label, s.href])
 );
+
+/**
+ * Original routes of the lines hidden from the nav. Their pages still work,
+ * so SEO links fall back to them instead of dying at "#" when the service
+ * is no longer in `serviceNav` and the link carries no DB href.
+ */
+const hiddenServiceRoutes: Record<string, string> = {
+  "Airport VIP Service": "/vip-service",
+  Transport: "/transport",
+  "Tour Package": "/tour-package",
+  eVOA: "/evoa",
+};
 
 export default function SeoLinkGrid({
   title,
@@ -60,7 +74,12 @@ export default function SeoLinkGrid({
         {links.map((l) => (
           <Link
             key={l.label}
-            href={serviceRoutes[l.service] ?? "#"}
+            href={
+              serviceRoutes[l.service] ||
+              l.href ||
+              hiddenServiceRoutes[l.service] ||
+              "#"
+            }
             className="text-sm text-muted hover:text-brand hover:underline"
           >
             {pickLang(l.label, l.labelId, lang)}

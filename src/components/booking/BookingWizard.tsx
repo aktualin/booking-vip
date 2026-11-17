@@ -113,6 +113,10 @@ export default function BookingWizard() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // One idempotency key per checkout attempt — generated once on mount and
+  // reused across retries, so a network hiccup never creates a second
+  // booking for the same attempt.
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   // The booking created by "Bayar Sekarang" — created ONCE; payment retries
   // (a declined card, an expired checkout session) reuse the same booking.
   const [created, setCreated] = useState<{
@@ -176,8 +180,12 @@ export default function BookingWizard() {
       subtotal += (selectedPackage.childUsd ?? 0) * children;
       subtotal += (selectedPackage.infantUsd ?? 0) * infants;
     } else if (selectedPackage.unitKind === "per_day") {
-      // per_day: one rental day × the number of days
-      subtotal += (selectedPackage.unitUsd ?? 0) * daysParam;
+      // per_day: one rental day × the number of days. On the transport line
+      // the qty param is the number of vehicles reserved (the server
+      // validates it against the available stock).
+      const vehicles =
+        product.lineSlug === "transport" ? Math.max(1, qtyParam) : 1;
+      subtotal += (selectedPackage.unitUsd ?? 0) * daysParam * vehicles;
     } else {
       // per_unit: multiply by quantity
       subtotal += (selectedPackage.unitUsd ?? 0) * qtyParam;
@@ -246,6 +254,14 @@ export default function BookingWizard() {
         infant: infants,
         units: selectedPackage.unitKind === "per_unit" ? qtyParam : undefined,
         days: selectedPackage.unitKind === "per_day" ? daysParam : undefined,
+        // Transport daily rentals: the qty param reserves that many units.
+        // The product DTO carries no stock, so the server validates the
+        // count against the available rental stock.
+        vehicleCount:
+          isTransport && selectedPackage.unitKind === "per_day"
+            ? qtyParam
+            : undefined,
+        idempotencyKey,
         pickup: pickupPoint ?? undefined,
         dropoff: dropoffPoint ?? undefined,
         driverOption: driverOptionParam,

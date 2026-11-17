@@ -206,9 +206,11 @@ export async function sendEmailVerificationEmail(
  *
  * Used when the customer asks for the verification email again — the server
  * mints a short-lived custom token for the uid, exchanges it for an id token
- * and hands that to the verification mailer.
+ * and hands that to the verification mailer. Also used by the sliding session
+ * refresh: password sign-ins happen entirely server-side, so the browser SDK
+ * holds no user for them and the refresh mints its own id token here.
  */
-async function mintIdToken(uid: string): Promise<string | null> {
+export async function mintIdToken(uid: string): Promise<string | null> {
   const apiKey = process.env.FIREBASE_API_KEY;
   if (!apiKey) return null;
 

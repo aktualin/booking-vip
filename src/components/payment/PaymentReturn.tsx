@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getBookingPaymentStatus } from "@/app/actions/payments";
+import { getEvoaLinkForBooking } from "@/app/actions/evoa-tracking";
 
 /**
  * The page the customer lands on after the gateway.
@@ -29,6 +30,19 @@ export default function PaymentReturn({
   );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // When this booking carries an e-VOA order, offer the tracking page.
+  const [visaCode, setVisaCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status !== "paid") return;
+    let cancelled = false;
+    void getEvoaLinkForBooking(bookingCode).then((link) => {
+      if (!cancelled && link) setVisaCode(link.code);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, bookingCode]);
 
   const poll = useCallback(async (address: string) => {
     const result = await getBookingPaymentStatus({
@@ -114,6 +128,14 @@ export default function PaymentReturn({
         </p>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          {visaCode ? (
+            <Link
+              href={`/account/visa/${encodeURIComponent(visaCode)}`}
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-white transition-opacity hover:bg-brand-dark"
+            >
+              Lacak pengajuan e-VOA
+            </Link>
+          ) : null}
           <Link
             href="/account/orders"
             className="inline-flex h-10 items-center justify-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-white transition-opacity hover:bg-brand-dark"

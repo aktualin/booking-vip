@@ -152,13 +152,15 @@ export function resolveServiceSteps(
 }
 
 /** A percentage, rendered the way the rules table shows it. */
-function percent(value: number): string {
-  return value > 0 ? `${value} %` : "tidak ada";
+function percent(value: number, lang: "en" | "id"): string {
+  if (value > 0) return `${value} %`;
+  return lang === "id" ? "tidak ada" : "none";
 }
 
 /** A discount, rendered the way the rules table shows it. */
-function discount(value: number): string {
-  return value > 0 ? `diskon ${value} %` : "tanpa diskon";
+function discount(value: number, lang: "en" | "id"): string {
+  if (value > 0) return lang === "id" ? `diskon ${value} %` : `${value}% off`;
+  return lang === "id" ? "tanpa diskon" : "no discount";
 }
 
 /**
@@ -171,6 +173,7 @@ function discount(value: number): string {
 export function bookingRuleRows(
   rules: BookingRules,
   leadTime?: { hours: number; days: number },
+  lang: "en" | "id" = "id",
 ): { label: string; value: string }[] {
   const effectiveHours =
     leadTime && leadTime.days > 0
@@ -181,20 +184,25 @@ export function bookingRuleRows(
 
   const leadLabel =
     effectiveHours >= 24 && effectiveHours % 24 === 0
-      ? `${effectiveHours / 24} hari`
-      : `${effectiveHours} jam`;
+      ? lang === "id"
+        ? `${effectiveHours / 24} hari`
+        : `${effectiveHours / 24} day(s)`
+      : lang === "id"
+        ? `${effectiveHours} jam`
+        : `${effectiveHours} hour(s)`;
 
+  const en = lang !== "id";
   return [
-    { label: "Minimal sebelum waktu layanan", value: leadLabel },
-    { label: "Biaya pemesanan mendadak", value: percent(rules.shortNoticePercent) },
-    { label: "Biaya tengah malam", value: percent(rules.overnightPercent) },
+    { label: en ? "Minimum lead time" : "Minimal sebelum waktu layanan", value: leadLabel },
+    { label: en ? "Last-minute booking fee" : "Biaya pemesanan mendadak", value: percent(rules.shortNoticePercent, lang) },
+    { label: en ? "Overnight fee" : "Biaya tengah malam", value: percent(rules.overnightPercent, lang) },
     {
-      label: "Periode tengah malam",
+      label: en ? "Overnight window" : "Periode tengah malam",
       value: `${rules.overnightFrom}–${rules.overnightTo}`,
     },
-    { label: "Biaya akhir pekan", value: percent(rules.weekendPercent) },
-    { label: "Biaya hari libur nasional", value: percent(rules.holidayPercent) },
-    { label: "Bayi (di bawah 24 bulan)", value: discount(rules.infantDiscountPercent) },
-    { label: "Anak 3–12 tahun", value: discount(rules.childDiscountPercent) },
+    { label: en ? "Weekend fee" : "Biaya akhir pekan", value: percent(rules.weekendPercent, lang) },
+    { label: en ? "Public holiday fee" : "Biaya hari libur nasional", value: percent(rules.holidayPercent, lang) },
+    { label: en ? "Infants (under 24 months)" : "Bayi (di bawah 24 bulan)", value: discount(rules.infantDiscountPercent, lang) },
+    { label: en ? "Children 3–12 years" : "Anak 3–12 tahun", value: discount(rules.childDiscountPercent, lang) },
   ];
 }

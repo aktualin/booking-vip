@@ -1,0 +1,2067 @@
+[
+  {
+    "id": "table.Driver",
+    "label": "Create table \"Driver\"",
+    "summary": "Creates table \"Driver\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Driver"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Driver\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Driver\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"Driver\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Driver\"",
+        "sql": "CREATE TABLE \"public\".\"Driver\" (\n  \"active\" bool DEFAULT true NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"languages\" text,\n  \"name\" text NOT NULL,\n  \"notes\" text,\n  \"phone\" text NOT NULL,\n  \"photoUrl\" text,\n  \"sortOrder\" int4 DEFAULT 0 NOT NULL,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Driver\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"Driver\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"Driver\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.TourDeparture",
+    "label": "Create table \"TourDeparture\"",
+    "summary": "Creates table \"TourDeparture\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "TourDeparture"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"TourDeparture\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"TourDeparture\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"TourDeparture\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"TourDeparture\"",
+        "sql": "CREATE TABLE \"public\".\"TourDeparture\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"date\" timestamp(3) NOT NULL,\n  \"id\" text NOT NULL,\n  \"notes\" text,\n  \"productId\" text NOT NULL,\n  \"quota\" int4 DEFAULT 10 NOT NULL,\n  \"startTime\" text DEFAULT '08:00' NOT NULL,\n  \"status\" text DEFAULT 'open' NOT NULL,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"TourDeparture\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"TourDeparture\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"TourDeparture\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.Vehicle",
+    "label": "Create table \"Vehicle\"",
+    "summary": "Creates table \"Vehicle\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Vehicle"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Vehicle\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Vehicle\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"Vehicle\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Vehicle\"",
+        "sql": "CREATE TABLE \"public\".\"Vehicle\" (\n  \"active\" bool DEFAULT true NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"name\" text NOT NULL,\n  \"notes\" text,\n  \"photoUrl\" text,\n  \"plateNumber\" text,\n  \"seats\" int4 DEFAULT 6 NOT NULL,\n  \"sortOrder\" int4 DEFAULT 0 NOT NULL,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Vehicle\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"Vehicle\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"Vehicle\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "column.public.Booking.departureId",
+    "label": "Add column \"departureId\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "departureId",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"departureId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "departureId"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"departureId\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"departureId\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"departureId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"departureId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "departureId"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"departureId\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"departureId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "departureId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Booking.driverId",
+    "label": "Add column \"driverId\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "driverId",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"driverId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "driverId"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"driverId\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"driverId\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"driverId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"driverId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "driverId"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"driverId\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"driverId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "driverId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Booking.greeterName",
+    "label": "Add column \"greeterName\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "greeterName",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"greeterName\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "greeterName"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"greeterName\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"greeterName\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"greeterName\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"greeterName\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "greeterName"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"greeterName\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"greeterName\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "greeterName",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Booking.greeterPhone",
+    "label": "Add column \"greeterPhone\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "greeterPhone",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"greeterPhone\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "greeterPhone"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"greeterPhone\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"greeterPhone\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"greeterPhone\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"greeterPhone\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "greeterPhone"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"greeterPhone\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"greeterPhone\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "greeterPhone",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Booking.hotelName",
+    "label": "Add column \"hotelName\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "hotelName",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"hotelName\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "hotelName"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"hotelName\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"hotelName\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"hotelName\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"hotelName\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "hotelName"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"hotelName\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"hotelName\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "hotelName",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Booking.opsNote",
+    "label": "Add column \"opsNote\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "opsNote",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"opsNote\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "opsNote"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"opsNote\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"opsNote\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"opsNote\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"opsNote\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "opsNote"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"opsNote\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"opsNote\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "opsNote",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Booking.opsStatus",
+    "label": "Add column \"opsStatus\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "opsStatus",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"opsStatus\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "opsStatus"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"opsStatus\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"opsStatus\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"opsStatus\" text DEFAULT 'waiting_documents' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"opsStatus\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "opsStatus"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"opsStatus\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"opsStatus\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "opsStatus",
+          "text"
+        ]
+      },
+      {
+        "description": "verify column \"opsStatus\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "opsStatus",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Booking.vehicleId",
+    "label": "Add column \"vehicleId\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "vehicleId",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"vehicleId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "vehicleId"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"vehicleId\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"vehicleId\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"vehicleId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"vehicleId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "vehicleId"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"vehicleId\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"vehicleId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "vehicleId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Contact.nationality",
+    "label": "Add column \"nationality\" to \"Contact\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "nationality",
+        "table": "Contact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"nationality\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "nationality"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"nationality\" on \"Contact\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"nationality\"",
+        "sql": "ALTER TABLE \"public\".\"Contact\" ADD COLUMN \"nationality\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"nationality\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "nationality"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"nationality\" on \"Contact\""
+        }
+      },
+      {
+        "description": "verify column \"nationality\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Contact",
+          "nationality",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Country.voaEligible",
+    "label": "Add column \"voaEligible\" to \"Country\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "voaEligible",
+        "table": "Country"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"voaEligible\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Country",
+          "voaEligible"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"voaEligible\" on \"Country\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"voaEligible\"",
+        "sql": "ALTER TABLE \"public\".\"Country\" ADD COLUMN \"voaEligible\" bool DEFAULT true NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"voaEligible\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Country",
+          "voaEligible"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"voaEligible\" on \"Country\""
+        }
+      },
+      {
+        "description": "verify column \"voaEligible\" has type \"boolean\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Country",
+          "voaEligible",
+          "boolean"
+        ]
+      },
+      {
+        "description": "verify column \"voaEligible\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Country",
+          "voaEligible",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Product.durationDays",
+    "label": "Add column \"durationDays\" to \"Product\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "durationDays",
+        "table": "Product"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"durationDays\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "durationDays"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"durationDays\" on \"Product\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"durationDays\"",
+        "sql": "ALTER TABLE \"public\".\"Product\" ADD COLUMN \"durationDays\" int4 DEFAULT 0 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"durationDays\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "durationDays"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"durationDays\" on \"Product\""
+        }
+      },
+      {
+        "description": "verify column \"durationDays\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "durationDays",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"durationDays\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "durationDays",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Product.maxPax",
+    "label": "Add column \"maxPax\" to \"Product\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "maxPax",
+        "table": "Product"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"maxPax\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "maxPax"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"maxPax\" on \"Product\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"maxPax\"",
+        "sql": "ALTER TABLE \"public\".\"Product\" ADD COLUMN \"maxPax\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"maxPax\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "maxPax"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"maxPax\" on \"Product\""
+        }
+      },
+      {
+        "description": "verify column \"maxPax\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "maxPax",
+          "integer"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Product.minPax",
+    "label": "Add column \"minPax\" to \"Product\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "minPax",
+        "table": "Product"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"minPax\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "minPax"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"minPax\" on \"Product\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"minPax\"",
+        "sql": "ALTER TABLE \"public\".\"Product\" ADD COLUMN \"minPax\" int4 DEFAULT 1 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"minPax\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "minPax"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"minPax\" on \"Product\""
+        }
+      },
+      {
+        "description": "verify column \"minPax\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "minPax",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"minPax\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "minPax",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Product.tourKind",
+    "label": "Add column \"tourKind\" to \"Product\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "tourKind",
+        "table": "Product"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"tourKind\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "tourKind"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"tourKind\" on \"Product\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"tourKind\"",
+        "sql": "ALTER TABLE \"public\".\"Product\" ADD COLUMN \"tourKind\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"tourKind\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "tourKind"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"tourKind\" on \"Product\""
+        }
+      },
+      {
+        "description": "verify column \"tourKind\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "tourKind",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Traveler.dateOfBirth",
+    "label": "Add column \"dateOfBirth\" to \"Traveler\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "dateOfBirth",
+        "table": "Traveler"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"dateOfBirth\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "dateOfBirth"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"dateOfBirth\" on \"Traveler\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"dateOfBirth\"",
+        "sql": "ALTER TABLE \"public\".\"Traveler\" ADD COLUMN \"dateOfBirth\" timestamp(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"dateOfBirth\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "dateOfBirth"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"dateOfBirth\" on \"Traveler\""
+        }
+      },
+      {
+        "description": "verify column \"dateOfBirth\" has type \"timestamp(3) without time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "dateOfBirth",
+          "timestamp(3) without time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Traveler.docNote",
+    "label": "Add column \"docNote\" to \"Traveler\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "docNote",
+        "table": "Traveler"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"docNote\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "docNote"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"docNote\" on \"Traveler\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"docNote\"",
+        "sql": "ALTER TABLE \"public\".\"Traveler\" ADD COLUMN \"docNote\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"docNote\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "docNote"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"docNote\" on \"Traveler\""
+        }
+      },
+      {
+        "description": "verify column \"docNote\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "docNote",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Traveler.docStatus",
+    "label": "Add column \"docStatus\" to \"Traveler\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "docStatus",
+        "table": "Traveler"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"docStatus\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "docStatus"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"docStatus\" on \"Traveler\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"docStatus\"",
+        "sql": "ALTER TABLE \"public\".\"Traveler\" ADD COLUMN \"docStatus\" text DEFAULT 'pending' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"docStatus\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "docStatus"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"docStatus\" on \"Traveler\""
+        }
+      },
+      {
+        "description": "verify column \"docStatus\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "docStatus",
+          "text"
+        ]
+      },
+      {
+        "description": "verify column \"docStatus\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "docStatus",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Traveler.nationality",
+    "label": "Add column \"nationality\" to \"Traveler\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "nationality",
+        "table": "Traveler"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"nationality\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "nationality"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"nationality\" on \"Traveler\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"nationality\"",
+        "sql": "ALTER TABLE \"public\".\"Traveler\" ADD COLUMN \"nationality\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"nationality\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "nationality"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"nationality\" on \"Traveler\""
+        }
+      },
+      {
+        "description": "verify column \"nationality\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "nationality",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Traveler.passportExpiry",
+    "label": "Add column \"passportExpiry\" to \"Traveler\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "passportExpiry",
+        "table": "Traveler"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"passportExpiry\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "passportExpiry"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"passportExpiry\" on \"Traveler\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"passportExpiry\"",
+        "sql": "ALTER TABLE \"public\".\"Traveler\" ADD COLUMN \"passportExpiry\" timestamp(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"passportExpiry\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "passportExpiry"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"passportExpiry\" on \"Traveler\""
+        }
+      },
+      {
+        "description": "verify column \"passportExpiry\" has type \"timestamp(3) without time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "passportExpiry",
+          "timestamp(3) without time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Traveler.passportNumber",
+    "label": "Add column \"passportNumber\" to \"Traveler\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "passportNumber",
+        "table": "Traveler"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"passportNumber\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "passportNumber"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"passportNumber\" on \"Traveler\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"passportNumber\"",
+        "sql": "ALTER TABLE \"public\".\"Traveler\" ADD COLUMN \"passportNumber\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"passportNumber\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "passportNumber"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"passportNumber\" on \"Traveler\""
+        }
+      },
+      {
+        "description": "verify column \"passportNumber\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "passportNumber",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Traveler.passportPhotoKey",
+    "label": "Add column \"passportPhotoKey\" to \"Traveler\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "passportPhotoKey",
+        "table": "Traveler"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"passportPhotoKey\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "passportPhotoKey"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"passportPhotoKey\" on \"Traveler\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"passportPhotoKey\"",
+        "sql": "ALTER TABLE \"public\".\"Traveler\" ADD COLUMN \"passportPhotoKey\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"passportPhotoKey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "passportPhotoKey"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"passportPhotoKey\" on \"Traveler\""
+        }
+      },
+      {
+        "description": "verify column \"passportPhotoKey\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Traveler",
+          "passportPhotoKey",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.VisaApplication.bookingId",
+    "label": "Add column \"bookingId\" to \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "bookingId",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"bookingId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "bookingId"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"bookingId\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"bookingId\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\" ADD COLUMN \"bookingId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"bookingId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "bookingId"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"bookingId\" on \"VisaApplication\""
+        }
+      },
+      {
+        "description": "verify column \"bookingId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "VisaApplication",
+          "bookingId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Booking.Booking_departureId_idx",
+    "label": "Create index \"Booking_departureId_idx\" on \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Booking_departureId_idx",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Booking_departureId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_departureId_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"Booking_departureId_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Booking_departureId_idx\"",
+        "sql": "CREATE INDEX \"Booking_departureId_idx\" ON \"public\".\"Booking\" (\"departureId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Booking_departureId_idx\" exists on \"Booking\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_departureId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Booking\"",
+          "btree",
+          "[\"departureId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Booking.Booking_driverId_idx",
+    "label": "Create index \"Booking_driverId_idx\" on \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Booking_driverId_idx",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Booking_driverId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_driverId_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"Booking_driverId_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Booking_driverId_idx\"",
+        "sql": "CREATE INDEX \"Booking_driverId_idx\" ON \"public\".\"Booking\" (\"driverId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Booking_driverId_idx\" exists on \"Booking\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_driverId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Booking\"",
+          "btree",
+          "[\"driverId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Booking.Booking_status_serviceAt_idx",
+    "label": "Create index \"Booking_status_serviceAt_idx\" on \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Booking_status_serviceAt_idx",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Booking_status_serviceAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_status_serviceAt_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"Booking_status_serviceAt_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Booking_status_serviceAt_idx\"",
+        "sql": "CREATE INDEX \"Booking_status_serviceAt_idx\" ON \"public\".\"Booking\" (\"status\", \"serviceAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Booking_status_serviceAt_idx\" exists on \"Booking\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_status_serviceAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Booking\"",
+          "btree",
+          "[\"status\",\"serviceAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Booking.Booking_vehicleId_idx",
+    "label": "Create index \"Booking_vehicleId_idx\" on \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Booking_vehicleId_idx",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Booking_vehicleId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_vehicleId_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"Booking_vehicleId_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Booking_vehicleId_idx\"",
+        "sql": "CREATE INDEX \"Booking_vehicleId_idx\" ON \"public\".\"Booking\" (\"vehicleId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Booking_vehicleId_idx\" exists on \"Booking\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_vehicleId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Booking\"",
+          "btree",
+          "[\"vehicleId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.TourDeparture.TourDeparture_productId_date_idx",
+    "label": "Create index \"TourDeparture_productId_date_idx\" on \"TourDeparture\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "TourDeparture_productId_date_idx",
+        "table": "TourDeparture"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"TourDeparture_productId_date_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"TourDeparture_productId_date_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"TourDeparture_productId_date_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"TourDeparture_productId_date_idx\"",
+        "sql": "CREATE INDEX \"TourDeparture_productId_date_idx\" ON \"public\".\"TourDeparture\" (\"productId\", \"date\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"TourDeparture_productId_date_idx\" exists on \"TourDeparture\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"TourDeparture_productId_date_idx\"",
+          "i",
+          "I",
+          "\"public\".\"TourDeparture\"",
+          "btree",
+          "[\"productId\",\"date\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.VisaApplication.VisaApplication_bookingId_idx",
+    "label": "Create index \"VisaApplication_bookingId_idx\" on \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "VisaApplication_bookingId_idx",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"VisaApplication_bookingId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplication_bookingId_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"VisaApplication_bookingId_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"VisaApplication_bookingId_idx\"",
+        "sql": "CREATE INDEX \"VisaApplication_bookingId_idx\" ON \"public\".\"VisaApplication\" (\"bookingId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"VisaApplication_bookingId_idx\" exists on \"VisaApplication\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"VisaApplication_bookingId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"VisaApplication\"",
+          "btree",
+          "[\"bookingId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Booking.Booking_driverId_fkey",
+    "label": "Add foreign key \"Booking_driverId_fkey\" on \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Booking_driverId_fkey",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Booking_driverId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Booking_driverId_fkey",
+          "public",
+          "\"public\".\"Booking\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"Booking_driverId_fkey\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Booking_driverId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\"\nADD CONSTRAINT \"Booking_driverId_fkey\"\nFOREIGN KEY (\"driverId\")\nREFERENCES \"public\".\"Driver\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Booking_driverId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Booking_driverId_fkey",
+          "public",
+          "\"public\".\"Booking\"",
+          "f",
+          "[\"driverId\"]",
+          "\"public\".\"Driver\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.TourDeparture.TourDeparture_productId_fkey",
+    "label": "Add foreign key \"TourDeparture_productId_fkey\" on \"TourDeparture\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "TourDeparture_productId_fkey",
+        "table": "TourDeparture"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"TourDeparture_productId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "TourDeparture_productId_fkey",
+          "public",
+          "\"public\".\"TourDeparture\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"TourDeparture_productId_fkey\" on \"TourDeparture\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"TourDeparture_productId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"TourDeparture\"\nADD CONSTRAINT \"TourDeparture_productId_fkey\"\nFOREIGN KEY (\"productId\")\nREFERENCES \"public\".\"Product\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"TourDeparture_productId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "TourDeparture_productId_fkey",
+          "public",
+          "\"public\".\"TourDeparture\"",
+          "f",
+          "[\"productId\"]",
+          "\"public\".\"Product\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Booking.Booking_departureId_fkey",
+    "label": "Add foreign key \"Booking_departureId_fkey\" on \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Booking_departureId_fkey",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Booking_departureId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Booking_departureId_fkey",
+          "public",
+          "\"public\".\"Booking\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"Booking_departureId_fkey\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Booking_departureId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\"\nADD CONSTRAINT \"Booking_departureId_fkey\"\nFOREIGN KEY (\"departureId\")\nREFERENCES \"public\".\"TourDeparture\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Booking_departureId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Booking_departureId_fkey",
+          "public",
+          "\"public\".\"Booking\"",
+          "f",
+          "[\"departureId\"]",
+          "\"public\".\"TourDeparture\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Booking.Booking_vehicleId_fkey",
+    "label": "Add foreign key \"Booking_vehicleId_fkey\" on \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Booking_vehicleId_fkey",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Booking_vehicleId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Booking_vehicleId_fkey",
+          "public",
+          "\"public\".\"Booking\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"Booking_vehicleId_fkey\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Booking_vehicleId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\"\nADD CONSTRAINT \"Booking_vehicleId_fkey\"\nFOREIGN KEY (\"vehicleId\")\nREFERENCES \"public\".\"Vehicle\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Booking_vehicleId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Booking_vehicleId_fkey",
+          "public",
+          "\"public\".\"Booking\"",
+          "f",
+          "[\"vehicleId\"]",
+          "\"public\".\"Vehicle\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.VisaApplication.VisaApplication_bookingId_fkey",
+    "label": "Add foreign key \"VisaApplication_bookingId_fkey\" on \"VisaApplication\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "VisaApplication_bookingId_fkey",
+        "table": "VisaApplication"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"VisaApplication_bookingId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "VisaApplication_bookingId_fkey",
+          "public",
+          "\"public\".\"VisaApplication\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"VisaApplication_bookingId_fkey\" on \"VisaApplication\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"VisaApplication_bookingId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"VisaApplication\"\nADD CONSTRAINT \"VisaApplication_bookingId_fkey\"\nFOREIGN KEY (\"bookingId\")\nREFERENCES \"public\".\"Booking\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"VisaApplication_bookingId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "VisaApplication_bookingId_fkey",
+          "public",
+          "\"public\".\"VisaApplication\"",
+          "f",
+          "[\"bookingId\"]",
+          "\"public\".\"Booking\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  }
+]

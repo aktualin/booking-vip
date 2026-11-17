@@ -6,6 +6,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/sections/Footer";
 import BottomTabBar from "@/components/sections/BottomTabBar";
 import Container from "@/components/ui/Container";
+import { Toaster } from "@/components/ui/toast";
 import EvoaApplyForm from "@/components/evoa/EvoaApplyForm";
 import { getEvoaHowItWorks } from "@/lib/evoa";
 import { getUserSession } from "@/lib/user/session";
@@ -52,6 +53,8 @@ export default function EvoaApplyPage() {
 
       <Footer />
       <BottomTabBar />
+      {/* Toast host — the wizard publishes upload/validation notifications. */}
+      <Toaster />
     </div>
   );
 }

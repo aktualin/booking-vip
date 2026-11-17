@@ -1,0 +1,250 @@
+[
+  {
+    "id": "column.public.Booking.idempotencyKey",
+    "label": "Add column \"idempotencyKey\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "idempotencyKey",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"idempotencyKey\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "idempotencyKey"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"idempotencyKey\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"idempotencyKey\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"idempotencyKey\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"idempotencyKey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "idempotencyKey"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"idempotencyKey\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"idempotencyKey\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "idempotencyKey",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Booking.vehicleCount",
+    "label": "Add column \"vehicleCount\" to \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "vehicleCount",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"vehicleCount\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "vehicleCount"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"vehicleCount\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"vehicleCount\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" ADD COLUMN \"vehicleCount\" int4 DEFAULT 1 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"vehicleCount\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "vehicleCount"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"vehicleCount\" on \"Booking\""
+        }
+      },
+      {
+        "description": "verify column \"vehicleCount\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "vehicleCount",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"vehicleCount\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "vehicleCount",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Product.stockTotal",
+    "label": "Add column \"stockTotal\" to \"Product\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "stockTotal",
+        "table": "Product"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"stockTotal\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "stockTotal"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"stockTotal\" on \"Product\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"stockTotal\"",
+        "sql": "ALTER TABLE \"public\".\"Product\" ADD COLUMN \"stockTotal\" int4 DEFAULT 1 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"stockTotal\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "stockTotal"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"stockTotal\" on \"Product\""
+        }
+      },
+      {
+        "description": "verify column \"stockTotal\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "stockTotal",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"stockTotal\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Product",
+          "stockTotal",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Booking.Booking_idempotencyKey_key",
+    "label": "Create index \"Booking_idempotencyKey_key\" on \"Booking\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Booking_idempotencyKey_key",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Booking_idempotencyKey_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_idempotencyKey_key\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"Booking_idempotencyKey_key\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Booking_idempotencyKey_key\"",
+        "sql": "CREATE UNIQUE INDEX \"Booking_idempotencyKey_key\" ON \"public\".\"Booking\" (\"idempotencyKey\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Booking_idempotencyKey_key\" exists on \"Booking\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Booking_idempotencyKey_key\"",
+          "i",
+          "I",
+          "\"public\".\"Booking\"",
+          "btree",
+          "[\"idempotencyKey\"]"
+        ]
+      }
+    ]
+  }
+]

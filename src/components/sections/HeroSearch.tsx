@@ -18,7 +18,6 @@ import {
   SwapIcon,
   TicketIcon,
 } from "@/components/icons";
-import CategoryRail from "@/components/sections/hero/CategoryRail";
 import { serviceNav, serviceSearchFields } from "@/data/services";
 import {
   chainComplete,
@@ -34,13 +33,19 @@ import { getOptions, getPlaceOptions } from "@/app/actions/catalog";
 import PlaceOptionList from "@/components/ui/PlaceOptionList";
 import { hasPlaceMatch, type PlaceNode } from "@/lib/places";
 import { useHomeContent, useSearchFields, useTimeSlots } from "@/lib/useContent";
-import type { OptionDTO, ServiceSearchField } from "@/types";
+import type { OptionDTO, SearchFieldDTO, ServiceSearchField } from "@/types";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { en } from "@/i18n/en";
 import type { DictKey } from "@/i18n";
 
-/** Values of one service — a flat map of query-string keys. */
-type Values = Record<string, Record<string, string>>;
+/**
+ * The single service. The DB line slug stays `vip-service` — the search
+ * fields, service types and catalog are keyed by it — while the nav entry
+ * and the booking tool itself live at /airport-vip.
+ */
+const LINE_SLUG = "vip-service";
+const SERVICE_LABEL = serviceNav[0]?.label ?? "Airport VIP Service";
+const BOOKING_HREF = serviceNav[0]?.href ?? "/airport-vip";
 
 /** A search field with its copy already resolved to the active language. */
 type ResolvedField = {
@@ -244,18 +249,18 @@ function SelectField({
 }
 
 /**
- * The home hero search card — a floating white card with a category rail
- * straddling its top edge. Picking a category switches the field set; the
- * submit still navigates to the service page with the same query-string
- * keys, and every search is persisted locally and in the database.
+ * The home hero search card — a floating white card for the single Airport
+ * VIP Service. The category rail is hidden (one service needs no switcher);
+ * the fields are the VIP chain (country → airport → service type → date &
+ * time → passengers). Submit navigates to the /airport-vip booking tool
+ * with the entered values in the query string, and every search is
+ * persisted locally and in the database.
  */
 export default function HeroSearch() {
   const router = useRouter();
   const { t, lang } = useLocale();
-  // The selected category, by line slug. The query-string / draft identity
-  // stays the canonical service label derived from it.
-  const [slug, setSlug] = useState("vip-service");
-  const [values, setValues] = useState<Values>({});
+  // The entered values — a flat map of query-string keys.
+  const [values, setValues] = useState<Record<string, string>>({});
   const [resume, setResume] = useState<{ href: string; label: string } | null>(
     null
   );
@@ -265,7 +270,7 @@ export default function HeroSearch() {
   const [swapSpin, setSwapSpin] = useState(0);
   const [pending, setPending] = useState(false);
 
-  // The service tabs and the fields come from the database; the static copy
+  // The fields and quick time slots come from the database; the static copy
   // is the fallback while it loads.
   const timeSlots = useTimeSlots();
   const home = useHomeContent();
@@ -281,18 +286,31 @@ export default function HeroSearch() {
     return (picked ?? {}) as Record<string, string>;
   }, [home, lang]);
 
-  // The canonical service label of the selected category — the identity used
-  // by the query string, the draft store and the static field fallback.
-  const service = useMemo(
-    () => serviceNav.find((s) => s.href === `/${slug}`)?.label ?? slug,
-    [slug]
+  // The canonical service label — the identity used by the query string,
+  // the draft store and the SearchLog rows.
+  const service = SERVICE_LABEL;
+
+  // The fields come from the database (line slug `vip-service`); the static
+  // serviceSearchFields copy is the fallback. useContent's own static
+  // fallback keys off serviceNav, which no longer lists the /vip-service
+  // line, so the fallback is built here instead.
+  const staticFields = useMemo<SearchFieldDTO[]>(
+    () =>
+      (serviceSearchFields[SERVICE_LABEL] ?? []).map((f) => ({
+        key: f.key,
+        label: { en: f.label, id: null },
+        placeholder: f.placeholder ? { en: f.placeholder, id: null } : null,
+        icon: f.icon,
+        kind: f.kind,
+      })),
+    []
   );
+  const dbFields = useSearchFields(LINE_SLUG);
+  const rawFields = dbFields.length > 0 ? dbFields : staticFields;
 
-  const dbFields = useSearchFields(slug);
-
-  /** The fields of the selected service, with their copy resolved. */
+  /** The fields of the service, with their copy resolved. */
   const fields = useMemo<ResolvedField[]>(() => {
-    const prefix = FIELD_COPY_PREFIX[slug];
+    const prefix = FIELD_COPY_PREFIX[LINE_SLUG];
     const resolve = (copy: { en: string; id: string | null }, key: string) => {
       if (lang !== "id") return copy.en;
       if (copy.id) return copy.id;
@@ -301,7 +319,7 @@ export default function HeroSearch() {
         ? t(dictKey as DictKey)
         : copy.en;
     };
-    return dbFields.map((f) => ({
+    return rawFields.map((f) => ({
       key: f.key,
       label: resolve(f.label, f.key),
       placeholder: f.placeholder
@@ -309,7 +327,7 @@ export default function HeroSearch() {
         : undefined,
       kind: f.kind,
     }));
-  }, [dbFields, lang, slug, t]);
+  }, [rawFields, lang, t]);
 
   // Fetch options for select fields
   useEffect(() => {
@@ -323,17 +341,17 @@ export default function HeroSearch() {
 
     for (const kind of kinds) {
       const key = kind as "airport" | "city" | "serviceType" | "country";
-      // Create a unique cache key that includes slug for serviceType
-      const cacheKey = key === "serviceType" ? `serviceType:${slug}` : key;
+      // Create a unique cache key that includes the line slug for serviceType
+      const cacheKey = key === "serviceType" ? `serviceType:${LINE_SLUG}` : key;
       if (!options[cacheKey]) {
-        // Pass slug for serviceType to scope the options
-        const opts = key === "serviceType" ? slug : undefined;
+        // Pass the line slug for serviceType to scope the options
+        const opts = key === "serviceType" ? LINE_SLUG : undefined;
         getOptions(key, opts).then((opts) => {
           setOptions((prev) => ({ ...prev, [cacheKey]: opts }));
         });
       }
     }
-  }, [fields, slug]);
+  }, [fields]);
 
   // Fetch the place hierarchy for the grouped airport / city dropdowns.
   useEffect(() => {
@@ -351,25 +369,30 @@ export default function HeroSearch() {
     }
   }, [fields, placeTrees]);
 
-  // Restore the last submitted search (persisted on this device).
+  // Restore the last submitted search (persisted on this device). Only the
+  // single service is restored; older drafts pointed at /vip-service, so the
+  // resume link is rebuilt against the booking tool with the same values.
   useEffect(() => {
     const draft = loadDraft();
-    if (!draft) return;
-    setResume({ href: draft.href, label: draft.service });
-    const nav = serviceNav.find((s) => s.label === draft.service);
-    if (nav) setSlug(nav.href.replace(/^\//, ""));
-    if (draft.values && serviceSearchFields[draft.service]) {
-      setValues((v) => ({ ...v, [draft.service]: draft.values }));
+    if (!draft || draft.service !== SERVICE_LABEL) return;
+    const params = new URLSearchParams(draft.values ?? {});
+    params.set("service", SERVICE_LABEL);
+    setResume({
+      href: `${BOOKING_HREF}?${params.toString()}`,
+      label: draft.service,
+    });
+    if (draft.values && serviceSearchFields[SERVICE_LABEL]) {
+      setValues(draft.values);
     }
   }, []);
 
-  const currentValues = useMemo(() => values[service] ?? {}, [service, values]);
+  const currentValues = values;
 
   // Strict sequential disclosure on the gated tabs: render the chain only up
   // to the first unfilled step. Hidden steps are unmounted (not disabled),
   // so Tab order follows the chain and only active fields are focusable. A
   // restored draft that already fills the chain shows every tile at once.
-  const isProgressive = PROGRESSIVE_TAB_SLUGS.has(slug);
+  const isProgressive = PROGRESSIVE_TAB_SLUGS.has(LINE_SLUG);
   const revealIndex = isProgressive
     ? firstUnfilledIndex(fields, currentValues)
     : -1;
@@ -381,23 +404,17 @@ export default function HeroSearch() {
   const chainLocked = isProgressive && !chainComplete(fields, currentValues);
 
   const setField = (key: string, value: string) =>
-    setValues((v) => ({
-      ...v,
-      [service]: { ...currentValues, [key]: value },
-    }));
+    setValues((v) => ({ ...v, [key]: value }));
 
   /** Store the passenger counts plus the readable summary of a `pax` field. */
   const setPax = (key: string, counts: PaxCounts) => {
     const k = paxKeys(key);
     setValues((v) => ({
       ...v,
-      [service]: {
-        ...currentValues,
-        [key]: formatPaxSummary(counts, t),
-        [k.adults]: String(counts.adults),
-        [k.children]: String(counts.children),
-        [k.infants]: String(counts.infants),
-      },
+      [key]: formatPaxSummary(counts, t),
+      [k.adults]: String(counts.adults),
+      [k.children]: String(counts.children),
+      [k.infants]: String(counts.infants),
     }));
   };
 
@@ -415,14 +432,7 @@ export default function HeroSearch() {
       setField(key, value);
       return;
     }
-    setValues((v) => ({
-      ...v,
-      [service]: resetDownstream(
-        { ...currentValues, [key]: value },
-        fields,
-        idx
-      ),
-    }));
+    setValues(resetDownstream({ ...currentValues, [key]: value }, fields, idx));
   };
 
   /** `setPax` with the same reset-on-change contract as `setFieldCascading`. */
@@ -434,9 +444,8 @@ export default function HeroSearch() {
       return;
     }
     const k = paxKeys(key);
-    setValues((v) => ({
-      ...v,
-      [service]: resetDownstream(
+    setValues(
+      resetDownstream(
         {
           ...currentValues,
           [key]: summary,
@@ -446,8 +455,8 @@ export default function HeroSearch() {
         },
         fields,
         idx
-      ),
-    }));
+      )
+    );
   };
 
   // The swap button only exists when the active service has two place fields.
@@ -464,18 +473,16 @@ export default function HeroSearch() {
     const [a, b] = placeKeys;
     setValues((v) => ({
       ...v,
-      [service]: {
-        ...currentValues,
-        [a]: currentValues[b] ?? "",
-        [b]: currentValues[a] ?? "",
-      },
+      [a]: v[b] ?? "",
+      [b]: v[a] ?? "",
     }));
     setSwapSpin((n) => n + 1);
   };
 
   const submit = () => {
     if (pending) return;
-    const href = serviceNav.find((s) => s.label === service)?.href ?? `/${slug}`;
+    // The booking tool — the wizard reads these query params.
+    const href = BOOKING_HREF;
     const params = new URLSearchParams();
 
     // Only the keys of the fields this form actually has. A restored draft can
@@ -535,7 +542,7 @@ export default function HeroSearch() {
           tree = placeTrees.city;
         } else if (f.kind === "select-country") fieldOptions = options.country ?? [];
         else {
-          fieldOptions = options[`serviceType:${slug}`] ?? [];
+          fieldOptions = options[`serviceType:${LINE_SLUG}`] ?? [];
         }
 
         return (
@@ -671,16 +678,9 @@ export default function HeroSearch() {
           </p>
         </div>
 
-        {/* Search card with the floating category rail straddling its top edge */}
+        {/* Search card — single service, no category rail needed */}
         <div className="relative mx-auto max-w-[1120px]">
-          <div
-            className="hero-card absolute inset-x-3 -top-7 z-20 sm:inset-x-10 md:-top-8"
-            style={{ animationDelay: "80ms" }}
-          >
-            <CategoryRail activeSlug={slug} onSelect={setSlug} />
-          </div>
-
-          <div className="hero-card relative rounded-2xl bg-white px-4 pb-4 pt-12 shadow-xl shadow-slate-900/25 md:px-6 md:pb-5 md:pt-14">
+          <div className="hero-card relative rounded-2xl bg-white px-4 py-4 shadow-xl shadow-slate-900/25 md:px-6 md:py-5">
             {/* Field row + search CTA */}
             <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
               <div className="flex flex-1 flex-wrap gap-3">{tiles}</div>

@@ -37,8 +37,10 @@ export default function EvoaPage() {
                 Ajukan visa, kami yang tangani
               </h2>
               <p className="mt-1.5 max-w-xl text-[13px] leading-relaxed text-muted">
-                Isi data paspor orang yang akan memakai visa. Kami kirim
-                pengajuannya dan nomor pengajuan langsung muncul di akun kamu.
+                Isi data paspor dan unggah dokumen untuk maksimal 5 pemohon
+                sekaligus — keluarga atau klien. Kami yang mengajukan ke
+                Imigrasi, kamu bayar online dan pantau statusnya sampai e-VOA
+                terbit.
               </p>
             </div>
             <Link

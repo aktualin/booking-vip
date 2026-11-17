@@ -11,6 +11,7 @@ import {
   listActiveVehicles,
   listTourDepartures,
 } from "@/lib/tour";
+import { computeRefund, getCancellationPolicy } from "@/lib/cancellation";
 import type {
   AdminBookingDetail,
   AdminBookingListResult,
@@ -528,7 +529,7 @@ export async function setBookingStatus(
   }
 
   const booking = await db.orm.public.Booking
-    .select("id", "status")
+    .select("id", "status", "serviceAt", "totalUsdCents", "notes")
     .where({ id })
     .first();
   if (!booking) return { ok: false, error: "Booking tidak ditemukan." };
@@ -570,7 +571,32 @@ export async function setBookingStatus(
     }
   }
 
-  await db.orm.public.Booking.where({ id: booking.id }).update({ status: next });
+  // Compute refund info when cancelling a confirmed booking.
+  let cancelNote: string | null = null;
+  if (next === "cancelled" && current === "confirmed") {
+    try {
+      const policy = await getCancellationPolicy();
+      const refund = computeRefund(
+        new Date(booking.serviceAt),
+        booking.totalUsdCents,
+        policy,
+      );
+      const refundUsd = (refund.refundUsdCents / 100).toFixed(2);
+      cancelNote = `[CANCEL] Refund ${refund.refundPercent}% = $${refundUsd} (${refund.tierLabel})`;
+    } catch {
+      // If refund computation fails, still allow cancellation without note.
+    }
+  }
+
+  // Append the cancellation note to existing notes.
+  if (cancelNote) {
+    const merged = `${booking.notes ?? ""}${booking.notes ? "\n" : ""}${cancelNote}`;
+    await db.orm.public.Booking
+      .where({ id: booking.id })
+      .update({ status: next, notes: merged.slice(-2000) });
+  } else {
+    await db.orm.public.Booking.where({ id: booking.id }).update({ status: next });
+  }
 
   if (next === "completed") {
     // WALLET_CREDIT_HOOK — S4 (wallet): credit the customer's wallet for this
@@ -982,4 +1008,60 @@ export async function exportBookingsCsv(input: {
 
   const stamp = new Date().toISOString().slice(0, 10);
   return { ok: true, csv: lines.join("\n"), filename: `transaksi-${stamp}.csv` };
+}
+
+// ---------------------------------------------------------------------------
+// getBookingCancellationInfo
+// ---------------------------------------------------------------------------
+
+/**
+ * Preview the refund that would apply if the booking were cancelled now.
+ *
+ * Returns null when the booking is not in a cancellable state.
+ */
+export async function getBookingCancellationInfo(
+  bookingId: string,
+): Promise<{
+  refundUsdCents: number;
+  refundPercent: number;
+  tierLabel: string;
+  serviceAt: string;
+  hoursUntilService: number;
+} | null> {
+  await assertAdmin();
+
+  if (typeof bookingId !== "string" || bookingId.trim().length === 0) {
+    return null;
+  }
+
+  const booking = await db.orm.public.Booking
+    .select("id", "status", "serviceAt", "totalUsdCents")
+    .where({ id: bookingId })
+    .first();
+
+  if (!booking) return null;
+
+  // Only confirmed or awaiting_payment bookings are cancellable.
+  if (booking.status !== "confirmed" && booking.status !== "awaiting_payment") {
+    return null;
+  }
+
+  const policy = await getCancellationPolicy();
+  const refund = computeRefund(
+    new Date(booking.serviceAt),
+    booking.totalUsdCents,
+    policy,
+  );
+
+  const now = new Date();
+  const hoursUntilService =
+    (new Date(booking.serviceAt).getTime() - now.getTime()) / (1000 * 60 * 60);
+
+  return {
+    refundUsdCents: refund.refundUsdCents,
+    refundPercent: refund.refundPercent,
+    tierLabel: refund.tierLabel,
+    serviceAt: new Date(booking.serviceAt).toISOString(),
+    hoursUntilService: Math.max(0, Math.round(hoursUntilService * 10) / 10),
+  };
 }

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Figtree } from "next/font/google";
 import { AccountProvider } from "@/components/providers/AccountProvider";
 import { LocaleProvider } from "@/components/providers/LocaleProvider";
+import { UserSessionRefresh } from "@/components/providers/SessionRefresh";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${figtree.variable} h-full`}>
       <body className="min-h-full bg-white text-ink antialiased">
         <LocaleProvider>
-          <AccountProvider>{children}</AccountProvider>
+          <AccountProvider>
+            <UserSessionRefresh />
+            {children}
+          </AccountProvider>
         </LocaleProvider>
       </body>
     </html>

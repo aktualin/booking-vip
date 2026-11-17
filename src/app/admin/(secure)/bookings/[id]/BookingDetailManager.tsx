@@ -8,6 +8,7 @@ import {
   confirmBooking,
   confirmPaymentManually,
   getAdminBooking,
+  getBookingCancellationInfo,
   listAssignmentOptions,
   listDeparturesForBooking,
   rescheduleBooking,
@@ -85,6 +86,21 @@ export default function BookingDetailManager({ id }: { id: string }) {
     [isJoinIn, id],
   );
   const { data: departures } = useAdminValue<TourDepartureDTO[]>(loadDepartures);
+
+  // Cancellation preview — only for cancellable bookings.
+  const isCancellable =
+    booking?.status === "confirmed" || booking?.status === "awaiting_payment";
+  const loadCancellation = useCallback(
+    () => (isCancellable ? getBookingCancellationInfo(id) : Promise.resolve(null)),
+    [isCancellable, id],
+  );
+  const { data: cancelInfo } = useAdminValue<{
+    refundUsdCents: number;
+    refundPercent: number;
+    tierLabel: string;
+    serviceAt: string;
+    hoursUntilService: number;
+  } | null>(loadCancellation);
 
   // Assignment + reschedule form state, synced when the booking loads.
   const [driverId, setDriverId] = useState("");
@@ -522,33 +538,62 @@ export default function BookingDetailManager({ id }: { id: string }) {
         </Panel>
       </div>
 
-      {/* Status lifecycle */}
+      {/* Cancellation preview + Status lifecycle */}
       {!terminal ? (
-        <div className={`${adminClass.panel} mt-4 flex flex-wrap items-center gap-2 px-4 py-3`}>
-          <span className={`${adminClass.label} mr-2`}>Aksi status</span>
-          {booking.status === "confirmed" ? (
+        <>
+          {/* Kebijakan Pembatalan — shown above the cancel button when cancellable */}
+          {cancelInfo ? (
+            <div className={`${adminClass.panel} mt-4 px-4 py-3`}>
+              <h3 className={adminClass.label}>Kebijakan Pembatalan</h3>
+              <div className="mt-2 space-y-1">
+                <Row label="Jam hingga layanan">
+                  {cancelInfo.hoursUntilService < 1
+                    ? "< 1 jam"
+                    : `${Math.round(cancelInfo.hoursUntilService)} jam`}
+                </Row>
+                <Row label="Tier berlaku">{cancelInfo.tierLabel}</Row>
+                <Row label="Refund">
+                  <span className="font-semibold tabular-nums">
+                    {cancelInfo.refundPercent}% = {usd(cancelInfo.refundUsdCents / 100)}
+                  </span>
+                </Row>
+              </div>
+            </div>
+          ) : null}
+
+          <div className={`${adminClass.panel} mt-4 flex flex-wrap items-center gap-2 px-4 py-3`}>
+            <span className={`${adminClass.label} mr-2`}>Aksi status</span>
+            {booking.status === "confirmed" ? (
+              <button
+                type="button"
+                className={adminClass.buttonPrimary}
+                disabled={busy}
+                onClick={() => run(() => setBookingStatus(booking.id, "completed"), "Booking ditandai selesai.")}
+              >
+                Tandai Selesai
+              </button>
+            ) : null}
             <button
               type="button"
-              className={adminClass.buttonPrimary}
+              className={`${adminClass.buttonSecondary} text-danger`}
               disabled={busy}
-              onClick={() => run(() => setBookingStatus(booking.id, "completed"), "Booking ditandai selesai.")}
+              onClick={() => {
+                const refundLine = cancelInfo
+                  ? `\n\nRefund: ${cancelInfo.refundPercent}% = ${usd(cancelInfo.refundUsdCents / 100)}\n(${cancelInfo.tierLabel})`
+                  : "";
+                if (
+                  window.confirm(
+                    `Batalkan booking ${booking.code}?${refundLine}\n\nKuota/kursi akan dilepas otomatis.`,
+                  )
+                ) {
+                  run(() => setBookingStatus(booking.id, "cancelled"), "Booking dibatalkan.");
+                }
+              }}
             >
-              Tandai Selesai
+              Batalkan Booking
             </button>
-          ) : null}
-          <button
-            type="button"
-            className={`${adminClass.buttonSecondary} text-danger`}
-            disabled={busy}
-            onClick={() => {
-              if (window.confirm(`Batalkan booking ${booking.code}? Kuota/kursi akan dilepas otomatis.`)) {
-                run(() => setBookingStatus(booking.id, "cancelled"), "Booking dibatalkan.");
-              }
-            }}
-          >
-            Batalkan Booking
-          </button>
-        </div>
+          </div>
+        </>
       ) : null}
     </div>
   );

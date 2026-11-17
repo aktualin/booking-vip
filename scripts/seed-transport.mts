@@ -424,6 +424,63 @@ const CARS: CarSeed[] = [
   },
 ];
 
+/**
+ * The rental stock of a car — how many units the vendor owns. Written on
+ * CREATE only; after that the admin owns the number, so the top-up path
+ * never touches it. Common MPVs / city cars come in threes, the rest of the
+ * fleet in twos, and the luxury / big-van flagships are one-of-a-kind.
+ */
+function stockFor(car: CarSeed): number {
+  if (car.typeSlug === "luxury" || car.slug === "toyota-hiace-premio") return 1;
+  const common = [
+    "toyota-grand-new-avanza",
+    "toyota-all-new-avanza-2022",
+    "daihatsu-all-new-xenia-2022",
+    "daihatsu-sigra",
+    "mitsubishi-xpander",
+    "honda-brio",
+  ];
+  return common.includes(car.slug) ? 3 : 2;
+}
+
+/**
+ * A plausible Indonesian plate for a car, derived deterministically from its
+ * slug (FNV-1a hash) so re-runs are stable. The region code and the suffix
+ * letters come from the hash; the number is bumped only on the rare
+ * collision, so every car keeps a unique plate. Plates are catalog data:
+ * they ride in `specs` (written on create AND top-up) and stay editable via
+ * the admin keyvalue editor between seeds.
+ */
+const PLATE_REGIONS = [
+  "B", "D", "F", "T", "Z", "AB", "AD", "K", "R", "H", "G", "L", "W", "N",
+  "S", "P", "M", "DK", "DR", "EA", "EB", "ED", "AG", "AE", "BA", "BB",
+  "BK", "BL", "BM", "BN", "BP", "BG", "BH", "DA", "DB", "DC", "DD", "DE",
+  "DF", "DG", "DH", "DJ", "DL", "DM", "DN", "DP", "DS", "DT", "DW",
+];
+// No I / O / Q — Indonesian plates avoid them to prevent 1/0 confusion.
+const PLATE_LETTERS = "ABCDEFGHJKLMNPRSTUVWXYZ";
+
+function plateFor(slug: string, used: Set<string>): string {
+  let h = 2166136261;
+  for (let i = 0; i < slug.length; i++) {
+    h ^= slug.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  const region = PLATE_REGIONS[h % PLATE_REGIONS.length]!;
+  const suffix =
+    PLATE_LETTERS[(h >>> 5) % PLATE_LETTERS.length]! +
+    PLATE_LETTERS[(h >>> 10) % PLATE_LETTERS.length]! +
+    PLATE_LETTERS[(h >>> 15) % PLATE_LETTERS.length]!;
+  let number = 1000 + (h % 9000);
+  let plate = `${region} ${number} ${suffix}`;
+  while (used.has(plate)) {
+    number = number >= 9999 ? 1000 : number + 1;
+    plate = `${region} ${number} ${suffix}`;
+  }
+  used.add(plate);
+  return plate;
+}
+
 /** Optional rental accessories offered on the cars (the wizard add-ons step). */
 const RENTAL_ADD_ONS: { slug: string; title: string; unitUsdCents: number; selfDriveOnly?: boolean }[] = [
   { slug: "baby-seat", title: "Baby Seat / Child Seat", unitUsdCents: 500 },
@@ -631,6 +688,7 @@ async function main() {
   let created = 0;
   let updated = 0;
   const carIds: Record<string, string> = {};
+  const usedPlates = new Set<string>();
 
   for (const car of CARS) {
     const existing = await db.orm.public.Product.select("id").where({ slug: car.slug }).first();
@@ -642,6 +700,7 @@ async function main() {
       { key: "transmission", name: car.transmission },
       { key: "year", name: `Tahun ${car.year}` },
       { key: "clean", name: "BV Clean" },
+      { key: "plate_number", name: plateFor(car.slug, usedPlates) },
       ...(car.driverOption === "with_driver"
         ? [{ key: "driver_language", name: "Sopir bisa bahasa Inggris" }]
         : []),
@@ -653,6 +712,8 @@ async function main() {
     // The complete descriptive payload — written on create AND on re-run so
     // an existing car with empty lists gets topped up. Prices live on the
     // packages, not here, so this never changes what a booking is charged.
+    // stockTotal is deliberately NOT in this payload: it is set on create
+    // only (below) and belongs to the admin afterwards.
     const productData = {
       lineId,
       serviceTypeId: typeIds.get(car.typeSlug) ?? null,
@@ -682,9 +743,9 @@ async function main() {
       console.log(`~ Product ${car.slug} (topped up)`);
     } else {
       productId = crypto.randomUUID();
-      await db.orm.public.Product.create({ id: productId, slug: car.slug, ...productData } as never);
+      await db.orm.public.Product.create({ id: productId, slug: car.slug, ...productData, stockTotal: stockFor(car) } as never);
       created++;
-      console.log(`+ Product ${car.slug}`);
+      console.log(`+ Product ${car.slug} (stock ${stockFor(car)})`);
     }
     carIds[car.slug] = productId;
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createBooking } from "@/app/actions/booking";
 import { getPlaceOptions } from "@/app/actions/catalog";
 import PaxStepper from "@/components/booking/PaxStepper";
@@ -9,6 +10,8 @@ import PlaceOptionList from "@/components/ui/PlaceOptionList";
 import { SearchIcon } from "@/components/icons";
 import { placeLabel, type PlaceNode } from "@/lib/places";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { uploadPassportPhoto } from "@/lib/passport-upload";
+import type { DictKey } from "@/i18n";
 import {
   bookingRuleRows,
   resolveServiceSteps,
@@ -41,14 +44,14 @@ type Step =
   | "passenger"
   | "confirm";
 
-const STEPS: { key: Step; label: string }[] = [
-  { key: "country", label: "Asal Negara" },
-  { key: "airport", label: "Bandara" },
-  { key: "datetime", label: "Jadwal" },
-  { key: "flight", label: "Penerbangan" },
-  { key: "service", label: "Layanan" },
-  { key: "passenger", label: "Penumpang" },
-  { key: "confirm", label: "Konfirmasi" },
+const STEPS: { key: Step; labelKey: DictKey }[] = [
+  { key: "country", labelKey: "airportVip.step.country" },
+  { key: "airport", labelKey: "airportVip.step.airport" },
+  { key: "datetime", labelKey: "airportVip.step.datetime" },
+  { key: "flight", labelKey: "airportVip.step.flight" },
+  { key: "service", labelKey: "airportVip.step.service" },
+  { key: "passenger", labelKey: "airportVip.step.passenger" },
+  { key: "confirm", labelKey: "airportVip.step.confirm" },
 ];
 
 const TIME_SLOTS = [
@@ -56,6 +59,10 @@ const TIME_SLOTS = [
   "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00",
   "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00",
 ];
+
+/** The passport upload rules — mirrored from the server route. */
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
 /** The next 90 days as `YYYY-MM-DD`. */
 function upcomingDates(count: number): string[] {
@@ -69,6 +76,40 @@ function upcomingDates(count: number): string[] {
   return dates;
 }
 
+/** One traveler's document form (passport data + photo upload state). */
+type TravelerForm = {
+  fullName: string;
+  passportNumber: string;
+  /** "" means "follow the country step selection". */
+  nationality: string;
+  /** `YYYY-MM-DD` */
+  dateOfBirth: string;
+  /** `YYYY-MM-DD` */
+  passportExpiry: string;
+  /** The private R2 key returned by the upload route ("" until uploaded). */
+  photoKey: string;
+  photoName: string;
+  /** Local object-URL preview of an image upload (null for PDFs). */
+  previewUrl: string | null;
+  uploading: boolean;
+  uploadError: string | null;
+};
+
+function emptyTraveler(): TravelerForm {
+  return {
+    fullName: "",
+    passportNumber: "",
+    nationality: "",
+    dateOfBirth: "",
+    passportExpiry: "",
+    photoKey: "",
+    photoName: "",
+    previewUrl: null,
+    uploading: false,
+    uploadError: null,
+  };
+}
+
 /** A label/value row of the confirmation summary. */
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -79,13 +120,21 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** The shared look of a form field label. */
+const FIELD_LABEL = "mb-1.5 block text-[12px] font-medium text-ink";
+/** The shared look of a text/date/select input. */
+const FIELD_INPUT =
+  "h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand";
+
 /**
  * The airport VIP booking wizard.
  *
- * Six steps — airport, date & time, flight, service, passengers, confirm —
- * modelled on the Asia Fast Track flow but rendered with our own minimal
- * style. The prices come from the database (the lists are passed in by the
- * server component).
+ * Seven steps — country, airport, date & time, flight, service, travelers,
+ * confirm. The passenger step collects each traveler's passport data and a
+ * privately-stored passport photo; the country step drives the Visa on
+ * Arrival awareness. Prices come from the database (the lists are passed in
+ * by the server component) and the hero search can prefill the first steps
+ * through the URL query string.
  */
 export default function AirportVipWizard({
   countries,
@@ -96,7 +145,9 @@ export default function AirportVipWizard({
   serviceInfo,
 }: Props) {
   const dates = useMemo(() => upcomingDates(90), []);
-  const { formatMoney } = useLocale();
+  const { t, lang, formatMoney } = useLocale();
+  const dateLocale = lang === "id" ? "id-ID" : "en-GB";
+  const searchParams = useSearchParams();
 
   /** Where the traveller is from — not where the airport is. */
   const [country, setCountry] = useState("");
@@ -116,10 +167,56 @@ export default function AirportVipWizard({
   const [notes, setNotes] = useState("");
   /** Add-on slug → quantity. Only entries with a quantity above 0 are kept. */
   const [addOnQty, setAddOnQty] = useState<Record<string, number>>({});
+  /** One document form per traveler (adults first, then children). */
+  const [travelerForms, setTravelerForms] = useState<TravelerForm[]>([emptyTraveler()]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
+
+  /** A retry of the same submission reuses the key — no duplicate booking. */
+  const idempotencyKeyRef = useRef<string | null>(null);
+
+  // Prefill from the hero search query string (nationality, airport, date,
+  // dateTime, paxAdults/paxChildren). Every param is optional — a bare
+  // /airport-vip visit starts from clean state.
+  useEffect(() => {
+    const nationality = searchParams.get("nationality");
+    if (nationality && countries.some((c) => c.name === nationality)) {
+      setCountry(nationality);
+    }
+
+    const airportParam = searchParams.get("airport");
+    if (airportParam) {
+      const match = airports.find(
+        (a) =>
+          placeLabel({ kind: "airport", name: a.name, iataCode: a.iataCode }) === airportParam ||
+          a.name === airportParam ||
+          (a.iataCode !== null && a.iataCode === airportParam.toUpperCase()),
+      );
+      if (match) setAirportId(match.id);
+    }
+
+    const dateParam = searchParams.get("date");
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) && dates.includes(dateParam)) {
+      setDate(dateParam);
+    }
+    const timeParam = searchParams.get("dateTime");
+    if (timeParam && TIME_SLOTS.includes(timeParam)) {
+      setTime(timeParam);
+    }
+
+    const adultsParam = Number(searchParams.get("paxAdults"));
+    if (Number.isFinite(adultsParam) && adultsParam >= 1) {
+      setAdult(Math.min(20, Math.floor(adultsParam)));
+    }
+    const childrenParam = Number(searchParams.get("paxChildren"));
+    if (Number.isFinite(childrenParam) && childrenParam >= 1) {
+      setChild(Math.min(10, Math.floor(childrenParam)));
+    }
+    // Run once on mount — the wizard owns the values from here on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The place hierarchy (region → country → province → city → airport) for
   // the grouped airport picker. The flat `airports` prop stays the fallback
@@ -128,6 +225,37 @@ export default function AirportVipWizard({
   const [airportQuery, setAirportQuery] = useState("");
   useEffect(() => {
     getPlaceOptions("airport").then(setPlaceTree);
+  }, []);
+
+  // Keep one document form per traveler. Growing appends clean forms;
+  // shrinking drops the tail (and releases its preview URLs).
+  const formsRef = useRef(travelerForms);
+  formsRef.current = travelerForms;
+  useEffect(() => {
+    const count = adult + child;
+    const prev = formsRef.current;
+    if (prev.length > count) {
+      for (const form of prev.slice(count)) {
+        if (form.previewUrl) URL.revokeObjectURL(form.previewUrl);
+      }
+    }
+    setTravelerForms((forms) => {
+      if (forms.length === count) return forms;
+      if (forms.length > count) return forms.slice(0, count);
+      return [
+        ...forms,
+        ...Array.from({ length: count - forms.length }, emptyTraveler),
+      ];
+    });
+  }, [adult, child]);
+
+  // Release every local preview when the wizard unmounts.
+  useEffect(() => {
+    return () => {
+      for (const form of formsRef.current) {
+        if (form.previewUrl) URL.revokeObjectURL(form.previewUrl);
+      }
+    };
   }, []);
 
   /** Picking another airport invalidates the service and its add-ons. */
@@ -145,6 +273,7 @@ export default function AirportVipWizard({
   const airline = airlines.find((a) => a.code === airlineCode) ?? null;
   const service =
     services.find((s) => `${s.slug}::${s.packageId}` === serviceKey) ?? null;
+  const countryOption = countries.find((c) => c.name === country) ?? null;
 
   const visibleServices = useMemo(
     () => (airportId ? services.filter((s) => s.airportId === airportId) : []),
@@ -181,6 +310,7 @@ export default function AirportVipWizard({
   const ruleRows = bookingRuleRows(
     rules,
     service ? { hours: service.leadTimeHours, days: service.leadTimeDays } : undefined,
+    lang === "id" ? "id" : "en",
   );
 
   const serviceSteps = service
@@ -191,8 +321,44 @@ export default function AirportVipWizard({
     ? (serviceInfo[airport.iataCode]?.note ?? serviceInfo.default?.note)
     : serviceInfo.default?.note;
 
-  /** Changing the country drops an airport that no longer belongs to it. */
+  /** The service datetime — the anchor of the 6-month passport rule. */
+  const serviceDate = useMemo(
+    () => (date ? new Date(`${date}T${time}:00`) : null),
+    [date, time],
+  );
 
+  /** The earliest acceptable passport expiry (service date + 6 months). */
+  const minExpiry = useMemo(() => {
+    if (!serviceDate || !Number.isFinite(serviceDate.getTime())) return null;
+    const min = new Date(serviceDate.getTime());
+    min.setMonth(min.getMonth() + 6);
+    return min;
+  }, [serviceDate]);
+
+  /** Inline error when a traveler's passport expires too soon. */
+  const expiryErrorFor = (form: TravelerForm): string | null => {
+    if (!form.passportExpiry || !minExpiry) return null;
+    const expiry = new Date(`${form.passportExpiry}T00:00:00`);
+    if (!Number.isFinite(expiry.getTime()) || expiry >= minExpiry) return null;
+    return t("airportVip.passenger.expiryError", {
+      date: minExpiry.toLocaleDateString(dateLocale, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+    });
+  };
+
+  /** "2 adult(s), 1 child(ren)" in the active language. */
+  const paxSummary =
+    t("airportVip.pax.adults", { n: adult }) +
+    (child > 0 ? `, ${t("airportVip.pax.children", { n: child })}` : "");
+
+  /** The VOA add-on is offered and the traveller's country needs one. */
+  const showVoaHint = Boolean(
+    countryOption?.voaEligible &&
+      service?.addOns.some((a) => a.slug === "voa-handling"),
+  );
 
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
@@ -209,8 +375,14 @@ export default function AirportVipWizard({
         return Boolean(airlineCode && flightCode.trim());
       case "service":
         return Boolean(service);
-      case "passenger":
-        return Boolean(leadName.trim() && email.trim() && phone.trim());
+      case "passenger": {
+        if (!leadName.trim() || !email.trim() || !phone.trim()) return false;
+        const count = adult + child;
+        if (travelerForms.length !== count) return false;
+        return travelerForms.every(
+          (form) => form.fullName.trim() !== "" && !expiryErrorFor(form),
+        );
+      }
       default:
         return true;
     }
@@ -227,29 +399,73 @@ export default function AirportVipWizard({
     if (prev) setStep(prev.key);
   };
 
+  const updateTraveler = (index: number, patch: Partial<TravelerForm>) => {
+    setTravelerForms((forms) =>
+      forms.map((form, i) => (i === index ? { ...form, ...patch } : form)),
+    );
+  };
+
+  /** Validate, preview and upload one traveler's passport photo. */
+  const handlePhoto = async (index: number, file: File | null) => {
+    if (!file) return;
+    if (!PHOTO_TYPES.includes(file.type)) {
+      updateTraveler(index, { uploadError: t("airportVip.passenger.badType") });
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      updateTraveler(index, { uploadError: t("airportVip.passenger.fileTooBig") });
+      return;
+    }
+
+    const previous = formsRef.current[index];
+    if (previous?.previewUrl) URL.revokeObjectURL(previous.previewUrl);
+    const previewUrl = file.type.startsWith("image/")
+      ? URL.createObjectURL(file)
+      : null;
+    updateTraveler(index, {
+      photoName: file.name,
+      previewUrl,
+      photoKey: "",
+      uploading: true,
+      uploadError: null,
+    });
+
+    const result = await uploadPassportPhoto(file);
+    if (result.ok) {
+      updateTraveler(index, { photoKey: result.key, uploading: false });
+    } else {
+      updateTraveler(index, { uploading: false, uploadError: result.error });
+    }
+  };
+
   const handleSubmit = async () => {
     if (!service || submitting) return;
+    // Re-check the document data even though the passenger step gated it —
+    // the confirm step's canContinue() is trivially true.
+    if (
+      !leadName.trim() ||
+      !email.trim() ||
+      !phone.trim() ||
+      travelerForms.length !== adult + child ||
+      travelerForms.some((form) => !form.fullName.trim() || expiryErrorFor(form))
+    ) {
+      setStep("passenger");
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
 
     const serviceAt = new Date(`${date}T${time}:00`);
     if (!Number.isFinite(serviceAt.getTime())) {
-      setError("Tanggal atau jam tidak valid.");
+      setError(t("airportVip.invalidDate"));
       setSubmitting(false);
       return;
     }
 
-    // The traveller's country has no column of its own — `Contact` has no
-    // nationality field and adding one needs the migration that is still
-    // pending — so it is written into the note the operator reads, clearly
-    // labelled, instead of being dropped.
-    const contactNote = [
-      country ? `Asal negara: ${country}` : "",
-      notes.trim(),
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = crypto.randomUUID();
+    }
 
     const result = await createBooking({
       productSlug: service.slug,
@@ -258,6 +474,7 @@ export default function AirportVipWizard({
       adult,
       child,
       infant: 0,
+      idempotencyKey: idempotencyKeyRef.current,
       addOns: selectedAddOns.map((a) => ({ slug: a.slug, qty: a.qty })),
       contact: {
         firstName: leadName.trim(),
@@ -266,7 +483,8 @@ export default function AirportVipWizard({
         phoneCountryCode: "ID",
         phone: phone.trim(),
         isGuestSelf: false,
-        notes: contactNote || undefined,
+        nationality: country || undefined,
+        notes: notes.trim() || undefined,
       },
       flight: {
         airportName: airport
@@ -277,7 +495,19 @@ export default function AirportVipWizard({
         flightCode: flightCode.trim().toUpperCase(),
         direction,
       },
-      travelers: [],
+      travelers: travelerForms.map((form, i) => ({
+        fullName: form.fullName.trim(),
+        kind: i < adult ? "adult" : "child",
+        passportNumber: form.passportNumber.trim() || undefined,
+        nationality: form.nationality || country || undefined,
+        dateOfBirth: form.dateOfBirth
+          ? new Date(`${form.dateOfBirth}T00:00:00`).toISOString()
+          : undefined,
+        passportExpiry: form.passportExpiry
+          ? new Date(`${form.passportExpiry}T00:00:00`).toISOString()
+          : undefined,
+        passportPhotoKey: form.photoKey || undefined,
+      })),
     });
 
     setSubmitting(false);
@@ -308,10 +538,10 @@ export default function AirportVipWizard({
         </span>
 
         <h1 className="mt-4 text-[20px] font-bold tracking-[-0.01em] text-ink">
-          Permintaan VIP airport kamu diterima
+          {t("airportVip.success.title")}
         </h1>
         <p className="mt-1.5 text-[13px] text-muted">
-          Tim kami akan menghubungi kamu untuk konfirmasi detail layanan.
+          {t("airportVip.success.subtitle")}
         </p>
 
         <p className="mt-5 rounded-xl border border-line bg-canvas px-4 py-3 font-mono text-[16px] font-bold tracking-[0.06em] text-ink">
@@ -323,13 +553,13 @@ export default function AirportVipWizard({
             href="/account/orders"
             className="inline-flex h-10 items-center justify-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-white transition-opacity hover:bg-brand-dark"
           >
-            Lihat pesanan saya
+            {t("airportVip.success.viewOrders")}
           </Link>
           <Link
             href="/airport-vip"
             className="inline-flex h-10 items-center justify-center rounded-xl border border-line bg-white px-5 text-[13px] font-semibold text-ink transition-colors hover:bg-canvas"
           >
-            Pesan lagi
+            {t("airportVip.success.bookAgain")}
           </Link>
         </div>
       </div>
@@ -362,7 +592,7 @@ export default function AirportVipWizard({
                 }`}
               >
                 <span className="font-semibold">{index + 1}</span>
-                {s.label}
+                {t(s.labelKey)}
               </button>
             </li>
           );
@@ -375,17 +605,15 @@ export default function AirportVipWizard({
           {step === "country" ? (
             <div>
               <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">
-                Kamu datang dari negara mana?
+                {t("airportVip.country.title")}
               </h2>
               <p className="mt-1.5 text-[13px] text-muted">
-                Kami perlu tahu kewarganegaraan kamu untuk menyiapkan jalur
-                imigrasi dan Visa on Arrival bila diperlukan. Layanan kami ada
-                di bandara-bandara Indonesia.
+                {t("airportVip.country.subtitle")}
               </p>
 
               {countries.length === 0 ? (
                 <p className="mt-5 rounded-xl border border-line bg-canvas px-4 py-3 text-[13px] text-muted">
-                  Daftar negara belum tersedia. Hubungi kami untuk permintaan khusus.
+                  {t("airportVip.country.empty")}
                 </p>
               ) : (
                 <div className="mt-5 space-y-2">
@@ -410,6 +638,15 @@ export default function AirportVipWizard({
                   ))}
                 </div>
               )}
+
+              {/* Document awareness — VOA eligible or not. */}
+              {countryOption ? (
+                <p className="mt-4 rounded-xl border border-brand/30 bg-brand-soft px-4 py-3 text-[13px] leading-relaxed text-brand-dark">
+                  {countryOption.voaEligible
+                    ? t("airportVip.country.voaNote", { country: countryOption.name })
+                    : t("airportVip.country.visaNote", { country: countryOption.name })}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -417,10 +654,10 @@ export default function AirportVipWizard({
           {step === "airport" ? (
             <div>
               <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">
-                Di mana layanan ini?
+                {t("airportVip.airport.title")}
               </h2>
               <p className="mt-1.5 text-[13px] text-muted">
-                Pilih bandara dan jenis perjalanan.
+                {t("airportVip.airport.subtitle")}
               </p>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -435,7 +672,9 @@ export default function AirportVipWizard({
                         : "border-line bg-white text-ink hover:bg-canvas"
                     }`}
                   >
-                    {d === "arrival" ? "Kedatangan (Arrival)" : "Keberangkatan (Departure)"}
+                    {d === "arrival"
+                      ? t("airportVip.airport.arrival")
+                      : t("airportVip.airport.departure")}
                   </button>
                 ))}
               </div>
@@ -457,7 +696,7 @@ export default function AirportVipWizard({
                     <input
                       value={airportQuery}
                       onChange={(e) => setAirportQuery(e.target.value)}
-                      placeholder="Cari bandara atau kota…"
+                      placeholder={t("airportVip.airport.searchPlaceholder")}
                       className="w-full rounded-xl border border-line bg-canvas py-2 pl-9 pr-3 text-sm text-ink outline-none focus:border-brand"
                     />
                   </div>
@@ -510,25 +749,23 @@ export default function AirportVipWizard({
           {step === "datetime" ? (
             <div>
               <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">
-                Kapan kamu butuh layanan?
+                {t("airportVip.datetime.title")}
               </h2>
               <p className="mt-1.5 text-[13px] text-muted">
-                Pilih tanggal dan jam layanan.
+                {t("airportVip.datetime.subtitle")}
               </p>
 
               <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                    Tanggal
-                  </span>
+                  <span className={FIELD_LABEL}>{t("airportVip.datetime.date")}</span>
                   <select
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                    className={FIELD_INPUT}
                   >
                     {dates.map((d) => (
                       <option key={d} value={d}>
-                        {new Date(`${d}T00:00:00`).toLocaleDateString("id-ID", {
+                        {new Date(`${d}T00:00:00`).toLocaleDateString(dateLocale, {
                           weekday: "short",
                           day: "2-digit",
                           month: "short",
@@ -540,11 +777,11 @@ export default function AirportVipWizard({
                 </label>
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">Jam</span>
+                  <span className={FIELD_LABEL}>{t("airportVip.datetime.time")}</span>
                   <select
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                    className={FIELD_INPUT}
                   >
                     {TIME_SLOTS.map((slot) => (
                       <option key={slot} value={slot}>
@@ -561,23 +798,21 @@ export default function AirportVipWizard({
           {step === "flight" ? (
             <div>
               <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">
-                Detail penerbangan
+                {t("airportVip.flight.title")}
               </h2>
               <p className="mt-1.5 text-[13px] text-muted">
-                Kami butuh ini supaya tim kami tahu kapan menunggu Kamu.
+                {t("airportVip.flight.subtitle")}
               </p>
 
               <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                    Maskapai
-                  </span>
+                  <span className={FIELD_LABEL}>{t("airportVip.flight.airline")}</span>
                   <select
                     value={airlineCode}
                     onChange={(e) => setAirlineCode(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                    className={FIELD_INPUT}
                   >
-                    <option value="">Pilih maskapai…</option>
+                    <option value="">{t("airportVip.flight.selectAirline")}</option>
                     {airlines.map((a) => (
                       <option key={a.code} value={a.code}>
                         {a.name} ({a.code})
@@ -587,9 +822,7 @@ export default function AirportVipWizard({
                 </label>
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                    Nomor penerbangan
-                  </span>
+                  <span className={FIELD_LABEL}>{t("airportVip.flight.flightNumber")}</span>
                   <input
                     type="text"
                     value={flightCode}
@@ -606,16 +839,15 @@ export default function AirportVipWizard({
           {step === "service" ? (
             <div>
               <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">
-                Pilih layanan
+                {t("airportVip.service.title")}
               </h2>
               <p className="mt-1.5 text-[13px] text-muted">
-                Harga per penumpang, mengikuti data di database.
+                {t("airportVip.service.subtitle")}
               </p>
 
               {serviceGroups.length === 0 ? (
                 <p className="mt-5 rounded-xl border border-line bg-canvas px-4 py-3 text-[13px] text-muted">
-                  Belum ada layanan untuk bandara ini. Pilih bandara lain atau
-                  hubungi kami untuk permintaan khusus.
+                  {t("airportVip.service.empty")}
                 </p>
               ) : null}
 
@@ -627,36 +859,36 @@ export default function AirportVipWizard({
                     </h3>
 
                     <div className="mt-2 space-y-2.5">
-                {options.map((s) => {
-                  const value = `${s.slug}::${s.packageId}`;
-                  const active = value === serviceKey;
+                      {options.map((s) => {
+                        const value = `${s.slug}::${s.packageId}`;
+                        const active = value === serviceKey;
 
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setServiceKey(value)}
-                      className={`flex w-full items-center justify-between gap-4 rounded-xl border p-4 text-left transition-colors ${
-                        active
-                          ? "border-brand bg-brand-soft"
-                          : "border-line bg-white hover:bg-canvas"
-                      }`}
-                    >
-                      <span className="min-w-0">
-                        <span className="block text-[14px] font-semibold text-ink">
-                          {s.title}
-                        </span>
-                        <span className="mt-0.5 block text-[12px] text-muted">
-                          {s.packageLabel}
-                          {s.direction ? ` · ${s.direction}` : ""}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-[14px] font-bold text-ink">
-                        {formatMoney((s.adultUsdCents || s.childUsdCents) / 100)}
-                      </span>
-                    </button>
-                  );
-                })}
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setServiceKey(value)}
+                            className={`flex w-full items-center justify-between gap-4 rounded-xl border p-4 text-left transition-colors ${
+                              active
+                                ? "border-brand bg-brand-soft"
+                                : "border-line bg-white hover:bg-canvas"
+                            }`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-[14px] font-semibold text-ink">
+                                {s.title}
+                              </span>
+                              <span className="mt-0.5 block text-[12px] text-muted">
+                                {s.packageLabel}
+                                {s.direction ? ` · ${s.direction}` : ""}
+                              </span>
+                            </span>
+                            <span className="shrink-0 text-[14px] font-bold text-ink">
+                              {formatMoney((s.adultUsdCents || s.childUsdCents) / 100)}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -667,7 +899,7 @@ export default function AirportVipWizard({
                   {/* Service description */}
                   <section className="mt-6 rounded-xl border border-line bg-canvas p-5">
                     <h3 className="text-[14px] font-bold tracking-[-0.01em] text-ink">
-                      Rincian layanan
+                      {t("airportVip.service.details")}
                     </h3>
                     <p className="mt-0.5 text-[12px] text-muted">
                       {airport
@@ -697,7 +929,7 @@ export default function AirportVipWizard({
                     {service.requirements.length > 0 ? (
                       <div className="mt-4 border-t border-line pt-3">
                         <p className="text-[12px] font-semibold text-ink">
-                          Yang perlu kamu siapkan
+                          {t("airportVip.service.requirements")}
                         </p>
                         <ul className="mt-1.5 space-y-1">
                           {service.requirements.map((item) => (
@@ -712,7 +944,9 @@ export default function AirportVipWizard({
                     {airportNote ? (
                       <p className="mt-4 border-t border-line pt-3 text-[12px] leading-relaxed text-muted">
                         <span className="font-semibold text-ink">
-                          Catatan {airport?.iataCode}.
+                          {t("airportVip.service.airportNote", {
+                            airport: airport?.iataCode ?? airport?.name ?? "",
+                          })}
                         </span>{" "}
                         {airportNote}
                       </p>
@@ -723,18 +957,24 @@ export default function AirportVipWizard({
                   {service.addOns.length > 0 ? (
                     <section className="mt-4">
                       <h3 className="text-[14px] font-bold tracking-[-0.01em] text-ink">
-                        Layanan tambahan
+                        {t("airportVip.service.addOns")}
                       </h3>
                       <p className="mt-0.5 text-[12px] text-muted">
-                        Opsional — harganya langsung masuk ke total.
+                        {t("airportVip.service.addOnsSubtitle")}
                       </p>
+
+                      {showVoaHint ? (
+                        <p className="mt-3 rounded-xl border border-brand/30 bg-brand-soft px-4 py-3 text-[12px] leading-relaxed text-brand-dark">
+                          {t("airportVip.service.voaHint", { country })}
+                        </p>
+                      ) : null}
 
                       <div className="mt-3 space-y-2">
                         {service.addOns.map((a) => (
                           <PaxStepper
                             key={a.slug}
                             label={a.title}
-                            price={`${formatMoney(a.unitUsdCents / 100)} per unit`}
+                            price={`${formatMoney(a.unitUsdCents / 100)} ${t("airportVip.service.perUnit")}`}
                             value={addOnQty[a.slug] ?? 0}
                             max={10}
                             onChange={(next) =>
@@ -750,84 +990,255 @@ export default function AirportVipWizard({
             </div>
           ) : null}
 
-          {/* Step 6 — Passengers */}
+          {/* Step 6 — Travelers & documents */}
           {step === "passenger" ? (
             <div>
               <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">
-                Data penumpang
+                {t("airportVip.passenger.title")}
               </h2>
               <p className="mt-1.5 text-[13px] text-muted">
-                Cukup nama penanggung jawab dan cara kami menghubungi kamu.
+                {t("airportVip.passenger.subtitle")}
               </p>
 
               <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                    Dewasa
-                  </span>
+                  <span className={FIELD_LABEL}>{t("airportVip.passenger.adults")}</span>
                   <input
                     type="number"
                     min={1}
                     max={20}
                     value={adult}
                     onChange={(e) => setAdult(Math.max(1, Number(e.target.value) || 1))}
-                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                    className={FIELD_INPUT}
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                    Anak
-                  </span>
+                  <span className={FIELD_LABEL}>{t("airportVip.passenger.children")}</span>
                   <input
                     type="number"
                     min={0}
                     max={10}
                     value={child}
                     onChange={(e) => setChild(Math.max(0, Number(e.target.value) || 0))}
-                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                    className={FIELD_INPUT}
                   />
                 </label>
+              </div>
 
+              {/* One document card per traveler. */}
+              <div className="mt-5 space-y-4">
+                {travelerForms.map((form, index) => {
+                  const expiryError = expiryErrorFor(form);
+                  const kindLabel =
+                    index < adult
+                      ? t("airportVip.passenger.adult")
+                      : t("airportVip.passenger.child");
+
+                  return (
+                    <section
+                      key={index}
+                      className="rounded-xl border border-line bg-canvas p-4"
+                    >
+                      <h3 className="text-[13px] font-bold text-ink">
+                        {t("airportVip.passenger.travelerN", {
+                          n: index + 1,
+                          kind: kindLabel,
+                        })}
+                      </h3>
+
+                      <div className="mt-3 grid gap-3.5 sm:grid-cols-2">
+                        <label className="block sm:col-span-2">
+                          <span className={FIELD_LABEL}>
+                            {t("airportVip.passenger.fullName")}
+                          </span>
+                          <input
+                            type="text"
+                            value={form.fullName}
+                            onChange={(e) =>
+                              updateTraveler(index, { fullName: e.target.value })
+                            }
+                            className={FIELD_INPUT}
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className={FIELD_LABEL}>
+                            {t("airportVip.passenger.passportNumber")}
+                          </span>
+                          <input
+                            type="text"
+                            value={form.passportNumber}
+                            onChange={(e) =>
+                              updateTraveler(index, {
+                                passportNumber: e.target.value.toUpperCase(),
+                              })
+                            }
+                            className="h-11 w-full rounded-xl border border-line bg-white px-3 font-mono text-[13px] tracking-[0.04em] text-ink outline-none transition-colors focus:border-brand"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className={FIELD_LABEL}>
+                            {t("airportVip.passenger.nationality")}
+                          </span>
+                          <select
+                            value={form.nationality || country}
+                            onChange={(e) =>
+                              updateTraveler(index, { nationality: e.target.value })
+                            }
+                            className={FIELD_INPUT}
+                          >
+                            {countries.map((c) => (
+                              <option key={c.code} value={c.name}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="block">
+                          <span className={FIELD_LABEL}>
+                            {t("airportVip.passenger.dateOfBirth")}
+                          </span>
+                          <input
+                            type="date"
+                            value={form.dateOfBirth}
+                            onChange={(e) =>
+                              updateTraveler(index, { dateOfBirth: e.target.value })
+                            }
+                            className={FIELD_INPUT}
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className={FIELD_LABEL}>
+                            {t("airportVip.passenger.passportExpiry")}
+                          </span>
+                          <input
+                            type="date"
+                            value={form.passportExpiry}
+                            onChange={(e) =>
+                              updateTraveler(index, { passportExpiry: e.target.value })
+                            }
+                            className={`${FIELD_INPUT} ${
+                              expiryError ? "border-danger focus:border-danger" : ""
+                            }`}
+                          />
+                          {expiryError ? (
+                            <span className="mt-1 block text-[12px] text-danger">
+                              {expiryError}
+                            </span>
+                          ) : null}
+                        </label>
+
+                        {/* Passport photo — private upload with local preview. */}
+                        <div className="block sm:col-span-2">
+                          <span className={FIELD_LABEL}>
+                            {t("airportVip.passenger.photo")}
+                          </span>
+                          <div className="flex items-center gap-3 rounded-xl border border-line bg-white p-3">
+                            {form.previewUrl ? (
+                              // Local object-URL preview — never a stored URL.
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={form.previewUrl}
+                                alt={form.photoName}
+                                className="h-16 w-16 shrink-0 rounded-lg border border-line object-cover"
+                              />
+                            ) : form.photoName ? (
+                              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-line bg-canvas font-mono text-[10px] font-bold uppercase text-muted">
+                                PDF
+                              </span>
+                            ) : null}
+
+                            <div className="min-w-0 flex-1">
+                              {form.photoName ? (
+                                <p className="truncate text-[12px] font-medium text-ink">
+                                  {form.photoName}
+                                </p>
+                              ) : null}
+                              <p className="mt-0.5 text-[11px] text-muted">
+                                {form.uploading
+                                  ? t("airportVip.passenger.uploading")
+                                  : form.photoKey
+                                    ? `${t("airportVip.passenger.uploaded")} ✓`
+                                    : t("airportVip.passenger.photoHint")}
+                              </p>
+                              {form.uploadError ? (
+                                <p className="mt-0.5 text-[11px] text-danger">
+                                  {form.uploadError}
+                                </p>
+                              ) : null}
+                            </div>
+
+                            <label
+                              className={`inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-line bg-white px-3 text-[12px] font-semibold text-ink transition-colors hover:bg-canvas ${
+                                form.uploading ? "pointer-events-none opacity-50" : ""
+                              }`}
+                            >
+                              {form.photoName
+                                ? t("airportVip.passenger.replace")
+                                : t("airportVip.passenger.chooseFile")}
+                              <input
+                                type="file"
+                                accept={PHOTO_TYPES.join(",")}
+                                className="hidden"
+                                disabled={form.uploading}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] ?? null;
+                                  e.target.value = "";
+                                  void handlePhoto(index, file);
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+
+              <p className="mt-3 text-[12px] text-muted">
+                {t("airportVip.passenger.docsLater")}
+              </p>
+
+              {/* Lead contact */}
+              <div className="mt-5 grid gap-3.5 border-t border-line pt-5 sm:grid-cols-2">
                 <label className="block sm:col-span-2">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                    Nama penanggung jawab
-                  </span>
+                  <span className={FIELD_LABEL}>{t("airportVip.passenger.leadName")}</span>
                   <input
                     type="text"
                     value={leadName}
                     onChange={(e) => setLeadName(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                    className={FIELD_INPUT}
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">Email</span>
+                  <span className={FIELD_LABEL}>{t("airportVip.passenger.email")}</span>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                    className={FIELD_INPUT}
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                    Telepon
-                  </span>
+                  <span className={FIELD_LABEL}>{t("airportVip.passenger.phone")}</span>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="08xx xxxx xxxx"
-                    className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+                    placeholder={t("airportVip.passenger.phonePlaceholder")}
+                    className={FIELD_INPUT}
                   />
                 </label>
 
                 <label className="block sm:col-span-2">
-                  <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                    Catatan (opsional)
-                  </span>
+                  <span className={FIELD_LABEL}>{t("airportVip.passenger.notes")}</span>
                   <textarea
                     rows={3}
                     value={notes}
@@ -843,27 +1254,31 @@ export default function AirportVipWizard({
           {step === "confirm" ? (
             <div>
               <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">
-                Konfirmasi
+                {t("airportVip.confirm.title")}
               </h2>
               <p className="mt-1.5 text-[13px] text-muted">
-                Periksa sekali lagi sebelum mengirim permintaan.
+                {t("airportVip.confirm.subtitle")}
               </p>
 
               <dl className="mt-5 divide-y divide-line border-y border-line">
-                <Row label="Asal negara" value={country || "—"} />
+                <Row label={t("airportVip.confirm.country")} value={country || "—"} />
                 <Row
-                  label="Bandara"
+                  label={t("airportVip.confirm.airport")}
                   value={airport ? `${airport.name} (${airport.city})` : "—"}
                 />
                 <Row
-                  label="Jenis"
-                  value={direction === "arrival" ? "Kedatangan" : "Keberangkatan"}
+                  label={t("airportVip.confirm.direction")}
+                  value={
+                    direction === "arrival"
+                      ? t("airportVip.confirm.arrival")
+                      : t("airportVip.confirm.departure")
+                  }
                 />
                 <Row
-                  label="Jadwal"
+                  label={t("airportVip.confirm.schedule")}
                   value={`${
                     date
-                      ? new Date(`${date}T00:00:00`).toLocaleDateString("id-ID", {
+                      ? new Date(`${date}T00:00:00`).toLocaleDateString(dateLocale, {
                           day: "2-digit",
                           month: "short",
                           year: "numeric",
@@ -872,7 +1287,7 @@ export default function AirportVipWizard({
                   } · ${time}`}
                 />
                 <Row
-                  label="Penerbangan"
+                  label={t("airportVip.confirm.flight")}
                   value={
                     airline
                       ? `${airline.name} (${airline.code})${
@@ -882,24 +1297,72 @@ export default function AirportVipWizard({
                   }
                 />
                 <Row
-                  label="Layanan"
+                  label={t("airportVip.confirm.service")}
                   value={service ? `${service.title} · ${service.packageLabel}` : "—"}
                 />
-                <Row
-                  label="Penumpang"
-                  value={`${adult} dewasa${child > 0 ? `, ${child} anak` : ""}`}
-                />
+                <Row label={t("airportVip.confirm.passengers")} value={paxSummary} />
                 {selectedAddOns.map((a) => (
                   <Row
                     key={a.slug}
-                    label="Tambahan"
+                    label={t("airportVip.confirm.addOn")}
                     value={`${a.title} ×${a.qty}`}
                   />
                 ))}
-                <Row label="Nama" value={leadName || "—"} />
-                <Row label="Email" value={email || "—"} />
-                <Row label="Telepon" value={phone || "—"} />
+                <Row label={t("airportVip.confirm.name")} value={leadName || "—"} />
+                <Row label={t("airportVip.confirm.email")} value={email || "—"} />
+                <Row label={t("airportVip.confirm.phone")} value={phone || "—"} />
               </dl>
+
+              {/* Per-traveler document summary */}
+              <h3 className="mt-6 text-[13px] font-bold text-ink">
+                {t("airportVip.confirm.travelers")}
+              </h3>
+              <div className="mt-2 space-y-3">
+                {travelerForms.map((form, index) => (
+                  <dl
+                    key={index}
+                    className="divide-y divide-line rounded-xl border border-line px-4"
+                  >
+                    <Row
+                      label={t("airportVip.passenger.travelerN", {
+                        n: index + 1,
+                        kind:
+                          index < adult
+                            ? t("airportVip.passenger.adult")
+                            : t("airportVip.passenger.child"),
+                      })}
+                      value={form.fullName || "—"}
+                    />
+                    <Row
+                      label={t("airportVip.confirm.passportNo")}
+                      value={form.passportNumber || "—"}
+                    />
+                    <Row
+                      label={t("airportVip.confirm.nationality")}
+                      value={form.nationality || country || "—"}
+                    />
+                    <Row
+                      label={t("airportVip.confirm.expiry")}
+                      value={
+                        form.passportExpiry
+                          ? new Date(`${form.passportExpiry}T00:00:00`).toLocaleDateString(
+                              dateLocale,
+                              { day: "2-digit", month: "short", year: "numeric" },
+                            )
+                          : "—"
+                      }
+                    />
+                    <Row
+                      label={t("airportVip.confirm.photo")}
+                      value={
+                        form.photoKey
+                          ? t("airportVip.confirm.uploaded")
+                          : t("airportVip.confirm.missing")
+                      }
+                    />
+                  </dl>
+                ))}
+              </div>
 
               {error ? (
                 <p className="mt-4 rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-[13px] text-danger">
@@ -917,7 +1380,7 @@ export default function AirportVipWizard({
               disabled={stepIndex === 0}
               className="h-11 rounded-xl border border-line bg-white px-5 text-[13px] font-semibold text-ink transition-colors hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Kembali
+              {t("airportVip.back")}
             </button>
 
             {step === "confirm" ? (
@@ -927,7 +1390,7 @@ export default function AirportVipWizard({
                 disabled={submitting}
                 className="h-11 rounded-xl bg-brand px-6 text-[13px] font-semibold text-white transition-opacity hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {submitting ? "Memproses…" : "Lanjut ke pembayaran"}
+                {submitting ? t("airportVip.submitting") : t("airportVip.submit")}
               </button>
             ) : (
               <button
@@ -936,7 +1399,7 @@ export default function AirportVipWizard({
                 disabled={!canContinue()}
                 className="h-11 rounded-xl bg-brand px-6 text-[13px] font-semibold text-white transition-opacity hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Lanjut
+                {t("airportVip.continue")}
               </button>
             )}
           </div>
@@ -946,39 +1409,37 @@ export default function AirportVipWizard({
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-2xl border border-line bg-white p-5">
             <h2 className="text-[15px] font-bold tracking-[-0.01em] text-ink">
-              Ringkasan
+              {t("airportVip.summary.title")}
             </h2>
 
             <dl className="mt-4 space-y-2.5 text-[13px]">
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-muted">Asal negara</dt>
+                <dt className="text-muted">{t("airportVip.summary.country")}</dt>
                 <dd className="text-right font-medium text-ink">
                   {country || "—"}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-muted">Bandara</dt>
+                <dt className="text-muted">{t("airportVip.summary.airport")}</dt>
                 <dd className="text-right font-medium text-ink">
                   {airport?.city ?? "—"}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-muted">Jadwal</dt>
+                <dt className="text-muted">{t("airportVip.summary.schedule")}</dt>
                 <dd className="text-right font-medium text-ink">
                   {date ? `${date} · ${time}` : "—"}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-muted">Layanan</dt>
+                <dt className="text-muted">{t("airportVip.summary.service")}</dt>
                 <dd className="text-right font-medium text-ink">
                   {service?.title ?? "—"}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-muted">Penumpang</dt>
-                <dd className="text-right font-medium text-ink">
-                  {adult} dewasa{child > 0 ? `, ${child} anak` : ""}
-                </dd>
+                <dt className="text-muted">{t("airportVip.summary.passengers")}</dt>
+                <dd className="text-right font-medium text-ink">{paxSummary}</dd>
               </div>
             </dl>
 
@@ -999,28 +1460,28 @@ export default function AirportVipWizard({
 
             {/* Base price */}
             <div className="mt-4 border-t border-line pt-4">
-              <span className="text-[12px] text-muted">Harga dasar</span>
+              <span className="text-[12px] text-muted">
+                {t("airportVip.summary.basePrice")}
+              </span>
               <p className="mt-0.5 text-[24px] font-bold tracking-[-0.02em] text-ink">
                 {formatMoney(totalUsdCents / 100)}
               </p>
               <p className="mt-1 text-[12px] text-muted">
                 {service
-                  ? `${service.title} · ${adult + child} penumpang`
-                  : "Pilih layanan untuk melihat harga"}
+                  ? `${service.title} · ${t("airportVip.summary.paxCount", { n: adult + child })}`
+                  : t("airportVip.summary.pickService")}
               </p>
             </div>
 
             <p className="mt-3 text-[11px] leading-relaxed text-muted">
-              Harga di atas belum termasuk biaya pemesanan mendadak, tengah malam,
-              akhir pekan, atau hari libur bila berlaku. Total akhir dihitung di
-              server beserta pajak yang berlaku.
+              {t("airportVip.summary.surchargeNote")}
             </p>
           </div>
 
           {/* Booking rules */}
           <div className="mt-4 rounded-2xl border border-line bg-white p-5">
             <h2 className="text-[15px] font-bold tracking-[-0.01em] text-ink">
-              Aturan pemesanan
+              {t("airportVip.rules.title")}
             </h2>
 
             <dl className="mt-3 divide-y divide-line text-[12px]">

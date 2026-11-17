@@ -555,10 +555,12 @@ export async function listMyVisaApplications(): Promise<VisaApplicationDTO[]> {
   return rows.map((row) => ({
     id: row.id,
     code: row.code,
-    fullName: row.fullName,
-    passportNumber: row.passportNumber,
-    nationality: row.nationality,
-    dateOfBirth: new Date(row.dateOfBirth).toISOString(),
+    // Legacy single-applicant columns are nullable since the group model
+    // landed — new orders carry per-person data in VisaApplicant.
+    fullName: row.fullName ?? "",
+    passportNumber: row.passportNumber ?? "",
+    nationality: row.nationality ?? "",
+    dateOfBirth: row.dateOfBirth ? new Date(row.dateOfBirth).toISOString() : "",
     arrivalDate: new Date(row.arrivalDate).toISOString(),
     email: row.email,
     phone: row.phone,

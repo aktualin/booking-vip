@@ -1,0 +1,114 @@
+[
+  {
+    "id": "column.public.BookingItem.vehicleCount",
+    "label": "Add column \"vehicleCount\" to \"BookingItem\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "vehicleCount",
+        "table": "BookingItem"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"vehicleCount\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "BookingItem",
+          "vehicleCount"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"vehicleCount\" on \"BookingItem\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"vehicleCount\"",
+        "sql": "ALTER TABLE \"public\".\"BookingItem\" ADD COLUMN \"vehicleCount\" int4 DEFAULT 1 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"vehicleCount\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "BookingItem",
+          "vehicleCount"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"vehicleCount\" on \"BookingItem\""
+        }
+      },
+      {
+        "description": "verify column \"vehicleCount\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "BookingItem",
+          "vehicleCount",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"vehicleCount\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "BookingItem",
+          "vehicleCount",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data_migration.backfill-booking-item-vehicle-count",
+    "label": "Data transform: backfill-booking-item-vehicle-count",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "vehicleCount",
+        "table": "BookingItem"
+      }
+    },
+    "precheck": [
+      {
+        "description": "Check backfill-booking-item-vehicle-count has work to do",
+        "sql": "SELECT EXISTS (\n            SELECT bi.\"id\"\n            FROM \"BookingItem\" bi\n            JOIN \"Booking\" b ON b.\"id\" = bi.\"bookingId\"\n            WHERE bi.\"vehicleCount\" <> b.\"vehicleCount\"\n              AND (SELECT COUNT(*) FROM \"BookingItem\" x WHERE x.\"bookingId\" = bi.\"bookingId\") = 1\n            LIMIT 1\n          ) AS ok",
+        "params": []
+      }
+    ],
+    "execute": [
+      {
+        "description": "Run backfill-booking-item-vehicle-count",
+        "sql": "\n            UPDATE \"BookingItem\" bi\n            SET \"vehicleCount\" = b.\"vehicleCount\"\n            FROM \"Booking\" b\n            WHERE bi.\"bookingId\" = b.\"id\"\n              AND bi.\"vehicleCount\" <> b.\"vehicleCount\"\n              AND (SELECT COUNT(*) FROM \"BookingItem\" x WHERE x.\"bookingId\" = bi.\"bookingId\") = 1\n          ",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Verify backfill-booking-item-vehicle-count resolved all violations",
+        "sql": "SELECT NOT EXISTS (\n            SELECT bi.\"id\"\n            FROM \"BookingItem\" bi\n            JOIN \"Booking\" b ON b.\"id\" = bi.\"bookingId\"\n            WHERE bi.\"vehicleCount\" <> b.\"vehicleCount\"\n              AND (SELECT COUNT(*) FROM \"BookingItem\" x WHERE x.\"bookingId\" = bi.\"bookingId\") = 1\n            LIMIT 1\n          ) AS ok",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "BookingItem",
+            "column": "vehicleCount",
+            "reason": "backfillMissedRows"
+          }
+        }
+      }
+    ]
+  }
+]

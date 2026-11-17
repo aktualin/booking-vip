@@ -3,8 +3,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getAdminAuth } from "@/lib/firebase";
-import { signInWithPassword } from "@/lib/identity";
-import { ensureAdminAccount } from "@/lib/accounts";
+import { mintIdToken, signInWithPassword } from "@/lib/identity";
+import { ensureAdminAccount, getAccount } from "@/lib/accounts";
 import {
   ADMIN_SESSION_COOKIE,
   SESSION_TTL_SECONDS,
@@ -87,6 +87,71 @@ export async function signInAdmin(
   });
 
   redirect("/admin");
+}
+
+/**
+ * Sliding refresh of the admin session cookie.
+ *
+ * Called periodically by the browser while the admin tab is visible (see
+ * `SessionRefresh`); the cookie is re-issued with the full 8-hour TTL so an
+ * active operator is never signed out mid-shift.
+ *
+ * Admin sign-in runs entirely server-side, so the browser Firebase SDK has
+ * no admin user: the normal path proves identity with the current session
+ * cookie (verified, revocation checked) and mints a fresh id token
+ * server-side to re-issue it. A client-supplied id token is also accepted
+ * and verified with revocation checking.
+ *
+ * The same rules as login apply: the kill-switch must be on and the account
+ * must carry the ADMIN role. Every failure collapses into `{ ok: false }`.
+ */
+export async function refreshAdminSession(idToken?: string): Promise<{ ok: boolean }> {
+  if (process.env.ADMIN_ENABLED !== "1") {
+    return { ok: false };
+  }
+
+  try {
+    let uid: string | null = null;
+    let freshIdToken: string | null = null;
+
+    const cookie = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value;
+    if (cookie) {
+      try {
+        const decoded = await getAdminAuth().verifySessionCookie(cookie, true);
+        uid = decoded.uid;
+      } catch {
+        // Expired or revoked — a fresh id token below can still renew.
+      }
+    }
+
+    if (idToken) {
+      const decoded = await getAdminAuth().verifyIdToken(idToken, true);
+      uid = decoded.uid;
+      freshIdToken = idToken;
+    }
+
+    if (!uid) return { ok: false };
+
+    const account = await getAccount(uid);
+    if (!account || account.role !== "ADMIN") return { ok: false };
+
+    if (!freshIdToken) {
+      freshIdToken = await mintIdToken(uid);
+      if (!freshIdToken) return { ok: false };
+    }
+
+    const sessionCookie = await createAdminSessionCookie(freshIdToken);
+    (await cookies()).set(ADMIN_SESSION_COOKIE, sessionCookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_TTL_SECONDS,
+    });
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
 }
 
 /** Server action that drops the admin session and returns to the login page. */

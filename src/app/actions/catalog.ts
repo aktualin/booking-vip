@@ -324,6 +324,7 @@ export async function getProduct(slug: string): Promise<ProductDetailDTO | null>
     }
 
     return {
+      id: product.id,
       slug: product.slug,
       lineSlug: line.slug,
       title: product.title,
@@ -884,15 +885,78 @@ export async function getTourPackageGroups(): Promise<TourPackageGroupDTO[]> {
  *
  * Seats are derived from the active bookings (see `src/lib/tour.ts`).
  * Returns an empty array on error.
+ *
+ * @param months — how many months ahead to load (default 2).
  */
 export async function getTourDepartures(
   productId: string,
+  opts?: { months?: number },
 ): Promise<TourDepartureDTO[]> {
   try {
-    return await listTourDepartures(productId);
+    const months = opts?.months ?? 2;
+    const fromDate = new Date();
+    fromDate.setHours(0, 0, 0, 0);
+    // No upper-bound filter needed — listTourDepartures returns all future
+    // open departures from `fromDate`. The caller can slice if desired.
+    return await listTourDepartures(productId, { fromDate });
   } catch (error) {
     console.error("[catalog] could not load tour departures", error);
     return [];
+  }
+}
+
+/**
+ * All departures for a specific month (including closed/cancelled for display).
+ *
+ * Powers the month-by-month calendar navigation on the tour detail page.
+ * `yearMonth` is "YYYY-MM".
+ */
+export async function getTourDepartureCalendar(
+  productId: string,
+  yearMonth: string,
+): Promise<{ departures: TourDepartureDTO[]; yearMonth: string }> {
+  try {
+    // Parse YYYY-MM into a date range
+    const [yearStr, monthStr] = yearMonth.split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+      return { departures: [], yearMonth };
+    }
+
+    const fromDate = new Date(year, month - 1, 1);
+    const toDate = new Date(year, month, 1); // first day of next month
+
+    // Fetch all departures in the month range, including closed/cancelled
+    const rows = await db.orm.public.TourDeparture
+      .select("id", "productId", "date", "startTime", "quota", "status", "notes")
+      .where((f) => f.productId.eq(productId))
+      .where((f) => f.date.gte(fromDate))
+      .where((f) => f.date.lt(toDate))
+      .orderBy((f) => f.date.asc())
+      .orderBy((f) => f.startTime.asc())
+      .all();
+
+    // Compute reserved seats
+    const { getDepartureReservedSeats } = await import("@/lib/tour");
+    const reserved = await getDepartureReservedSeats(rows.map((r) => r.id));
+
+    const departures: TourDepartureDTO[] = rows.map((r) => ({
+      id: r.id,
+      productId: r.productId,
+      date: new Date(r.date).toISOString(),
+      startTime: r.startTime,
+      quota: r.quota,
+      reserved: reserved.get(r.id) ?? 0,
+      available: Math.max(0, r.quota - (reserved.get(r.id) ?? 0)),
+      status: r.status,
+      notes: r.notes,
+    }));
+
+    return { departures, yearMonth };
+  } catch (error) {
+    console.error("[catalog] could not load tour departure calendar", error);
+    return { departures: [], yearMonth };
   }
 }
 

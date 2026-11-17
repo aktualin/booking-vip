@@ -18,8 +18,18 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const R2_BUCKET = process.env["R2_BUCKET"] ?? "vip-book";
+
+/**
+ * Bucket for sensitive documents (passport photos). Falls back to the main
+ * bucket until a dedicated private bucket is configured — set
+ * `PRIVATE_R2_BUCKET` to a bucket WITHOUT public access in production.
+ * Only the object key is ever stored in the database; access goes through
+ * short-lived signed URLs, never through `mediaUrl()`.
+ */
+export const PRIVATE_R2_BUCKET = process.env["PRIVATE_R2_BUCKET"] ?? R2_BUCKET;
 
 /** The public URL prefix stored in the database, or null while unset. */
 export function publicBaseUrl(): string | null {
@@ -117,4 +127,39 @@ export async function getObjectMeta(
 /** Read an object body (used by the admin preview and maintenance jobs). */
 export async function getObject(key: string): Promise<Buffer> {
   return (await getObjectMeta(key))!.body;
+}
+
+/**
+ * Upload a sensitive document (passport photo) to the private bucket.
+ * Unlike `putObject` it sets no public cache headers, and the caller must
+ * store only the KEY — never a public URL.
+ */
+export async function putPrivateObject(
+  key: string,
+  body: Buffer | Uint8Array,
+  contentType: string
+): Promise<void> {
+  await r2().send(
+    new PutObjectCommand({
+      Bucket: PRIVATE_R2_BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    })
+  );
+}
+
+/**
+ * Short-lived signed GET URL for a private document — the admin preview.
+ * Ephemeral by design: never persist it (the `Media.url` rule stands).
+ */
+export async function signedDocumentUrl(
+  key: string,
+  expiresIn = 300
+): Promise<string> {
+  return getSignedUrl(
+    r2(),
+    new GetObjectCommand({ Bucket: PRIVATE_R2_BUCKET, Key: key }),
+    { expiresIn }
+  );
 }

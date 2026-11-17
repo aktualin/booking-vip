@@ -1,5 +1,9 @@
-// Service navigation + sub-page content for the four services.
-// Copy is placeholder copy; catalog items (prices, cards) come from home.ts.
+// Service navigation + sub-page content.
+// The product is single-service: only Airport VIP Service appears in the
+// navigation, and its entry points straight at the /airport-vip booking
+// tool. The other lines (Transport, Tour Package, eVOA) are hidden from
+// nav/home but their pages keep working — their rail/search/page metadata
+// below is deliberately kept intact for those routes.
 
 import type {
   ServiceNavItem,
@@ -10,27 +14,9 @@ import type {
 export const serviceNav: ServiceNavItem[] = [
   {
     label: "Airport VIP Service",
-    href: "/vip-service",
+    href: "/airport-vip",
     short: "VIP",
     tone: "from-sky-400 to-blue-600",
-  },
-  {
-    label: "Transport",
-    href: "/transport",
-    short: "Car",
-    tone: "from-emerald-400 to-teal-600",
-  },
-  {
-    label: "Tour Package",
-    href: "/tour-package",
-    short: "Tour",
-    tone: "from-amber-300 to-orange-500",
-  },
-  {
-    label: "eVOA",
-    href: "/evoa",
-    short: "Visa",
-    tone: "from-violet-400 to-purple-600",
   },
 ];
 
@@ -48,6 +34,9 @@ export const serviceRailMeta: Record<
   { icon: ServiceRailIcon; discountPercent?: number }
 > = {
   "vip-service": { icon: "plane", discountPercent: 50 },
+  // The nav entry now points at the booking tool, so the rail (when shown)
+  // derives this slug from the href — same line, same presentation.
+  "airport-vip": { icon: "plane", discountPercent: 50 },
   transport: { icon: "car", discountPercent: 25 },
   "tour-package": { icon: "compass", discountPercent: 65 },
   evoa: { icon: "passport" },

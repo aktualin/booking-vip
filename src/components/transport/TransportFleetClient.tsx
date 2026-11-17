@@ -371,6 +371,11 @@ function VehicleCard({
         {item.vendor ? (
           <p className="mt-2 truncate text-[11px] text-muted">{item.vendor}</p>
         ) : null}
+        {item.availableStock <= 3 ? (
+          <p className="mt-1 text-[11px] font-semibold text-danger">
+            {t("transport.stockLeftShort", { n: item.availableStock })}
+          </p>
+        ) : null}
       </div>
 
       {/* Price — a full-width row under the image on phones, a column on desktop. */}

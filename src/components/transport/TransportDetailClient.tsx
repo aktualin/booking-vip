@@ -151,6 +151,19 @@ export default function TransportDetailClient({
                   </p>
                 ) : null}
 
+                {/* Stock state — sold out disables the booking CTA below. */}
+                <p className="mt-2">
+                  {detail.availableStock <= 0 ? (
+                    <span className="inline-flex items-center rounded-md bg-danger px-2 py-0.5 text-[11px] font-bold text-white">
+                      {t("transport.soldOut")}
+                    </span>
+                  ) : (
+                    <span className="text-[12px] font-medium text-muted">
+                      {t("transport.stockLeft", { n: detail.availableStock })}
+                    </span>
+                  )}
+                </p>
+
                 {/* Spec grid */}
                 <div className="mt-4 grid gap-x-8 sm:grid-cols-2">
                   {detail.specs.map((spec: TransportSpec) => (
@@ -248,12 +261,22 @@ export default function TransportDetailClient({
               {t("transport.earnPoints", { n: points.toLocaleString(lang === "id" ? "id-ID" : "en-US") })}
             </p>
           </div>
-          <Link
-            href={bookingHref}
-            className="inline-flex h-12 items-center justify-center rounded-xl bg-brand px-8 text-[14px] font-semibold text-white transition-colors hover:bg-brand-dark"
-          >
-            {t("transport.continueToBooking")}
-          </Link>
+          {detail.availableStock <= 0 ? (
+            <button
+              type="button"
+              disabled
+              className="inline-flex h-12 cursor-not-allowed items-center justify-center rounded-xl bg-line px-8 text-[14px] font-semibold text-muted opacity-60"
+            >
+              {t("transport.soldOut")}
+            </button>
+          ) : (
+            <Link
+              href={bookingHref}
+              className="inline-flex h-12 items-center justify-center rounded-xl bg-brand px-8 text-[14px] font-semibold text-white transition-colors hover:bg-brand-dark"
+            >
+              {t("transport.continueToBooking")}
+            </Link>
+          )}
         </Container>
       </div>
     </div>

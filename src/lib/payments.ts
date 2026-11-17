@@ -13,6 +13,7 @@ import {
   type PaymentChannel,
 } from "@/lib/xendit";
 import { sendBookingConfirmation } from "@/lib/notify";
+import { notifyEvoaStatusChange } from "@/lib/evoa-notify";
 
 /**
  * The payment service.
@@ -436,6 +437,8 @@ async function confirmPaidPayment(
         actor: "system",
         note: "Pembayaran diterima via Xendit.",
       });
+      // Fire-and-forget — the notifier swallows its own errors.
+      void notifyEvoaStatusChange(application.id, "paid");
     }
   } catch (error) {
     console.error("[payments] e-VOA status sync failed", error);

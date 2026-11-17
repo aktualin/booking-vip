@@ -18,7 +18,7 @@ import {
 export const metadata: Metadata = {
   title: "Airport VIP Service · Booking VIP",
   description:
-    "Pesan layanan Airport VIP Service — fast track, meet & assist, dan layanan FRA yang kami tangani.",
+    "Book the Airport VIP Service — fast-track immigration, document handling and Visa on Arrival assistance at Indonesian airports.",
 };
 
 /**
@@ -26,7 +26,9 @@ export const metadata: Metadata = {
  *
  * The flow mirrors the Asia Fast Track booking tool (country → airport →
  * schedule → flight → service → passenger → confirm), but the layout is our
- * own. The country narrows the airports, exactly as it does there.
+ * own. The country is the traveller's country of origin — it drives the
+ * Visa on Arrival awareness, not the airport list (all airports are in
+ * Indonesia).
  */
 export default function AirportVipPage() {
   return (
@@ -45,8 +47,9 @@ export default function AirportVipPage() {
               Booking Airport VIP Service
             </h1>
             <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted">
-              Tujuh langkah singkat: pilih negara, bandara, jadwal, penerbangan,
-              layanan, data penumpang, lalu konfirmasi.
+              Seven quick steps: country, airport, schedule, flight, service,
+              traveler documents, then confirm. We handle the paperwork — you
+              skip the queues.
             </p>
           </div>
 
