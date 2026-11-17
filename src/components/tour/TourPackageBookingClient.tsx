@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { createBooking } from "@/app/actions/booking";
+import { createBooking, previewTaxes } from "@/app/actions/booking";
 import PaymentStep from "@/components/payment/PaymentStep";
 import { getTourDepartures, type TourPackageDTO } from "@/app/actions/catalog";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { pickLang } from "@/lib/content";
 import type { TourDepartureDTO } from "@/types/tour";
+import type { TaxPreview } from "@/types";
 import type { PickedPoint } from "@/lib/picked-point";
 
 type Props = {
@@ -87,6 +88,9 @@ export default function TourPackageBookingClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
+  // The server computes the final total (incl. tax) — the payment step must
+  // show exactly what the gateway will charge, never the pre-tax estimate.
+  const [serverTotalUsdCents, setServerTotalUsdCents] = useState<number | null>(null);
 
   const selected = useMemo(
     () => tours.find((tour) => `${tour.productSlug}::${tour.packageId}` === tourSlug) ?? null,
@@ -204,6 +208,22 @@ export default function TourPackageBookingClient({
     );
   }, [selected, adult, child, infant]);
 
+  // The server-computed tax preview — the same computation the booking
+  // creation applies, so the summary shows the tax-inclusive total BEFORE
+  // the customer submits.
+  const [taxPreview, setTaxPreview] = useState<TaxPreview | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    previewTaxes(totalUsdCents).then((result) => {
+      if (!cancelled) setTaxPreview(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [totalUsdCents]);
+  const taxUsdCents = taxPreview?.totalUsdCents ?? 0;
+  const grandTotalUsdCents = totalUsdCents + taxUsdCents;
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (submitting) return;
@@ -269,6 +289,7 @@ export default function TourPackageBookingClient({
 
     if (result.ok) {
       setCode(result.code);
+      setServerTotalUsdCents(result.totalUsdCents);
     } else {
       setError(result.error);
     }
@@ -320,11 +341,13 @@ export default function TourPackageBookingClient({
         </div>
       </div>
 
-        {/* The payment step — the gateway invoice is created on the server. */}
+        {/* The payment step — the gateway invoice is created on the server.
+            The amount is the SERVER total (incl. tax), never the pre-tax
+            client estimate. */}
         <PaymentStep
           bookingCode={code}
           email={email}
-          amountUsdCents={totalUsdCents}
+          amountUsdCents={serverTotalUsdCents ?? grandTotalUsdCents}
         />
       </div>
     );
@@ -793,10 +816,26 @@ export default function TourPackageBookingClient({
             </dl>
           ) : null}
 
+          {/* Tax lines — computed on the server from the tax settings. */}
+          {taxPreview && taxPreview.lines.length > 0 ? (
+            <dl className="mt-2 space-y-2 text-[12px]">
+              {taxPreview.lines.map((line) => (
+                <div key={line.key} className="flex items-center justify-between gap-4">
+                  <dt className="text-muted">
+                    Pajak · {line.label} ({line.value})
+                  </dt>
+                  <dd className="font-medium text-ink">
+                    {formatMoney(line.amountUsdCents / 100)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+
           <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
             <span className="text-[13px] font-semibold text-ink">Total</span>
             <span className="text-[18px] font-bold text-ink">
-              ${(totalUsdCents / 100).toFixed(2)}
+              ${(grandTotalUsdCents / 100).toFixed(2)}
             </span>
           </div>
 

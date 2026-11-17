@@ -3,8 +3,9 @@
 // The payment screen of the transport booking flow (/transport/booking):
 // the booking already exists, so picking a method and paying is all that is
 // left. Every active method redirects to its gateway's hosted checkout page
-// — Xendit for card (the card form lives there), PayPal for PAYPAL. The
-// yellow PayPal button is the express path that skips the method selection.
+// — Xendit for card/QRIS (the card form or QR code lives there), PayPal for
+// PAYPAL. The yellow PayPal button is the express path that skips the
+// method selection — PayPal never appears as a picker radio.
 
 import { useEffect, useState } from "react";
 import { getPaymentMethods } from "@/app/actions/catalog";
@@ -39,11 +40,15 @@ export default function PaymentStep({
     getPaymentMethods().then((list) => {
       setMethods(list);
       setLoaded(true);
-      if (list.length > 0) setSelected(list[0].code);
+      // PayPal is not a radio — it is the yellow express button below, so
+      // the picker (and the default selection) only sees the other methods.
+      const pickable = list.filter((m) => m.code !== "PAYPAL");
+      if (pickable.length > 0) setSelected(pickable[0].code);
     });
   }, []);
 
-  // The yellow express button only shows while PayPal is an active method.
+  // PayPal only appears as the yellow express button — never as a radio.
+  const pickableMethods = methods.filter((m) => m.code !== "PAYPAL");
   const paypalAvailable = methods.some((m) => m.code === "PAYPAL");
 
   /** Remember the booking so the return page can find the email again. */
@@ -96,7 +101,7 @@ export default function PaymentStep({
 
       {!loaded ? (
         <p className="mt-4 text-[13px] text-muted">Memuat metode pembayaran…</p>
-      ) : methods.length === 0 ? (
+      ) : pickableMethods.length === 0 ? (
         <p className="mt-4 text-[13px] text-muted">
           Belum ada metode pembayaran yang tersedia. Silakan hubungi customer
           service kami.
@@ -104,7 +109,7 @@ export default function PaymentStep({
       ) : (
         <div className="mt-4">
           <PaymentMethodPicker
-            methods={methods}
+            methods={pickableMethods}
             selected={selected}
             onSelect={setSelected}
             disabled={submitting}

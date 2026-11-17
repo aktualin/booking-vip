@@ -4,20 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Container from "@/components/ui/Container";
 import { UserIcon } from "@/components/icons";
-import { utilityLinks } from "@/data/home";
 import Logo from "./Logo";
 import NavBar from "./NavBar";
 import LocaleMenu from "./LocaleMenu";
 import UserMenu from "./UserMenu";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import type { DictKey } from "@/i18n";
-
-/** Utility-bar link label → dictionary key. */
-const UTILITY_KEYS: Record<string, DictKey> = {
-  "About Us": "header.aboutUs",
-  "How It Works": "header.howItWorks",
-  "Help Center": "header.helpCenter",
-};
 
 /**
  * Site header: utility bar + brand row, followed by the {@link NavBar}.
@@ -53,22 +44,14 @@ export default function Header({
             : "absolute inset-x-0 top-0"
       }`}
     >
-      {/* Utility bar */}
+      {/* Utility bar — language switcher only; the old placeholder utility
+          links (About Us / How It Works / Help Center → "#") are gone. */}
       <div className="hidden lg:block">
         <Container
           className={`flex items-center justify-end gap-6 py-2.5 text-[13px] font-medium ${
             solid ? "text-muted" : "text-white/90"
           }`}
         >
-          {utilityLinks.map((u) => (
-            <Link
-              key={u.label}
-              href={u.href}
-              className={solid ? "hover:text-ink" : "hover:text-white"}
-            >
-              {UTILITY_KEYS[u.label] ? t(UTILITY_KEYS[u.label]) : u.label}
-            </Link>
-          ))}
           <LocaleMenu variant={solid ? "solid" : "overlay"} />
         </Container>
       </div>

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { createBooking } from "@/app/actions/booking";
+import { createBooking, previewTaxes } from "@/app/actions/booking";
 import { getPlaceOptions } from "@/app/actions/catalog";
 import PaxStepper from "@/components/booking/PaxStepper";
 import PlaceOptionList from "@/components/ui/PlaceOptionList";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { SearchIcon } from "@/components/icons";
 import { placeLabel, type PlaceNode } from "@/lib/places";
 import { useLocale } from "@/components/providers/LocaleProvider";
@@ -24,6 +25,7 @@ import type {
   AirlineOption,
   CountryOption,
 } from "@/lib/airport-vip";
+import type { TaxPreview } from "@/types";
 
 type Props = {
   countries: CountryOption[];
@@ -306,6 +308,22 @@ export default function AirportVipWizard({
   const totalUsdCents = service
     ? service.adultUsdCents * adult + service.childUsdCents * child + addOnsUsdCents
     : 0;
+
+  // The server-computed tax preview — the same computation the booking
+  // creation applies, so the summary shows the tax-inclusive total BEFORE
+  // the customer submits.
+  const [taxPreview, setTaxPreview] = useState<TaxPreview | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    previewTaxes(totalUsdCents).then((result) => {
+      if (!cancelled) setTaxPreview(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [totalUsdCents]);
+  const taxUsdCents = taxPreview?.totalUsdCents ?? 0;
+  const grandTotalUsdCents = totalUsdCents + taxUsdCents;
 
   const ruleRows = bookingRuleRows(
     rules,
@@ -616,26 +634,20 @@ export default function AirportVipWizard({
                   {t("airportVip.country.empty")}
                 </p>
               ) : (
-                <div className="mt-5 space-y-2">
-                  {countries.map((c) => (
-                    <button
-                      key={c.name}
-                      type="button"
-                      onClick={() => setCountry(c.name)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
-                        country === c.name
-                          ? "border-brand bg-brand-soft"
-                          : "border-line bg-white hover:bg-canvas"
-                      }`}
-                    >
-                      <span className="block text-[14px] font-semibold text-ink">
-                        {c.name}
-                      </span>
-                      <span className="shrink-0 font-mono text-[11px] text-muted">
-                        {c.code}
-                      </span>
-                    </button>
-                  ))}
+                <div className="mt-5 max-w-sm">
+                  <SearchableSelect
+                    ariaLabel={t("airportVip.country.title")}
+                    options={countries.map((c) => ({
+                      value: c.name,
+                      label: c.name,
+                      hint: c.code,
+                    }))}
+                    value={country}
+                    onChange={setCountry}
+                    placeholder={t("airportVip.country.placeholder")}
+                    searchPlaceholder={t("airportVip.country.searchPlaceholder")}
+                    emptyText={t("airportVip.country.noMatch")}
+                  />
                 </div>
               )}
 
@@ -1458,13 +1470,36 @@ export default function AirportVipWizard({
               </dl>
             ) : null}
 
-            {/* Base price */}
+            {/* Base price + taxes = the tax-inclusive total. */}
             <div className="mt-4 border-t border-line pt-4">
-              <span className="text-[12px] text-muted">
-                {t("airportVip.summary.basePrice")}
-              </span>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[12px] text-muted">
+                  {t("airportVip.summary.basePrice")}
+                </span>
+                <span className="text-[13px] font-medium text-ink">
+                  {formatMoney(totalUsdCents / 100)}
+                </span>
+              </div>
+
+              {taxPreview?.lines.map((line) => (
+                <div
+                  key={line.key}
+                  className="mt-1.5 flex items-center justify-between gap-4"
+                >
+                  <span className="text-[12px] text-muted">
+                    {t("airportVip.summary.tax")} · {line.label} ({line.value})
+                  </span>
+                  <span className="text-[13px] font-medium text-ink">
+                    {formatMoney(line.amountUsdCents / 100)}
+                  </span>
+                </div>
+              ))}
+
+              <p className="mt-3 text-[12px] font-semibold text-ink">
+                {t("airportVip.summary.total")}
+              </p>
               <p className="mt-0.5 text-[24px] font-bold tracking-[-0.02em] text-ink">
-                {formatMoney(totalUsdCents / 100)}
+                {formatMoney(grandTotalUsdCents / 100)}
               </p>
               <p className="mt-1 text-[12px] text-muted">
                 {service

@@ -120,8 +120,33 @@ export type CreateBookingInput = {
   hotelName?: string;
 };
 
+/** One computed tax line — the client-safe mirror of `TaxLineDTO`. */
+export type BookingTaxLine = {
+  key: string;
+  label: string;
+  /** The raw configured value — "11%", "$1". */
+  value: string;
+  kind: "percentage" | "fixed";
+  amount: number;
+  amountUsdCents: number;
+};
+
+/** The tax preview of a subtotal (server-computed, read from `Setting`). */
+export type TaxPreview = {
+  lines: BookingTaxLine[];
+  totalUsdCents: number;
+};
+
 export type CreateBookingResult =
-  | { ok: true; code: string; totalUsdCents: number; invoiceNumber: string }
+  | {
+      ok: true;
+      code: string;
+      totalUsdCents: number;
+      invoiceNumber: string;
+      /** The taxes included in `totalUsdCents`. */
+      taxes: BookingTaxLine[];
+      taxUsdCents: number;
+    }
   | { ok: false; error: string };
 
 export type BookingLookupDTO = {

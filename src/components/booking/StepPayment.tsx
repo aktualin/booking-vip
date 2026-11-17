@@ -2,9 +2,10 @@
 
 // The wizard's PAYMENT step — everything payment happens here (per the
 // product decision): promo/voucher and the payment method. "Bayar Sekarang"
-// creates the booking (once) and starts the payment for the SELECTED method.
-// The card form / PayPal approval all live on the gateway's hosted checkout
-// page.
+// creates the booking (once) and starts the payment for the SELECTED method;
+// the yellow PayPal button is the express path for PAYPAL (PayPal never
+// appears as a picker radio). The card form / QR / PayPal approval all live
+// on the gateway's hosted checkout page.
 
 import { useEffect, useState } from "react";
 import { getPaymentMethods } from "@/app/actions/catalog";
@@ -15,6 +16,7 @@ import { useLocale } from "@/components/providers/LocaleProvider";
 import PaymentMethodPicker, {
   type PaymentMethodOption,
 } from "@/components/payment/PaymentMethodPicker";
+import PayPalPayButton from "@/components/payment/PayPalPayButton";
 
 /** The promo/voucher currently applied to the booking (validated server-side). */
 export type AppliedPromo = {
@@ -34,6 +36,8 @@ type Props = {
   error: string | null;
   /** The subtotal in USD cents — the promo is checked against it. */
   subtotalUsdCents: number;
+  /** The server-computed tax (USD cents) of the discounted subtotal. */
+  taxUsdCents?: number;
   /** The applied promo lives in the wizard so the summary can show it too. */
   appliedPromo: AppliedPromo | null;
   onPromoChange: (promo: AppliedPromo | null) => void;
@@ -45,6 +49,7 @@ export default function StepPayment({
   isSubmitting,
   error,
   subtotalUsdCents,
+  taxUsdCents = 0,
   appliedPromo,
   onPromoChange,
 }: Props) {
@@ -66,7 +71,10 @@ export default function StepPayment({
     getPaymentMethods().then((m) => {
       setMethods(m);
       setLoaded(true);
-      if (m.length > 0) setSelected(m[0].code);
+      // PayPal is not a radio — it is the yellow express button below, so
+      // the picker (and the default selection) only sees the other methods.
+      const pickable = m.filter((x) => x.code !== "PAYPAL");
+      if (pickable.length > 0) setSelected(pickable[0].code);
     });
   }, []);
 
@@ -125,12 +133,18 @@ export default function StepPayment({
     onSubmit(selected);
   };
 
+  // PayPal only appears as the yellow express button — never as a radio.
+  const pickableMethods = methods.filter((m) => m.code !== "PAYPAL");
+  const paypalAvailable = methods.some((m) => m.code === "PAYPAL");
+
 
   // Points this booking will earn once paid (1 point per whole dollar of
-  // the discounted total — the same rule the server applies).
+  // the tax-inclusive discounted total — the same rule the server applies).
   const earnPreview = Math.max(
     0,
-    Math.floor((subtotalUsdCents - (appliedPromo?.discountUsdCents ?? 0)) / 100),
+    Math.floor(
+      (subtotalUsdCents - (appliedPromo?.discountUsdCents ?? 0) + taxUsdCents) / 100,
+    ),
   );
 
   return (
@@ -150,7 +164,7 @@ export default function StepPayment({
         </h3>
         {!loaded ? (
           <p className="text-sm text-muted">Memuat metode pembayaran…</p>
-        ) : methods.length === 0 ? (
+        ) : pickableMethods.length === 0 ? (
           <div className="rounded-2xl border border-line bg-canvas p-8 text-center">
             <p className="mb-2 text-base font-semibold text-ink">
               {t("wizard.payment.setupTitle")}
@@ -159,7 +173,7 @@ export default function StepPayment({
           </div>
         ) : (
           <PaymentMethodPicker
-            methods={methods}
+            methods={pickableMethods}
             selected={selected}
             onSelect={setSelected}
             disabled={isSubmitting}
@@ -279,13 +293,22 @@ export default function StepPayment({
         >
           {t("wizard.payment.back")}
         </button>
-        <button
-          onClick={pay}
-          disabled={!selected || isSubmitting || !loaded}
-          className="rounded-xl bg-brand px-8 py-3 text-base font-bold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSubmitting ? t("wizard.payment.processing") : "Bayar Sekarang"}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {paypalAvailable ? (
+            <PayPalPayButton
+              onPay={() => onSubmit("PAYPAL")}
+              busy={isSubmitting}
+              disabled={!loaded}
+            />
+          ) : null}
+          <button
+            onClick={pay}
+            disabled={!selected || isSubmitting || !loaded}
+            className="rounded-xl bg-brand px-8 py-3 text-base font-bold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? t("wizard.payment.processing") : "Bayar Sekarang"}
+          </button>
+        </div>
       </div>
     </div>
   );

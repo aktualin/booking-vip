@@ -1,9 +1,10 @@
 "use client";
 
 // The payment method picker — one radio card per active method: Kartu
-// Kredit/Debit (Xendit) and PayPal. Shared by the booking wizard's payment
-// step and the transport flow's payment screen. Every method redirects to
-// its gateway's hosted checkout page.
+// Kredit/Debit and QRIS (Xendit). PayPal is NOT a radio here — it is the
+// yellow express button rendered next to the primary CTA. Shared by the
+// booking wizard's payment step and the transport flow's payment screen.
+// Every method redirects to its gateway's hosted checkout page.
 
 import { PaymentBrandIcon } from "@/components/icons";
 
@@ -18,9 +19,9 @@ const METHOD_META: Record<string, { title: string; hint: string }> = {
     title: "Kartu Kredit / Debit",
     hint: "Visa, Mastercard, JCB & Amex — bayar aman lewat halaman checkout Xendit.",
   },
-  PAYPAL: {
-    title: "PayPal",
-    hint: "Bayar pakai akun PayPal — saldo atau kartu yang tersimpan di sana, dalam USD.",
+  QRIS: {
+    title: "QRIS",
+    hint: "Scan pakai aplikasi apa pun — e-wallet & mobile banking, langsung di halaman checkout.",
   },
 };
 
@@ -62,8 +63,8 @@ export default function PaymentMethodPicker({
                   <PaymentBrandIcon brand="jcb" height={16} />
                   <PaymentBrandIcon brand="amex" height={16} />
                 </>
-              ) : method.code === "PAYPAL" ? (
-                <PaymentBrandIcon brand="paypal" height={16} />
+              ) : method.code === "QRIS" ? (
+                <PaymentBrandIcon brand="qris" height={18} />
               ) : null}
             </span>
             <span className="min-w-0 flex-1">

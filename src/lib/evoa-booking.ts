@@ -276,7 +276,7 @@ export async function createEvoaBooking(params: {
           adultCount: n,
           childCount: 0,
           infantCount: 0,
-          subtotalUsdCents: quote.totalUsdCents,
+          subtotalUsdCents: quote.subtotalUsdCents,
           addOnsUsdCents: 0,
           totalUsdCents: quote.totalUsdCents,
           userId,
@@ -284,8 +284,8 @@ export async function createEvoaBooking(params: {
           idempotencyKey: idempotencyKey || null,
           promoCode: null,
           discountUsdCents: 0,
-          taxes: [] as never,
-          taxUsdCents: 0,
+          taxes: quote.taxes as never,
+          taxUsdCents: quote.taxUsdCents,
           notes: null,
         });
       } catch (bookingError) {

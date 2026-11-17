@@ -15,7 +15,7 @@ import { getEvoaLinkForBooking } from "@/app/actions/evoa-tracking";
 
 const LAST_BOOKING_KEY = "booking-vip:last-booking";
 
-type Status = "pending" | "paid" | "failed";
+type Status = "pending" | "paid" | "failed" | "expired";
 
 export default function PaymentReturn({
   bookingCode,
@@ -62,7 +62,9 @@ export default function PaymentReturn({
         ? "paid"
         : result.status === "failed"
           ? "failed"
-          : "pending",
+          : result.status === "expired"
+            ? "expired"
+            : "pending",
     );
     setLoading(false);
   }, [bookingCode]);
@@ -171,6 +173,38 @@ export default function PaymentReturn({
         <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
           Pembayaran kamu belum berhasil. Kamu bisa mencoba lagi dari halaman
           pesanan.
+        </p>
+
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Link
+            href="/account/orders"
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-white transition-opacity hover:bg-brand-dark"
+          >
+            Coba lagi
+          </Link>
+          <Link
+            href="/"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-line bg-white px-5 text-[13px] font-semibold text-ink transition-colors hover:bg-canvas"
+          >
+            Kembali ke beranda
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  /* ----------------------------------------------------------------- */
+  /* Expired                                                            */
+  /* ----------------------------------------------------------------- */
+  if (status === "expired") {
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-line bg-white p-8 text-center">
+        <h1 className="text-[20px] font-bold tracking-[-0.01em] text-ink">
+          Batas waktu pembayaran habis
+        </h1>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+          Pembayaran harus diselesaikan dalam 5 menit. Waktu sudah habis, jadi
+          silakan coba lagi dari halaman pesanan.
         </p>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">

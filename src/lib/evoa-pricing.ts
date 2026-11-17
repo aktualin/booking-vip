@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/prisma/db";
 import { getUsdToIdrRate } from "@/lib/fx";
+import { computeTaxesFor, type TaxLineDTO } from "@/lib/tax";
 
 /**
  * e-VOA pricing.
@@ -77,6 +78,12 @@ export type EvoaQuote = {
   officialFeeIdr: number;
   officialFeeUsdCents: number;
   unitUsdCents: number;
+  /** Fees before tax: unit × applicantCount. */
+  subtotalUsdCents: number;
+  /** The configured tax lines (the same `Setting` pairs regular bookings use). */
+  taxes: TaxLineDTO[];
+  taxUsdCents: number;
+  /** subtotal + taxes — the amount the customer pays. */
   totalUsdCents: number;
   /** The USD→IDR rate used to convert the official fee (for display/audit). */
   rate: number;
@@ -86,9 +93,10 @@ export type EvoaQuote = {
  * Price an e-VOA order for `applicantCount` people.
  *
  * The official IDR fee is converted to USD cents once, per applicant; the
- * per-person unit is service + official, and the total is unit × count. The
- * rate comes from the same source the payment pipeline uses, so the quote and
- * the eventual charge stay consistent.
+ * per-person unit is service + official, and the subtotal is unit × count.
+ * The configured taxes (admin → Pajak) apply to the subtotal, exactly like a
+ * regular booking. The rate comes from the same source the payment pipeline
+ * uses, so the quote and the eventual charge stay consistent.
  */
 export async function quoteEvoa(applicantCount: number): Promise<EvoaQuote> {
   const settings = await getEvoaSettings();
@@ -96,7 +104,9 @@ export async function quoteEvoa(applicantCount: number): Promise<EvoaQuote> {
 
   const officialFeeUsdCents = Math.round((settings.officialFeeIdr / rate) * 100);
   const unitUsdCents = settings.serviceFeeUsdCents + officialFeeUsdCents;
-  const totalUsdCents = unitUsdCents * applicantCount;
+  const subtotalUsdCents = unitUsdCents * applicantCount;
+
+  const { lines, totalUsdCents: taxUsdCents } = await computeTaxesFor(subtotalUsdCents);
 
   return {
     applicantCount,
@@ -104,7 +114,10 @@ export async function quoteEvoa(applicantCount: number): Promise<EvoaQuote> {
     officialFeeIdr: settings.officialFeeIdr,
     officialFeeUsdCents,
     unitUsdCents,
-    totalUsdCents,
+    subtotalUsdCents,
+    taxes: lines,
+    taxUsdCents,
+    totalUsdCents: subtotalUsdCents + taxUsdCents,
     rate,
   };
 }

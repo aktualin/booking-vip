@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { applyGatewayEvent } from "@/lib/payments";
+import { applyGatewayEvent, isAttemptExpired } from "@/lib/payments";
 import {
   captureOrder,
   extractCapture,
@@ -117,6 +117,26 @@ export async function POST(request: Request) {
 
       let order: PayPalOrder;
       try {
+        // The 5-minute payment window is enforced on our side — PayPal has no
+        // order expiry. A late approval is never captured; the event is
+        // recorded as "expired" and the attempt is left for a retry.
+        if (await isAttemptExpired("paypal", orderId)) {
+          console.warn("[paypal-webhook] approval after the 5-minute window; not capturing", {
+            orderId,
+          });
+          const result = await applyGatewayEvent({
+            provider: "paypal",
+            eventId,
+            eventType: event,
+            providerRef: orderId,
+            externalId,
+            status: "expired",
+            currency: "USD",
+            raw: payload,
+          });
+          return NextResponse.json({ ok: true, outcome: result.outcome });
+        }
+
         // captureOrder already swallows ORDER_ALREADY_CAPTURED by reading the
         // order back, so racing the return-page capture is safe.
         order = await captureOrder(orderId);

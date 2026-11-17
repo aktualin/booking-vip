@@ -268,6 +268,31 @@ export async function getEvoaFormData(): Promise<EvoaResult<EvoaFormData>> {
   }
 }
 
+/**
+ * A live quote for `applicantCount` people — the review step fetches this so
+ * the price breakdown (fees, taxes, total) is the exact amount the submit
+ * path charges, not a per-person estimate multiplied on the client.
+ */
+export async function quoteEvoaFor(
+  applicantCount: number,
+): Promise<EvoaResult<EvoaQuote>> {
+  const session = await getUserSession();
+  if (!session) return fail("Sesi tidak valid. Silakan masuk kembali.");
+
+  const count = Math.floor(Number(applicantCount) || 0);
+  const { maxApplicants } = await getEvoaSettings();
+  if (count < 1 || count > maxApplicants) {
+    return fail("Jumlah pemohon tidak valid.", "applicants");
+  }
+
+  try {
+    return { ok: true, data: await quoteEvoa(count) };
+  } catch (error) {
+    console.error("[evoa] could not quote the order", error);
+    return fail("Gagal menghitung harga. Coba lagi.");
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Submit                                                              */
 /* ------------------------------------------------------------------ */

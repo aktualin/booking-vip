@@ -391,10 +391,12 @@ export function approveLink(order: PayPalOrder): string | undefined {
 }
 
 /**
- * The order lifetime we rely on. PayPal keeps a created order approvable
- * for up to 72h; we expire our attempt after 24h like the Xendit session.
+ * The order lifetime we enforce: the customer has 5 minutes to approve and
+ * pay, the same window as the Xendit sessions. PayPal has no order-expiry
+ * parameter, so the window is enforced on our side — an attempt past its
+ * `expiresAt` is never captured (webhook and status refresh both refuse).
  */
-export const ORDER_TTL_MS = 24 * 60 * 60 * 1000;
+export const ORDER_TTL_MS = 5 * 60 * 1000;
 
 /**
  * Create a USD order with manual capture and return its approve URL.

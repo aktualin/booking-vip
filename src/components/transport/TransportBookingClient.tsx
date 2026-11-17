@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { createBooking } from "@/app/actions/booking";
+import { createBooking, previewTaxes } from "@/app/actions/booking";
 import PaymentStep from "@/components/payment/PaymentStep";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { TransportVehicleDTO } from "@/app/actions/catalog";
+import type { TaxPreview } from "@/types";
 
 type Props = {
   vehicles: TransportVehicleDTO[];
@@ -208,6 +209,22 @@ export default function TransportBookingClient({ vehicles, initial }: Props) {
     (sum, l) => sum + l.unitUsdCents * l.days * l.vehicleCount,
     0,
   );
+
+  // The server-computed tax preview of the cart gross — the same computation
+  // the booking creation applies, so the summary shows the tax-inclusive
+  // total BEFORE the customer submits.
+  const [taxPreview, setTaxPreview] = useState<TaxPreview | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    previewTaxes(totalUsdCents).then((result) => {
+      if (!cancelled) setTaxPreview(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [totalUsdCents]);
+  const taxUsdCents = taxPreview?.totalUsdCents ?? 0;
+  const grandTotalUsdCents = totalUsdCents + taxUsdCents;
 
   /** The global days input is the default of every per-car days input. */
   const changeGlobalDays = (value: number) => {
@@ -993,17 +1010,34 @@ export default function TransportBookingClient({ vehicles, initial }: Props) {
             </div>
           </dl>
 
+          {/* Price breakdown — subtotal, tax lines and the tax-inclusive total. */}
+          <div className="mt-4 space-y-2 border-t border-line pt-4 text-[13px]">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted">{t("wizard.summary.subTotal")}</span>
+              <span className="font-medium text-ink">
+                {formatMoney(totalUsdCents / 100)}
+              </span>
+            </div>
+            {taxPreview?.lines.map((line) => (
+              <div key={line.key} className="flex items-center justify-between gap-4">
+                <span className="text-muted">
+                  {t("transport.booking.tax")} · {line.label} ({line.value})
+                </span>
+                <span className="font-medium text-ink">
+                  {formatMoney(line.amountUsdCents / 100)}
+                </span>
+              </div>
+            ))}
+          </div>
+
           <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
             <span className="text-[13px] font-semibold text-ink">
               {t("transport.booking.total")}
             </span>
             <span className="text-[18px] font-bold text-ink">
-              {formatMoney(totalUsdCents / 100)}
+              {formatMoney(grandTotalUsdCents / 100)}
             </span>
           </div>
-          <p className="mt-1 text-right text-[11px] text-muted">
-            {t("transport.booking.taxNote")}
-          </p>
 
           <button
             type="submit"

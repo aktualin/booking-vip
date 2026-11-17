@@ -2,8 +2,10 @@ export type { Article } from "./article";
 export type {
   BookingLookupDTO,
   BookingLookupResult,
+  BookingTaxLine,
   CreateBookingInput,
   CreateBookingResult,
+  TaxPreview,
 } from "./booking";
 export type {
   AddOnDTO,

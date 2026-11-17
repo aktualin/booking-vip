@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from "@/components/providers/LocaleProvider";
-import type { ProductDetailDTO } from "@/types";
+import type { ProductDetailDTO, TaxPreview } from "@/types";
 
 type Props = {
   product: ProductDetailDTO;
@@ -16,6 +16,8 @@ type Props = {
   /** The validated promo/voucher discount (USD cents), shown before the total. */
   discountUsdCents?: number;
   promoCode?: string | null;
+  /** The server-computed tax preview of the discounted subtotal (null while loading). */
+  taxPreview?: TaxPreview | null;
 };
 
 export default function BookingSummary({
@@ -30,6 +32,7 @@ export default function BookingSummary({
   addOns,
   discountUsdCents = 0,
   promoCode = null,
+  taxPreview = null,
 }: Props) {
   const { formatMoney, t } = useLocale();
 
@@ -54,7 +57,10 @@ export default function BookingSummary({
   // Calculate add-ons
   const addOnsTotal = addOns.reduce((sum, a) => sum + a.unitUsd * a.qty, 0);
   const discountUsd = Math.min(discountUsdCents / 100, subtotal + addOnsTotal);
-  const total = Math.max(0, subtotal + addOnsTotal - discountUsd);
+  // The server-computed taxes of the discounted amount — the same lines the
+  // booking creation applies, so the shown total matches the charged total.
+  const taxUsd = (taxPreview?.totalUsdCents ?? 0) / 100;
+  const total = Math.max(0, subtotal + addOnsTotal - discountUsd) + taxUsd;
   // The points this booking earns once paid — the same 1-point-per-dollar
   // rule the server applies to the stored total.
   const earnPreview = Math.floor(total);
@@ -129,6 +135,21 @@ export default function BookingSummary({
           <span className="shrink-0 font-bold text-brand-dark">
             −{formatMoney(discountUsd)}
           </span>
+        </div>
+      ) : null}
+
+      {taxPreview && taxPreview.lines.length > 0 ? (
+        <div className="mb-4 space-y-2 border-t border-line pt-4 text-sm">
+          {taxPreview.lines.map((line) => (
+            <div key={line.key} className="flex justify-between">
+              <span className="text-muted">
+                {t("wizard.summary.tax")} · {line.label} ({line.value})
+              </span>
+              <span className="font-semibold text-ink">
+                {formatMoney(line.amountUsdCents / 100)}
+              </span>
+            </div>
+          ))}
         </div>
       ) : null}
 

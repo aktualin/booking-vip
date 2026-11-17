@@ -254,10 +254,11 @@ function appUrl(): string {
 }
 
 /**
- * The session lifetime we rely on. Xendit defaults to 24h on this account;
- * the authoritative expiry is always the `expires_at` in the response.
+ * The session lifetime we enforce: the customer has 5 minutes to pay on the
+ * hosted page. Sent to Xendit as `expires_at` so the gateway expires the
+ * session itself; the `expires_at` in the response stays authoritative.
  */
-export const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+export const SESSION_TTL_MS = 5 * 60 * 1000;
 
 /** Sanitize a name for Xendit's alphanumeric-only customer fields. */
 function cleanName(value: string, fallback: string): string {
@@ -324,6 +325,7 @@ export async function createPaymentSession(
     country: "ID",
     allow_save_payment_method: "DISABLED",
     allowed_payment_channels: allowedChannels,
+    expires_at: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
     description: input.description.slice(0, 1000),
     customer: {
       reference_id: input.customerReferenceId.replace(/[^A-Za-z0-9]/g, "").slice(0, 64),

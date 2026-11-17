@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { getProduct, getPlaceOptions } from "@/app/actions/catalog";
-import { createBooking } from "@/app/actions/booking";
+import { createBooking, previewTaxes } from "@/app/actions/booking";
 import { startBookingPayment } from "@/app/actions/payments";
 import { parsePickedPoint } from "@/lib/picked-point";
 import type { PlaceNode } from "@/lib/places";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { useAccountOverview } from "@/components/providers/AccountProvider";
-import type { ProductDetailDTO } from "@/types";
+import type { ProductDetailDTO, TaxPreview } from "@/types";
 import WizardStepper from "./WizardStepper";
 import BookingSummary from "./BookingSummary";
 import StepAddOns from "./StepAddOns";
@@ -209,6 +209,24 @@ export default function BookingWizard() {
     });
   }, [selectedAddOns, product]);
 
+  // The server-computed tax preview of the discounted amount — the same
+  // `computeTaxesFor` the booking creation applies, so the summary shows the
+  // exact tax lines and the tax-inclusive total BEFORE the customer submits.
+  const taxableUsdCents = Math.max(
+    0,
+    Math.round(total * 100) - (appliedPromo?.discountUsdCents ?? 0),
+  );
+  const [taxPreview, setTaxPreview] = useState<TaxPreview | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    previewTaxes(taxableUsdCents).then((result) => {
+      if (!cancelled) setTaxPreview(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [taxableUsdCents]);
+
   /**
    * Pay: create the booking (once) and start the payment for the method the
    * customer picked in the payment step. The browser is redirected to the
@@ -397,6 +415,7 @@ export default function BookingWizard() {
               isSubmitting={isSubmitting}
               error={submitError}
               subtotalUsdCents={Math.round(total * 100)}
+              taxUsdCents={taxPreview?.totalUsdCents ?? 0}
               appliedPromo={appliedPromo}
               onPromoChange={setAppliedPromo}
             />
@@ -422,6 +441,7 @@ export default function BookingWizard() {
               addOns={addOnsWithLabels}
               discountUsdCents={appliedPromo?.discountUsdCents ?? 0}
               promoCode={appliedPromo?.code ?? null}
+              taxPreview={taxPreview}
             />
         </aside>
       </div>

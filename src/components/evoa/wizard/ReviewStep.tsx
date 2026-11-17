@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   EVOA_DOC_SLOTS,
   EVOA_GENDERS,
@@ -11,7 +11,8 @@ import {
   type EvoaAnswers,
   type EvoaFieldDefDTO,
 } from "@/lib/evoa-shared";
-import type { EvoaFormData } from "@/app/actions/evoa";
+import { quoteEvoaFor, type EvoaFormData } from "@/app/actions/evoa";
+import type { EvoaQuote } from "@/lib/evoa-pricing";
 import {
   docCount,
   formatDate,
@@ -167,10 +168,26 @@ export default function ReviewStep({
     data.countries.find((c) => c.code === code)?.name ?? code;
 
   const n = applicants.length;
-  const quote = data.quote;
-  // The quote is per person — the order total is unit × count (the server
-  // re-quotes at submit; this is the display estimate).
-  const totalUsdCents = quote.unitUsdCents * n;
+
+  // A live quote for the actual applicant count — it includes the configured
+  // taxes (admin → Pajak), so the breakdown here matches what the submit path
+  // charges. Until it resolves, the per-person quote estimates the fees.
+  const [liveQuote, setLiveQuote] = useState<EvoaQuote | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    quoteEvoaFor(n).then((result) => {
+      if (!cancelled && result.ok) setLiveQuote(result.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [n]);
+
+  const quote = liveQuote ?? data.quote;
+  // Fees before tax — the server re-quotes at submit; this is the display.
+  const subtotalUsdCents = quote.unitUsdCents * n;
+  const taxUsdCents = liveQuote ? liveQuote.taxUsdCents : 0;
+  const totalUsdCents = subtotalUsdCents + taxUsdCents;
   const idrEstimate = (totalUsdCents / 100) * quote.rate;
 
   const visibleOrderDefs = data.fieldDefs.application.filter((def) =>
@@ -313,17 +330,27 @@ export default function ReviewStep({
         <div className="mt-2">
           <Row
             label={`${n} × (${t("service fee", "biaya jasa")} ${usd(quote.serviceFeeUsdCents)} + ${t("official fee", "biaya resmi")} ${usd(quote.officialFeeUsdCents)})`}
-            value={usd(totalUsdCents)}
+            value={usd(subtotalUsdCents)}
           />
           <Row
             label={t("Official fee per person (IDR)", "Biaya resmi per orang (IDR)")}
             value={idr(quote.officialFeeIdr)}
           />
+          {liveQuote?.taxes.map((line) => (
+            <Row
+              key={line.key}
+              label={`${t("Tax", "Pajak")} · ${line.label} (${line.value})`}
+              value={usd(line.amountUsdCents)}
+            />
+          ))}
           <div className="mt-2 flex items-start justify-between gap-3 border-t border-line pt-2">
             <span className="text-[13px] font-semibold text-ink">
               {t("Estimated total (IDR)", "Perkiraan total (IDR)")}
             </span>
-            <span className="text-[15px] font-bold text-ink">{idr(idrEstimate)}</span>
+            <span className="text-right">
+              <span className="block text-[15px] font-bold text-ink">{idr(idrEstimate)}</span>
+              <span className="block text-[11px] text-muted">≈ {usd(totalUsdCents)}</span>
+            </span>
           </div>
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
             {t(

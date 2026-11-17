@@ -14,8 +14,10 @@ import {
 import type {
   BookingLookupDTO,
   BookingLookupResult,
+  BookingTaxLine,
   CreateBookingInput,
   CreateBookingResult,
+  TaxPreview,
 } from "@/types";
 import type { TourItineraryDay } from "@/types/tour";
 
@@ -59,7 +61,7 @@ async function findBookingByIdempotencyKey(
   key: string
 ): Promise<CreateBookingResult | null> {
   const rows = await db.orm.public.Booking
-    .select("code", "totalUsdCents", "invoiceNumber")
+    .select("code", "totalUsdCents", "invoiceNumber", "taxes", "taxUsdCents")
     .where((f) => f.idempotencyKey.eq(key))
     .limit(1)
     .all();
@@ -70,6 +72,8 @@ async function findBookingByIdempotencyKey(
     code: prior.code,
     totalUsdCents: prior.totalUsdCents,
     invoiceNumber: prior.invoiceNumber ?? "",
+    taxes: Array.isArray(prior.taxes) ? (prior.taxes as BookingTaxLine[]) : [],
+    taxUsdCents: prior.taxUsdCents,
   };
 }
 
@@ -475,7 +479,14 @@ async function createCartBooking(
       }
     }
 
-    return { ok: true, code, totalUsdCents, invoiceNumber };
+    return {
+      ok: true,
+      code,
+      totalUsdCents,
+      invoiceNumber,
+      taxes: taxes.lines,
+      taxUsdCents: taxes.totalUsdCents,
+    };
   } catch (insertError) {
     // Compensating deletes — cover every cart line.
     console.error("[booking] cart insert failed, rolling back", insertError);
@@ -1102,7 +1113,14 @@ export async function createBooking(
         }
       }
 
-      return { ok: true, code, totalUsdCents, invoiceNumber };
+      return {
+        ok: true,
+        code,
+        totalUsdCents,
+        invoiceNumber,
+        taxes: taxes.lines,
+        taxUsdCents: taxes.totalUsdCents,
+      };
     } catch (insertError) {
       // Compensating deletes
       console.error("[booking] insert failed, rolling back", insertError);
@@ -1158,6 +1176,20 @@ export async function validatePromoCode(
     title: check.promo.title,
     discountUsdCents: check.discountUsdCents,
   };
+}
+
+/**
+ * Preview the taxes of a taxable amount (USD cents) without booking anything.
+ *
+ * The checkout summaries call this so the customer sees the exact tax lines
+ * and the tax-inclusive total BEFORE submitting — computed with the same
+ * `computeTaxesFor` the booking creation uses, so preview and charge match.
+ * The amount is sanitized server-side; an empty tax table yields no lines.
+ */
+export async function previewTaxes(subtotalUsdCents: number): Promise<TaxPreview> {
+  const amount = Math.max(0, Math.floor(Number(subtotalUsdCents) || 0));
+  const taxes = await computeTaxesFor(amount);
+  return { lines: taxes.lines, totalUsdCents: taxes.totalUsdCents };
 }
 
 /**

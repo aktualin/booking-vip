@@ -54,12 +54,14 @@ import { notifyEvoaStatusChange } from "@/lib/evoa-notify";
  */
 
 /**
- * The Xendit channels a PaymentMethod can be bound to. Only the card channel
- * is offered — QRIS and Virtual Account are retired (their inactive
- * PaymentMethod rows remain for historical payments, and the webhook still
- * settles any legacy event that arrives).
+ * The Xendit channels a PaymentMethod can be bound to — card and QRIS.
+ * Virtual Account is retired (its inactive PaymentMethod row remains for
+ * historical payments, and the webhook still settles any legacy event).
  */
-const SUPPORTED_CHANNELS: readonly PaymentChannel[] = ["CREDIT_CARD"];
+const SUPPORTED_CHANNELS: readonly PaymentChannel[] = [
+  "CREDIT_CARD",
+  "QRIS",
+];
 
 export type PaymentMethodDTO = {
   id: string;
@@ -706,12 +708,20 @@ export async function getPaymentStatus(params: {
     payment = await getBookingPayment(booking.id);
   }
 
+  // The 5-minute window is over and nothing was paid — report the attempt as
+  // expired instead of letting the return page poll a dead session forever.
+  const expired =
+    !!payment &&
+    payment.status === "pending" &&
+    !!payment.expiresAt &&
+    new Date(payment.expiresAt).getTime() <= Date.now();
+
   const bookingStatus =
     payment?.status === "paid" ? "confirmed" : booking.status;
 
   return {
     ok: true,
-    status: payment?.status ?? "pending",
+    status: expired ? "expired" : (payment?.status ?? "pending"),
     bookingStatus,
     amountUsdCents: booking.totalUsdCents,
     checkoutUrl: payment?.checkoutUrl ?? null,
@@ -739,10 +749,34 @@ async function awardPointsForBooking(bookingId: string): Promise<void> {
   }
 }
 
+/**
+ * Whether our payment attempt for a provider reference is past its 5-minute
+ * window. Used by the PayPal webhook to refuse a late capture — PayPal has no
+ * order expiry of its own, so this is the only enforcement point.
+ *
+ * `false` when no attempt is known or it has no expiry — unknown references
+ * keep their existing behaviour instead of being blocked.
+ */
+export async function isAttemptExpired(
+  provider: string,
+  providerRef: string,
+): Promise<boolean> {
+  const rows = await db.orm.public.Payment
+    .select("expiresAt", "status")
+    .where((f) => f.provider.eq(provider))
+    .where((f) => f.providerRef.eq(providerRef))
+    .limit(1)
+    .all();
+
+  const attempt = rows[0];
+  if (!attempt || !attempt.expiresAt || attempt.status === "paid") return false;
+  return new Date(attempt.expiresAt).getTime() <= Date.now();
+}
+
 /** Refresh a pending payment from the gateway — used by the return page. */
 export async function refreshPayment(paymentId: string): Promise<string | null> {
   const rows = await db.orm.public.Payment
-    .select("id", "bookingId", "provider", "providerRef", "status", "providerAmountCents")
+    .select("id", "bookingId", "provider", "providerRef", "status", "providerAmountCents", "expiresAt")
     .where({ id: paymentId })
     .limit(1)
     .all();
@@ -764,11 +798,19 @@ export async function refreshPayment(paymentId: string): Promise<string | null> 
       let order = await getOrder(payment.providerRef);
       let capture = extractCapture(order);
 
+      // The 5-minute window is over and nothing moved — do NOT capture. An
+      // approval that arrives late is left alone; the attempt stays pending
+      // and getPaymentStatus reports it as expired. A capture that already
+      // happened (money moved) is still settled below.
+      const windowClosed =
+        !!payment.expiresAt &&
+        new Date(payment.expiresAt).getTime() <= Date.now();
+
       // APPROVED with nothing captured yet is the one state where the
       // capture call belongs — a CREATED / PAYER_ACTION_REQUIRED order
       // would throw ORDER_NOT_APPROVED, and the return page polls this.
       // captureOrder is idempotent, so racing the webhook is safe.
-      if (!capture && (order.status ?? "").toUpperCase() === "APPROVED") {
+      if (!capture && !windowClosed && (order.status ?? "").toUpperCase() === "APPROVED") {
         order = await captureOrder(payment.providerRef);
         capture = extractCapture(order);
       }
