@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/prisma/db";
+import { convertUsdCentsToIdr, getUsdToIdrRate } from "@/lib/fx";
 import { recomputeUserPoints } from "@/lib/loyalty";
 import {
   createCardSession,
@@ -22,8 +23,10 @@ import {
  * Payment Session — the customer pays on Xendit's hosted checkout page.
  * Credentials live in the environment only.
  *
- * Every amount is USD. The booking total (USD cents) is charged as-is; there
- * is no FX conversion anywhere in the flow.
+ * Prices are stored and displayed in USD. Xendit charges in IDR, so the
+ * booking total (USD cents) is converted to whole rupiah with the live
+ * USD→IDR rate at session creation; the rate and the IDR amount are frozen
+ * on the payment row (`fxRate`, `providerAmountCents`, `providerCurrency`).
  *
  * The rules that matter:
  *
@@ -180,8 +183,11 @@ export async function startPayment(params: {
     };
   }
 
-  // The amount is the booking total in USD — charged as-is, no conversion.
+  // Xendit charges in IDR — convert the USD total with the rate of the
+  // moment the session is created. The rate is frozen on the payment row.
   const amountUsdCents = booking.totalUsdCents;
+  const rate = await getUsdToIdrRate();
+  const amountIdr = convertUsdCentsToIdr(amountUsdCents, rate);
 
   // Count the previous attempts so a retry gets a fresh reference.
   const previous = await db.orm.public.Payment
@@ -197,7 +203,7 @@ export async function startPayment(params: {
   const contact = contacts[0];
   const payment: GatewayPayment = await createCardSession({
     referenceId: invoiceNumber,
-    amountUsdCents,
+    amountIdr,
     payerEmail: email,
     payerFirstName: contact.firstName,
     payerLastName: contact.lastName,
@@ -216,6 +222,8 @@ export async function startPayment(params: {
     provider: "xendit",
     providerRef: payment.providerRef,
     providerAmountCents: payment.amountCents,
+    providerCurrency: payment.currency,
+    fxRate: rate,
     checkoutUrl: payment.checkoutUrl ?? null,
     expiresAt: payment.expiresAt ?? null,
     rawPayload: payment.raw as never,

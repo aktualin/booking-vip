@@ -111,6 +111,7 @@ export type InvoiceDTO = {
     methodLabel: string | null;
     provider: string | null;
     providerRef: string | null;
+    amountUsdCents: number;
     providerAmountCents: number | null;
     paidAt: string | null;
   } | null;
@@ -202,6 +203,7 @@ export async function loadInvoice(bookingId: string): Promise<InvoiceDTO | null>
         "status",
         "provider",
         "providerRef",
+        "amountUsdCents",
         "providerAmountCents",
         "paidAt",
         "methodId",
@@ -283,6 +285,7 @@ export async function loadInvoice(bookingId: string): Promise<InvoiceDTO | null>
           methodLabel,
           provider: settled.provider ?? null,
           providerRef: settled.providerRef ?? null,
+          amountUsdCents: settled.amountUsdCents,
           providerAmountCents: settled.providerAmountCents ?? null,
           paidAt: settled.paidAt ? new Date(settled.paidAt).toISOString() : null,
         }

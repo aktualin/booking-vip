@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'1ae23f0067f0afa5978542c0eb38feda37bbb6da283163f4b49f3914f99194fd'>;
+  StorageHashBase<'19a031fdfd1890b629fc6b9006eec08cff45605b6b0cb25ee51752afe1e647aa'>;
 export type ExecutionHash =
   ExecutionHashBase<'37dc325c044f5ae026e2b6c95565a2057a3c07138a86b4e9ebba9b0801e2a195'>;
 export type ProfileHash =
@@ -530,11 +530,13 @@ export namespace Models {
     checkoutUrl: FieldOutputTypes['public']['Payment']['checkoutUrl'];
     createdAt: FieldOutputTypes['public']['Payment']['createdAt'];
     expiresAt: FieldOutputTypes['public']['Payment']['expiresAt'];
+    fxRate: FieldOutputTypes['public']['Payment']['fxRate'];
     id: FieldOutputTypes['public']['Payment']['id'];
     methodId: FieldOutputTypes['public']['Payment']['methodId'];
     paidAt: FieldOutputTypes['public']['Payment']['paidAt'];
     provider: FieldOutputTypes['public']['Payment']['provider'];
     providerAmountCents: FieldOutputTypes['public']['Payment']['providerAmountCents'];
+    providerCurrency: FieldOutputTypes['public']['Payment']['providerCurrency'];
     providerRef: FieldOutputTypes['public']['Payment']['providerRef'];
     rawPayload: FieldOutputTypes['public']['Payment']['rawPayload'];
     reference: FieldOutputTypes['public']['Payment']['reference'];
@@ -2383,6 +2385,16 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly fxRate: {
+                  readonly dataType: 'pg/float8';
+                  readonly codecId: 'pg/float8@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/float8@1', 1>;
+                  };
+                  readonly many: false;
+                };
                 readonly id: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -2411,6 +2423,12 @@ type ContractBase = Omit<
                 readonly providerAmountCents: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly providerCurrency: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
                   readonly nullable: true;
                   readonly many: false;
                 };
@@ -5987,6 +6005,10 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly fxRate: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/float8@1' };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -6010,6 +6032,10 @@ type ContractBase = Omit<
               readonly providerAmountCents: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly providerCurrency: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly providerRef: {
                 readonly nullable: true;
@@ -6063,11 +6089,13 @@ type ContractBase = Omit<
                 readonly checkoutUrl: { readonly column: 'checkoutUrl' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly expiresAt: { readonly column: 'expiresAt' };
+                readonly fxRate: { readonly column: 'fxRate' };
                 readonly id: { readonly column: 'id' };
                 readonly methodId: { readonly column: 'methodId' };
                 readonly paidAt: { readonly column: 'paidAt' };
                 readonly provider: { readonly column: 'provider' };
                 readonly providerAmountCents: { readonly column: 'providerAmountCents' };
+                readonly providerCurrency: { readonly column: 'providerCurrency' };
                 readonly providerRef: { readonly column: 'providerRef' };
                 readonly rawPayload: { readonly column: 'rawPayload' };
                 readonly reference: { readonly column: 'reference' };

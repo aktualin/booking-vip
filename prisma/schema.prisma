@@ -559,10 +559,15 @@ model Payment {
   reference      String?
   /// The gateway that owns this payment: "xendit" | null.
   provider       String?
-  /// The provider-side id (the Xendit invoice id).
+  /// The provider-side id (the Xendit payment session id).
   providerRef    String?
-  /// The amount charged by the provider, in USD cents.
+  /// The amount charged by the provider, in the provider currency's cents
+  /// (IDR has no decimals, so this is the whole-rupiah amount × 100).
   providerAmountCents Int?
+  /// The currency the customer was charged in: "IDR".
+  providerCurrency String?
+  /// The USD→provider-currency rate frozen at payment creation.
+  fxRate         Float    @default(1)
   /// The checkout URL the customer was redirected to.
   checkoutUrl    String?
   expiresAt      DateTime?

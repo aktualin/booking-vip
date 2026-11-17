@@ -302,9 +302,9 @@ export default function InvoiceSheet({ invoice }: { invoice: InvoiceDTO }) {
                 Ref Xendit: {payment.providerRef}
               </p>
             ) : null}
-            {payment.providerAmountCents != null ? (
+            {payment.amountUsdCents != null ? (
               <p className="text-ink">
-                Ditagih: {money(payment.providerAmountCents)}
+                Ditagih: {money(payment.amountUsdCents)}
               </p>
             ) : null}
           </div>

@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     externalId: referenceId,
     status,
     amountCents,
-    currency: data.currency ?? "USD",
+    currency: data.currency ?? "IDR",
     raw: payload,
   });
 

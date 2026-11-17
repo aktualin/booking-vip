@@ -10,10 +10,12 @@ import { timingSafeEqual } from "node:crypto";
  * checkout page (`payment_link_url`), where the card form and 3DS live — raw
  * card data never touches this server (PCI SAQ A).
  *
- * Every amount is USD. The session is created with `currency: "USD"` and the
- * booking total in USD cents / 100 — there is no FX conversion anywhere.
- * (For Indonesian merchants Xendit settles to the balance in the local
- * currency internally; that is Xendit's side of the integration, never ours.)
+ * Prices are stored and displayed in USD. Xendit charges Indonesian cards
+ * in IDR, so the server converts the booking total (USD cents) to whole
+ * rupiah at session creation (see `src/lib/fx.ts` — Frankfurter API with a
+ * fallback) and creates the session with `currency: "IDR"`. The rate used
+ * and the IDR amount are frozen on the payment row. The customer-facing
+ * display stays USD everywhere; the conversion is server-side plumbing.
  *
  * Authentication is HTTP Basic with the secret API key. Incoming webhooks
  * are verified with the `x-callback-token` header against the webhook
@@ -41,9 +43,9 @@ export type GatewayPayment = {
   /** The Xendit payment session id — our provider reference. */
   providerRef: string;
   status: GatewayStatus;
-  /** The amount charged, in USD cents. */
+  /** The amount charged, in IDR cents (whole rupiah × 100). */
   amountCents: number;
-  currency: "USD";
+  currency: "IDR";
   /** Where the customer has to go to pay (the hosted checkout page). */
   checkoutUrl?: string;
   expiresAt?: Date;
@@ -194,15 +196,17 @@ function cleanName(value: string, fallback: string): string {
 }
 
 /**
- * Create a PAYMENT_LINK session for a card payment in USD and return its
+ * Create a PAYMENT_LINK session for a card payment in IDR and return its
  * hosted checkout URL.
  *
  * The customer enters the card on Xendit's hosted page; 3DS and the result
  * are handled there. `referenceId` is our invoice number (max 64 chars).
+ * `amountIdr` is the whole-rupiah amount the server converted from the USD
+ * total — Xendit IDR amounts are integers without decimals.
  */
 export async function createCardSession(input: {
   referenceId: string;
-  amountUsdCents: number;
+  amountIdr: number;
   payerEmail: string;
   payerFirstName: string;
   payerLastName: string;
@@ -214,14 +218,14 @@ export async function createCardSession(input: {
   successRedirectUrl: string;
   failureRedirectUrl: string;
 }): Promise<GatewayPayment> {
-  const amount = Math.max(0.01, input.amountUsdCents / 100);
+  const amount = Math.max(1, Math.round(input.amountIdr));
 
   const payload = await xenditFetch<XenditSession>("POST", "/sessions", {
     reference_id: input.referenceId.slice(0, 64),
     session_type: "PAY",
     mode: "PAYMENT_LINK",
     amount,
-    currency: "USD",
+    currency: "IDR",
     country: "ID",
     allow_save_payment_method: "DISABLED",
     allowed_payment_channels: ["CARDS"],
@@ -249,7 +253,7 @@ export async function createCardSession(input: {
     providerRef: payload.payment_session_id,
     status: mapGatewayStatus(payload.status),
     amountCents: Math.round((payload.amount ?? amount) * 100),
-    currency: "USD",
+    currency: "IDR",
     checkoutUrl: payload.payment_link_url ?? undefined,
     expiresAt: payload.expires_at
       ? new Date(payload.expires_at)

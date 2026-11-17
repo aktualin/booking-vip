@@ -1,0 +1,132 @@
+[
+  {
+    "id": "column.public.Payment.fxRate",
+    "label": "Add column \"fxRate\" to \"Payment\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "fxRate",
+        "table": "Payment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"fxRate\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "fxRate"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"fxRate\" on \"Payment\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"fxRate\"",
+        "sql": "ALTER TABLE \"public\".\"Payment\" ADD COLUMN \"fxRate\" float8 DEFAULT 1 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"fxRate\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "fxRate"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"fxRate\" on \"Payment\""
+        }
+      },
+      {
+        "description": "verify column \"fxRate\" has type \"double precision\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "fxRate",
+          "double precision"
+        ]
+      },
+      {
+        "description": "verify column \"fxRate\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "fxRate",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Payment.providerCurrency",
+    "label": "Add column \"providerCurrency\" to \"Payment\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "providerCurrency",
+        "table": "Payment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"providerCurrency\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "providerCurrency"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"providerCurrency\" on \"Payment\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"providerCurrency\"",
+        "sql": "ALTER TABLE \"public\".\"Payment\" ADD COLUMN \"providerCurrency\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"providerCurrency\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "providerCurrency"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"providerCurrency\" on \"Payment\""
+        }
+      },
+      {
+        "description": "verify column \"providerCurrency\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "providerCurrency",
+          "text"
+        ]
+      }
+    ]
+  }
+]

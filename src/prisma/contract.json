@@ -2205,6 +2205,13 @@
                   }
                 }
               },
+              "fxRate": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -2240,6 +2247,13 @@
                 "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "providerCurrency": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -2323,6 +2337,9 @@
                 "expiresAt": {
                   "column": "expiresAt"
                 },
+                "fxRate": {
+                  "column": "fxRate"
+                },
                 "id": {
                   "column": "id"
                 },
@@ -2337,6 +2354,9 @@
                 },
                 "providerAmountCents": {
                   "column": "providerAmountCents"
+                },
+                "providerCurrency": {
+                  "column": "providerCurrency"
                 },
                 "providerRef": {
                   "column": "providerRef"
@@ -7029,6 +7049,15 @@
                     "precision": 3
                   }
                 },
+                "fxRate": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "default": {
+                    "kind": "literal",
+                    "value": 1
+                  },
+                  "nullable": false
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -7055,6 +7084,11 @@
                 "providerAmountCents": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "providerCurrency": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "providerRef": {
@@ -9479,7 +9513,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "1ae23f0067f0afa5978542c0eb38feda37bbb6da283163f4b49f3914f99194fd"
+    "storageHash": "19a031fdfd1890b629fc6b9006eec08cff45605b6b0cb25ee51752afe1e647aa"
   },
   "execution": {
     "executionHash": "37dc325c044f5ae026e2b6c95565a2057a3c07138a86b4e9ebba9b0801e2a195",
