@@ -293,38 +293,6 @@ export const PayPalLogo = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-/** QRIS — red QR-corner glyph + bold red QRIS lettering. */
-export const QrisLogo = (p: SVGProps<SVGSVGElement>) => (
-  <svg
-    width={54}
-    height={16}
-    viewBox="0 0 47 14"
-    fill="none"
-    aria-hidden="true"
-    {...p}
-  >
-    <g transform="translate(0 1)" fill="#E31E25">
-      <path d="M0 0H12V12H0ZM3 3V9H9V3Z" fillRule="evenodd" />
-      <rect x="4.5" y="4.5" width="3" height="3" />
-      <rect x="13.5" y="1.5" width="2" height="2" />
-      <rect x="13.5" y="8.5" width="2" height="2" />
-    </g>
-    <g
-      transform="translate(17 2)"
-      stroke="#E31E25"
-      strokeWidth={2.2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="4.7" cy="5" r="3.5" />
-      <path d="M6.5 7.5 8.8 10.2" />
-      <path d="M11 10V0H14.2C16.2 0 17.2 1 17.2 2.7C17.2 4.4 16.2 5.4 14.2 5.4H11M14.2 5.4 17.4 10" />
-      <path d="M20.5 0V10" />
-      <path d="M28 1.4C27.2 0.5 26 0 24.8 0C23 0 21.8 1 21.8 2.4C21.8 5.4 28 4.6 28 7.6C28 9.1 26.7 10 24.9 10C23.5 10 22.2 9.4 21.4 8.4" />
-    </g>
-  </svg>
-);
-
 /** Car — the transport category glyph of the hero rail. */
 export const CarIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>

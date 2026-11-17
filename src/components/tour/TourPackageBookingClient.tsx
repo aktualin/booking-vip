@@ -169,8 +169,6 @@ export default function TourPackageBookingClient({
       travelers: [],
       pickup: { label: pickup.label, lat: pickup.lat, lng: pickup.lng },
       dropoff: { label: dropoff.label, lat: dropoff.lat, lng: dropoff.lng },
-      currencyCode: "USD",
-      fxRate: 1,
     });
 
     setSubmitting(false);

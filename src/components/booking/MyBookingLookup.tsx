@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getBookingByCode } from "@/app/actions/booking";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { formatSnapshot } from "@/lib/currency";
 import type { BookingLookupDTO } from "@/types";
 
 const LAST_BOOKING_KEY = "booking-vip:last-booking";
 
 export default function MyBookingLookup() {
   const searchParams = useSearchParams();
-  const { t } = useLocale();
+  const { t, formatMoney } = useLocale();
 
   const plural = (n: number) => (n !== 1 ? "s" : "");
 
@@ -194,7 +193,7 @@ export default function MyBookingLookup() {
                     {item.packageLabel && ` — ${item.packageLabel}`}
                   </span>
                   <span className="font-semibold text-ink">
-                    {formatSnapshot(item.totalUsd, booking.currencyCode, booking.fxRate)}
+                    {formatMoney(item.totalUsd)}
                   </span>
                 </div>
               ))}
@@ -204,7 +203,7 @@ export default function MyBookingLookup() {
                     {addOn.label} × {addOn.quantity}
                   </span>
                   <span className="font-semibold text-ink">
-                    {formatSnapshot(addOn.totalUsd, booking.currencyCode, booking.fxRate)}
+                    {formatMoney(addOn.totalUsd)}
                   </span>
                 </div>
               ))}
@@ -222,7 +221,7 @@ export default function MyBookingLookup() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-muted">{t("myBooking.total")}</span>
               <span className="text-xl font-bold text-brand">
-                {formatSnapshot(booking.totalUsd, booking.currencyCode, booking.fxRate)}
+                {formatMoney(booking.totalUsd)}
               </span>
             </div>
           </div>

@@ -74,8 +74,6 @@ export type InvoiceDTO = {
   status: string;
   serviceAt: string;
   createdAt: string;
-  currencyCode: string;
-  fxRate: number;
   subtotalUsdCents: number;
   addOnsUsdCents: number;
   discountUsdCents: number;
@@ -114,8 +112,6 @@ export type InvoiceDTO = {
     provider: string | null;
     providerRef: string | null;
     providerAmountCents: number | null;
-    providerCurrency: string | null;
-    fxRate: number | null;
     paidAt: string | null;
   } | null;
 };
@@ -152,8 +148,6 @@ export async function loadInvoice(bookingId: string): Promise<InvoiceDTO | null>
       "status",
       "serviceAt",
       "createdAt",
-      "currencyCode",
-      "fxRate",
       "subtotalUsdCents",
       "addOnsUsdCents",
       "discountUsdCents",
@@ -209,8 +203,6 @@ export async function loadInvoice(bookingId: string): Promise<InvoiceDTO | null>
         "provider",
         "providerRef",
         "providerAmountCents",
-        "providerCurrency",
-        "fxRate",
         "paidAt",
         "methodId",
       )
@@ -243,8 +235,6 @@ export async function loadInvoice(bookingId: string): Promise<InvoiceDTO | null>
     status: booking.status,
     serviceAt: new Date(booking.serviceAt).toISOString(),
     createdAt: new Date(booking.createdAt).toISOString(),
-    currencyCode: booking.currencyCode,
-    fxRate: booking.fxRate,
     subtotalUsdCents: booking.subtotalUsdCents,
     addOnsUsdCents: booking.addOnsUsdCents,
     discountUsdCents: booking.discountUsdCents,
@@ -294,8 +284,6 @@ export async function loadInvoice(bookingId: string): Promise<InvoiceDTO | null>
           provider: settled.provider ?? null,
           providerRef: settled.providerRef ?? null,
           providerAmountCents: settled.providerAmountCents ?? null,
-          providerCurrency: settled.providerCurrency ?? null,
-          fxRate: settled.fxRate ?? null,
           paidAt: settled.paidAt ? new Date(settled.paidAt).toISOString() : null,
         }
       : null,

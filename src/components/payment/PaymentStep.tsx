@@ -2,21 +2,13 @@
 
 // The payment screen of the transport booking flow (/transport/booking):
 // the booking already exists, so picking a method and paying is all that is
-// left. The card form is embedded on OUR page (Host-to-Host); QRIS goes to
-// the DOKU hosted page.
+// left. Paying redirects to the Xendit hosted checkout page, where the card
+// form lives.
 
 import { useEffect, useState } from "react";
 import { getPaymentMethods } from "@/app/actions/catalog";
-import {
-  startBookingPayment,
-  startCardDirectBookingPayment,
-} from "@/app/actions/payments";
+import { startBookingPayment } from "@/app/actions/payments";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import DokuCardForm, {
-  EMPTY_CARD_FIELDS,
-  parseCardFields,
-  type CardFields,
-} from "./DokuCardForm";
 import PaymentMethodPicker, {
   type PaymentMethodOption,
 } from "./PaymentMethodPicker";
@@ -38,8 +30,6 @@ export default function PaymentStep({
   const [methods, setMethods] = useState<PaymentMethodOption[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState("");
-  const [card, setCard] = useState<CardFields>(EMPTY_CARD_FIELDS);
-  const [cardError, setCardError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,40 +56,8 @@ export default function PaymentStep({
   const pay = async () => {
     if (!selected || submitting) return;
 
-    if (selected === "CREDIT_CARD") {
-      const parsed = parseCardFields(card);
-      if (!parsed.ok) {
-        setCardError(parsed.error);
-        return;
-      }
-      setCardError(null);
-      setSubmitting(true);
-      setError(null);
-
-      const result = await startCardDirectBookingPayment({
-        bookingCode,
-        email,
-        cardNumber: parsed.cardNumber,
-        cardExpiry: parsed.cardExpiry,
-        cardCvv: parsed.cardCvv,
-      });
-
-      if (result.ok) {
-        rememberBooking();
-        // The card data is never needed again on this page — wipe it.
-        setCard(EMPTY_CARD_FIELDS);
-        // Off to the issuer's 3DS page; DOKU returns to /payment/3ds/return,
-        // which charges and lands on the payment return page.
-        window.location.href = result.authenticationUrl;
-        return;
-      }
-
-      setError(result.error);
-      setSubmitting(false);
-      return;
-    }
-
-    // QRIS → the DOKU hosted checkout.
+    // Credit card → the Xendit hosted checkout; the customer comes back via
+    // /payment/return, which polls the payment status.
     setSubmitting(true);
     setError(null);
     const result = await startBookingPayment({
@@ -109,7 +67,7 @@ export default function PaymentStep({
     });
     if (result.ok) {
       rememberBooking();
-      window.location.href = result.checkoutUrl;
+      window.location.assign(result.checkoutUrl);
       return;
     }
     setError(result.error);
@@ -142,27 +100,11 @@ export default function PaymentStep({
           <PaymentMethodPicker
             methods={methods}
             selected={selected}
-            onSelect={(code) => {
-              setSelected(code);
-              setCardError(null);
-            }}
+            onSelect={setSelected}
             disabled={submitting}
           />
         </div>
       )}
-
-      {selected === "CREDIT_CARD" && loaded && methods.length > 0 ? (
-        <div className="mt-5 border-t border-line pt-5">
-          <DokuCardForm
-            value={card}
-            onChange={setCard}
-            amountUsdCents={amountUsdCents}
-            formatMoney={formatMoney}
-            disabled={submitting}
-            error={cardError}
-          />
-        </div>
-      ) : null}
 
       {error ? (
         <p className="mt-4 rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-[13px] text-danger">

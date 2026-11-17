@@ -1,10 +1,10 @@
 "use client";
 
-// The payment method picker — one radio card per active DOKU method
-// (Kartu Kredit/Debit, QRIS). Shared by the booking wizard's payment step
-// and the transport flow's payment screen.
+// The payment method picker — one radio card per active Xendit method
+// (Kartu Kredit/Debit). Shared by the booking wizard's payment step and the
+// transport flow's payment screen.
 
-import { MastercardLogo, QrisLogo, VisaLogo } from "@/components/icons";
+import { MastercardLogo, VisaLogo } from "@/components/icons";
 
 export type PaymentMethodOption = {
   code: string;
@@ -15,11 +15,7 @@ export type PaymentMethodOption = {
 const METHOD_META: Record<string, { title: string; hint: string }> = {
   CREDIT_CARD: {
     title: "Kartu Kredit / Debit",
-    hint: "Visa, Mastercard & JCB — bayar aman langsung di halaman ini.",
-  },
-  QRIS: {
-    title: "QRIS",
-    hint: "Scan dengan aplikasi e-wallet atau mobile banking apa pun.",
+    hint: "Visa, Mastercard & JCB — bayar aman lewat halaman checkout Xendit.",
   },
 };
 
@@ -54,9 +50,7 @@ export default function PaymentMethodPicker({
             }`}
           >
             <span className="flex h-10 w-16 shrink-0 items-center justify-center gap-1 rounded-lg border border-line bg-white">
-              {method.code === "QRIS" ? (
-                <QrisLogo />
-              ) : method.code === "CREDIT_CARD" ? (
+              {method.code === "CREDIT_CARD" ? (
                 <>
                   <VisaLogo width={30} height={12} />
                   <MastercardLogo width={19} height={14} />

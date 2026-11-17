@@ -1,18 +1,15 @@
 import "server-only";
 
 import { db } from "@/prisma/db";
-import { convertUsdCents, getUsdRate } from "@/lib/fx";
 import { recomputeUserPoints } from "@/lib/loyalty";
 import {
-  chargeCard,
-  checkStatus,
-  checkThreeDSecure,
-  createCardPaymentPage,
-  createQrisCheckout,
-  dokuCardSdkUrl,
+  createCardSession,
+  failureUrl,
+  getCardSession,
   mapGatewayStatus,
+  successUrl,
   type GatewayPayment,
-} from "@/lib/doku";
+} from "@/lib/xendit";
 
 /**
  * The payment service.
@@ -21,8 +18,12 @@ import {
  * stores the provider references on the row, and applies the state transition
  * when the gateway tells us the money arrived.
  *
- * The gateway is DOKU (non-SNAP): Credit Card via the Card Payment Page and
- * QRIS via DOKU Checkout. Credentials live in the environment only.
+ * The gateway is Xendit (Payments API v3): Credit Card via a PAYMENT_LINK
+ * Payment Session — the customer pays on Xendit's hosted checkout page.
+ * Credentials live in the environment only.
+ *
+ * Every amount is USD. The booking total (USD cents) is charged as-is; there
+ * is no FX conversion anywhere in the flow.
  *
  * The rules that matter:
  *
@@ -38,20 +39,12 @@ export type PaymentMethodDTO = {
   label: string;
   provider: string | null;
   providerMethodCode: string | null;
-  providerCurrency: string | null;
 };
 
 /** The payment methods that can be started, with their gateway binding. */
 export async function listPaymentMethods(): Promise<PaymentMethodDTO[]> {
   const rows = await db.orm.public.PaymentMethod
-    .select(
-      "id",
-      "code",
-      "label",
-      "provider",
-      "providerMethodCode",
-      "providerCurrency",
-    )
+    .select("id", "code", "label", "provider", "providerMethodCode")
     .where((f) => f.active.eq(true))
     .orderBy((f) => f.sortOrder.asc())
     .all();
@@ -62,7 +55,6 @@ export async function listPaymentMethods(): Promise<PaymentMethodDTO[]> {
     label: row.label,
     provider: row.provider ?? null,
     providerMethodCode: row.providerMethodCode ?? null,
-    providerCurrency: row.providerCurrency ?? null,
   }));
 }
 
@@ -75,11 +67,9 @@ export async function getBookingPayment(bookingId: string) {
       "methodId",
       "status",
       "amountUsdCents",
-      "currencyCode",
       "provider",
       "providerRef",
       "providerAmountCents",
-      "providerCurrency",
       "checkoutUrl",
       "expiresAt",
       "paidAt",
@@ -94,22 +84,26 @@ export async function getBookingPayment(bookingId: string) {
 }
 
 /**
- * The DOKU invoice number for an attempt.
+ * The Xendit session reference for an attempt.
  *
  * The booking invoice (`#INV/YYYY/MM/DD/NNNN/XX`, 24 chars) is used as-is on
  * the first attempt; retries get a `-R<n>` suffix so a failed or expired
- * transaction never collides with the new one. The Credit Card channel caps
- * invoice numbers at 30 characters — the suffix keeps us under it.
+ * transaction never collides with the new one. Xendit caps `reference_id`
+ * at 64 characters.
  */
 function invoiceForAttempt(base: string, attempt: number): string {
-  if (attempt <= 1) return base;
-  return `${base}-R${attempt}`.slice(0, 30);
+  if (attempt <= 1) return base.slice(0, 64);
+  return `${base}-R${attempt}`.slice(0, 64);
 }
 
-/** The DOKU JS session id stored in a payment's raw create response, if any. */
-function sessionIdFromRaw(raw: unknown): string | null {
-  const r = raw as { credit_card_js?: { session_id?: string } } | null;
-  return r?.credit_card_js?.session_id ?? null;
+/** Build an E.164 phone number from the contact's country code + number. */
+function e164Phone(countryCode: string, phone: string): string | undefined {
+  const cc = countryCode.replace(/\D/g, "");
+  let p = phone.replace(/\D/g, "");
+  if (!cc || !p) return undefined;
+  if (p.startsWith("0")) p = p.slice(1);
+  const full = `+${cc}${p}`;
+  return full.length >= 9 && full.length <= 16 ? full : undefined;
 }
 
 /** The successful start-payment payload shared by every return path. */
@@ -117,11 +111,6 @@ type StartPaymentOk = {
   ok: true;
   checkoutUrl: string;
   paymentId: string;
-  channel: "CREDIT_CARD" | "QRIS";
-  /** DOKU JS session id for an embedded card form (null when not activated). */
-  sessionId: string | null;
-  /** The DOKU JS SDK URL for the card channel (null for QRIS). */
-  cardSdkUrl: string | null;
 };
 
 /**
@@ -139,7 +128,7 @@ export async function startPayment(params: {
   const email = params.email.trim().toLowerCase();
 
   const bookings = await db.orm.public.Booking
-    .select("id", "code", "status", "totalUsdCents", "currencyCode", "invoiceNumber")
+    .select("id", "code", "status", "totalUsdCents", "invoiceNumber")
     .where((f) => f.code.eq(code))
     .limit(1)
     .all();
@@ -148,7 +137,7 @@ export async function startPayment(params: {
   if (!booking) return { ok: false, error: "Pesanan tidak ditemukan." };
 
   const contacts = await db.orm.public.Contact
-    .select("email", "firstName", "lastName")
+    .select("email", "firstName", "lastName", "phoneCountryCode", "phone")
     .where((f) => f.bookingId.eq(booking.id))
     .limit(1)
     .all();
@@ -164,12 +153,12 @@ export async function startPayment(params: {
   const methods = await listPaymentMethods();
   const method = methods.find((m) => m.code === params.methodCode);
   if (!method) return { ok: false, error: "Metode pembayaran tidak tersedia." };
-  if (method.provider !== "doku") {
+  if (method.provider !== "xendit") {
     return { ok: false, error: "Metode pembayaran ini belum didukung." };
   }
 
   const channel = (method.providerMethodCode ?? "").toUpperCase();
-  if (channel !== "CREDIT_CARD" && channel !== "QRIS") {
+  if (channel !== "CREDIT_CARD") {
     return { ok: false, error: "Metode pembayaran ini belum didukung." };
   }
 
@@ -179,7 +168,7 @@ export async function startPayment(params: {
   if (
     existing &&
     existing.status === "pending" &&
-    existing.provider === "doku" &&
+    existing.provider === "xendit" &&
     existing.providerRef &&
     existing.checkoutUrl &&
     (!existing.expiresAt || existing.expiresAt.getTime() > Date.now())
@@ -188,61 +177,45 @@ export async function startPayment(params: {
       ok: true,
       checkoutUrl: existing.checkoutUrl,
       paymentId: existing.id,
-      channel,
-      sessionId: sessionIdFromRaw(existing.rawPayload),
-      cardSdkUrl: channel === "CREDIT_CARD" ? dokuCardSdkUrl() : null,
     };
   }
 
-  // DOKU charges in IDR — the USD total is converted with the rate of the
-  // moment the payment is created. DOKU amounts are integers without
-  // decimals, so the converted cents are rounded to whole rupiah.
-  const currency = method.providerCurrency ?? "IDR";
-  const rate =
-    currency.toUpperCase() === (booking.currencyCode ?? "USD").toUpperCase()
-      ? 1
-      : await getUsdRate(currency);
-  const amountCents = convertUsdCents(booking.totalUsdCents, rate);
-  const amountIdr = Math.max(1, Math.round(amountCents / 100));
+  // The amount is the booking total in USD — charged as-is, no conversion.
+  const amountUsdCents = booking.totalUsdCents;
 
-  // Count the previous attempts so a retry gets a fresh invoice number.
+  // Count the previous attempts so a retry gets a fresh reference.
   const previous = await db.orm.public.Payment
     .select("id")
     .where((f) => f.bookingId.eq(booking.id))
-    .where((f) => f.provider.eq("doku"))
+    .where((f) => f.provider.eq("xendit"))
     .all();
   const invoiceNumber = invoiceForAttempt(
     booking.invoiceNumber ?? `INV-${booking.code}`,
     previous.length + 1,
   );
 
-  const input = {
-    invoiceNumber,
-    amountIdr,
+  const contact = contacts[0];
+  const payment: GatewayPayment = await createCardSession({
+    referenceId: invoiceNumber,
+    amountUsdCents,
     payerEmail: email,
-    payerName:
-      `${contacts[0].firstName} ${contacts[0].lastName}`.trim() || undefined,
+    payerFirstName: contact.firstName,
+    payerLastName: contact.lastName,
+    payerPhone: e164Phone(contact.phoneCountryCode ?? "", contact.phone ?? ""),
+    customerReferenceId: booking.id,
     description: `Booking VIP ${booking.code}`,
     successRedirectUrl: successUrl(booking.code),
     failureRedirectUrl: failureUrl(booking.code),
-  };
-
-  const payment: GatewayPayment =
-    channel === "CREDIT_CARD"
-      ? await createCardPaymentPage(input)
-      : await createQrisCheckout(input);
+  });
 
   const gatewayData = {
     methodId: method.id,
     status: "pending",
-    amountUsdCents: booking.totalUsdCents,
-    currencyCode: booking.currencyCode,
-    fxRate: rate,
-    reference: payment.providerRef,
-    provider: "doku",
+    amountUsdCents,
+    reference: invoiceNumber,
+    provider: "xendit",
     providerRef: payment.providerRef,
     providerAmountCents: payment.amountCents,
-    providerCurrency: payment.currency,
     checkoutUrl: payment.checkoutUrl ?? null,
     expiresAt: payment.expiresAt ?? null,
     rawPayload: payment.raw as never,
@@ -279,328 +252,7 @@ export async function startPayment(params: {
     ok: true,
     checkoutUrl: payment.checkoutUrl,
     paymentId,
-    channel,
-    sessionId: payment.sessionId ?? null,
-    cardSdkUrl: channel === "CREDIT_CARD" ? dokuCardSdkUrl() : null,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Host-to-Host card payment — the card form lives on OUR page
-// ---------------------------------------------------------------------------
-
-/**
- * The short-lived CVV vault.
- *
- * The 3DS step sends the customer away to the issuer's page between "card
- * entered" and "charge". The CVV needed for the charge is kept here — in
- * memory only, for 15 minutes, deleted on read. It is NEVER written to the
- * database, the logs, or any disk. Single-instance deployments only.
- */
-const CVV_TTL_MS = 15 * 60 * 1000;
-
-/**
- * The vault lives on `globalThis`, NOT on the module: server actions and
- * route handlers can get separate module instances (especially in dev),
- * so a module-level Map would "lose" the CVV between the action that starts
- * the payment and the 3DS return route that charges it. globalThis is shared
- * by the whole process.
- */
-const globalForVault = globalThis as unknown as {
-  __cardCvvVault?: Map<string, { cvv: string; expiresAt: number }>;
-};
-const cvvVault: Map<string, { cvv: string; expiresAt: number }> =
-  (globalForVault.__cardCvvVault ??= new Map());
-
-function stashCvv(paymentId: string, cvv: string): void {
-  // Sweep expired entries on every write so the map never grows unbounded.
-  const now = Date.now();
-  for (const [key, entry] of cvvVault) {
-    if (entry.expiresAt < now) cvvVault.delete(key);
-  }
-  cvvVault.set(paymentId, { cvv, expiresAt: now + CVV_TTL_MS });
-}
-
-/** Read (and delete) the CVV of a payment, or null when it expired. */
-function takeCvv(paymentId: string): string | null {
-  const entry = cvvVault.get(paymentId);
-  cvvVault.delete(paymentId);
-  if (!entry) return null;
-  if (entry.expiresAt < Date.now()) return null;
-  return entry.cvv;
-}
-
-/** Sanitize the raw card input — throws with a customer-safe message. */
-function sanitizeCardInput(cardNumber: string, cardExpiry: string, cardCvv: string): {
-  cardNumber: string;
-  cardExpiry: string;
-  cardCvv: string;
-} {
-  const number = cardNumber.replace(/[\s-]/g, "");
-  const expiry = cardExpiry.trim();
-  const cvv = cardCvv.trim();
-  if (!/^[0-9]{13,19}$/.test(number)) throw new Error("Nomor kartu tidak valid.");
-  if (!/^[0-9]{4}$/.test(expiry) || Number(expiry.slice(0, 2)) < 1 || Number(expiry.slice(0, 2)) > 12) {
-    throw new Error("Masa berlaku kartu tidak valid.");
-  }
-  if (!/^[0-9]{3,4}$/.test(cvv)) throw new Error("CVV tidak valid.");
-  return { cardNumber: number, cardExpiry: expiry, cardCvv: cvv };
-}
-
-/** The URL DOKU sends the customer back to after the 3DS step. */
-function threeDsReturnUrl(bookingCode: string, paymentId: string, failed: boolean): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "http://localhost:3000";
-  return (
-    `${base.replace(/\/+$/, "")}/payment/3ds/return` +
-    `?code=${encodeURIComponent(bookingCode)}&pid=${encodeURIComponent(paymentId)}` +
-    (failed ? "&state=failed" : "")
-  );
-}
-
-/**
- * Start a direct (Host-to-Host) card payment.
- *
- * The customer entered the card on OUR page. The server starts the 3DS
- * authentication with DOKU and returns the authentication URL the browser
- * must redirect to. The payment row is persisted BEFORE the 3DS call so the
- * return route can find it; the card data itself is never stored — only the
- * 3DS identifiers land on the row, and the CVV in the in-memory vault.
- */
-export async function startCardDirectPayment(params: {
-  bookingCode: string;
-  email: string;
-  cardNumber: string;
-  /** MMYY, e.g. "0131". */
-  cardExpiry: string;
-  cardCvv: string;
-}): Promise<
-  | { ok: true; authenticationUrl: string }
-  | { ok: false; error: string }
-> {
-  try {
-    const code = params.bookingCode.trim().toUpperCase();
-    const email = params.email.trim().toLowerCase();
-
-    // The card input is validated first — an invalid card never reaches DOKU.
-    let card: ReturnType<typeof sanitizeCardInput>;
-    try {
-      card = sanitizeCardInput(params.cardNumber, params.cardExpiry, params.cardCvv);
-    } catch (error) {
-      return { ok: false, error: (error as Error).message };
-    }
-
-    const bookings = await db.orm.public.Booking
-      .select("id", "code", "status", "totalUsdCents", "currencyCode", "invoiceNumber")
-      .where((f) => f.code.eq(code))
-      .limit(1)
-      .all();
-    const booking = bookings[0];
-    if (!booking) return { ok: false, error: "Pesanan tidak ditemukan." };
-
-    const contacts = await db.orm.public.Contact
-      .select("email", "firstName", "lastName", "phone")
-      .where((f) => f.bookingId.eq(booking.id))
-      .limit(1)
-      .all();
-    if (!contacts[0] || contacts[0].email.trim().toLowerCase() !== email) {
-      return { ok: false, error: "Pesanan tidak ditemukan." };
-    }
-    if (booking.status === "confirmed" || booking.status === "completed") {
-      return { ok: false, error: "Pesanan ini sudah dibayar." };
-    }
-
-    const methods = await listPaymentMethods();
-    const cardMethod = methods.find((m) => m.providerMethodCode === "CREDIT_CARD" && m.provider === "doku");
-    if (!cardMethod) return { ok: false, error: "Metode pembayaran tidak tersedia." };
-
-    // DOKU charges in IDR — the same conversion rule as the hosted flow.
-    const currency = cardMethod.providerCurrency ?? "IDR";
-    const rate =
-      currency.toUpperCase() === (booking.currencyCode ?? "USD").toUpperCase()
-        ? 1
-        : await getUsdRate(currency);
-    const amountCents = convertUsdCents(booking.totalUsdCents, rate);
-    const amountIdr = Math.max(1, Math.round(amountCents / 100));
-
-    // A fresh invoice for every direct-card attempt: a previous pending row
-    // was already used for a (possibly half-finished) 3DS session.
-    const previous = await db.orm.public.Payment
-      .select("id")
-      .where((f) => f.bookingId.eq(booking.id))
-      .where((f) => f.provider.eq("doku"))
-      .all();
-    const invoiceNumber = invoiceForAttempt(
-      booking.invoiceNumber ?? `INV-${booking.code}`,
-      previous.length + 1,
-    );
-
-    // 1. Persist the payment row first — the 3DS return URL needs its id.
-    const placeholder = await getBookingPayment(booking.id);
-    const isPlaceholder =
-      placeholder && placeholder.status === "pending" && !placeholder.provider && !placeholder.providerRef;
-
-    let paymentId: string;
-    const rowBase = {
-      methodId: cardMethod.id,
-      status: "pending",
-      amountUsdCents: booking.totalUsdCents,
-      currencyCode: booking.currencyCode,
-      fxRate: rate,
-      provider: "doku",
-      providerRef: invoiceNumber,
-      reference: invoiceNumber,
-      providerAmountCents: amountCents,
-      providerCurrency: "IDR",
-      checkoutUrl: null,
-      expiresAt: new Date(Date.now() + CVV_TTL_MS),
-    };
-    if (isPlaceholder) {
-      paymentId = placeholder.id;
-      await db.orm.public.Payment.where({ id: paymentId }).update(rowBase as never);
-    } else {
-      paymentId = crypto.randomUUID();
-      await db.orm.public.Payment.create({ id: paymentId, bookingId: booking.id, ...rowBase } as never);
-    }
-
-    // 2. Ask DOKU to start the 3DS authentication for this card.
-    //    Card number/expiry are used for this request only — never stored.
-    let session;
-    try {
-      session = await checkThreeDSecure({
-        invoiceNumber,
-        amountIdr,
-        cardNumber: card.cardNumber,
-        cardExpiry: card.cardExpiry,
-        customer: {
-          name: `${contacts[0].firstName} ${contacts[0].lastName}`.trim() || undefined,
-          email,
-          phone: contacts[0].phone || undefined,
-        },
-        successUrl: threeDsReturnUrl(booking.code, paymentId, false),
-        failureUrl: threeDsReturnUrl(booking.code, paymentId, true),
-      });
-    } catch (error) {
-      console.error("[payments] check-3ds failed", (error as Error).message);
-      return { ok: false, error: "Kartu tidak bisa diproses. Coba lagi." };
-    }
-
-    // 3. Remember the 3DS identifiers (no card data) and the CVV (memory only).
-    await db.orm.public.Payment
-      .where({ id: paymentId })
-      .update({
-        rawPayload: {
-          three_ds: {
-            authentication_id: session.authenticationId,
-            authentication_url: session.authenticationUrl,
-          },
-        } as never,
-      });
-    stashCvv(paymentId, card.cardCvv);
-
-    return { ok: true, authenticationUrl: session.authenticationUrl };
-  } catch (error) {
-    // Never log card data — the error itself may only carry a message.
-    console.error("[payments] could not start the direct card payment", (error as Error).message);
-    return { ok: false, error: "Pembayaran kartu tidak bisa dimulai. Coba lagi." };
-  }
-}
-
-/**
- * Finish the direct card payment after the 3DS redirect: charge the card with
- * the stored authentication id and the vaulted CVV. The DOKU notification
- * still lands on the webhook afterwards — the confirm path is idempotent.
- */
-export async function completeCardDirectPayment(
-  paymentId: string,
-  failed: boolean,
-): Promise<{ ok: true; paid: boolean; error?: string }> {
-  try {
-    const rows = await db.orm.public.Payment
-      .select("id", "bookingId", "provider", "providerRef", "status", "providerAmountCents", "rawPayload")
-      .where({ id: paymentId })
-      .limit(1)
-      .all();
-    const payment = rows[0];
-    if (!payment || payment.provider !== "doku" || !payment.providerRef) {
-      return { ok: true, paid: false, error: "Pembayaran tidak ditemukan." };
-    }
-    if (payment.status === "paid") return { ok: true, paid: true };
-
-    if (failed) {
-      await db.orm.public.Payment
-        .where({ id: payment.id })
-        .update({ status: "failed" } as never);
-      return { ok: true, paid: false, error: "Verifikasi 3D Secure dibatalkan." };
-    }
-
-    const raw = payment.rawPayload as { three_ds?: { authentication_id?: string } } | null;
-    const authenticationId = raw?.three_ds?.authentication_id;
-    if (!authenticationId) {
-      return { ok: true, paid: false, error: "Sesi 3D Secure tidak ditemukan." };
-    }
-
-    const cvv = takeCvv(paymentId);
-    if (!cvv) {
-      await db.orm.public.Payment
-        .where({ id: payment.id })
-        .update({ status: "failed" } as never);
-      return { ok: true, paid: false, error: "Sesi pembayaran kedaluwarsa — silakan ulangi pembayaran." };
-    }
-
-    const bookings = await db.orm.public.Booking
-      .select("id", "code", "totalUsdCents", "currencyCode", "invoiceNumber")
-      .where({ id: payment.bookingId })
-      .limit(1)
-      .all();
-    const booking = bookings[0];
-    if (!booking) return { ok: true, paid: false, error: "Pesanan tidak ditemukan." };
-
-    const contacts = await db.orm.public.Contact
-      .select("email", "firstName", "lastName", "phone")
-      .where({ bookingId: booking.id })
-      .limit(1)
-      .all();
-
-    const amountIdr = Math.max(1, Math.round((payment.providerAmountCents ?? 0) / 100));
-    const charged = await chargeCard({
-      invoiceNumber: payment.providerRef,
-      amountIdr,
-      customer: {
-        name: contacts[0]
-          ? `${contacts[0].firstName} ${contacts[0].lastName}`.trim() || undefined
-          : undefined,
-        email: contacts[0]?.email ?? "customer@bookingvip.local",
-        phone: contacts[0]?.phone || undefined,
-      },
-      authenticationId,
-      cvv,
-    });
-
-    if (charged.status === "paid") {
-      await confirmPaidPayment(payment.id, payment.bookingId, charged.raw);
-      return { ok: true, paid: true };
-    }
-
-    await db.orm.public.Payment
-      .where({ id: payment.id })
-      .update({ status: "failed", rawPayload: charged.raw as never } as never);
-    return { ok: true, paid: false, error: "Pembayaran kartu ditolak." };
-  } catch (error) {
-    console.error("[payments] could not complete the direct card payment", (error as Error).message);
-    return { ok: true, paid: false, error: "Pembayaran tidak bisa diselesaikan." };
-  }
-}
-
-/** The URL the customer comes back to after paying. */
-function successUrl(bookingCode: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "http://localhost:3000";
-  return `${base.replace(/\/+$/, "")}/payment/return?code=${encodeURIComponent(bookingCode)}`;
-}
-
-/** The URL the customer comes back to when the payment fails. */
-function failureUrl(bookingCode: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "http://localhost:3000";
-  return `${base.replace(/\/+$/, "")}/payment/return?code=${encodeURIComponent(bookingCode)}&status=failed`;
 }
 
 /**
@@ -631,14 +283,27 @@ export async function applyGatewayEvent(params: {
     return { outcome: "ignored" };
   }
 
-  // Find the payment by the provider reference — for DOKU that is the
-  // invoice number we generated.
-  const payments = await db.orm.public.Payment
-    .select("id", "bookingId", "status", "amountUsdCents", "providerAmountCents", "providerCurrency")
+  // Find the payment by the provider reference — for Xendit that is the
+  // payment session id. Payment-level events carry the payment request id
+  // instead; they fall back to our own invoice reference.
+  let payments = await db.orm.public.Payment
+    .select("id", "bookingId", "status", "amountUsdCents", "providerAmountCents")
     .where((f) => f.provider.eq(params.provider))
     .where((f) => f.providerRef.eq(params.providerRef ?? ""))
     .limit(1)
     .all();
+
+  if (payments.length === 0) {
+    const externalId = params.externalId;
+    if (externalId) {
+      payments = await db.orm.public.Payment
+        .select("id", "bookingId", "status", "amountUsdCents", "providerAmountCents")
+        .where((f) => f.provider.eq(params.provider))
+        .where((f) => f.reference.eq(externalId))
+        .limit(1)
+        .all();
+    }
+  }
 
   const payment = payments[0];
   const target = payment ? "processed" : "ignored";
@@ -757,7 +422,7 @@ export async function getPaymentStatus(params: {
 
   // While the payment is still open, ask the gateway for the latest status —
   // the return page self-heals even when the notification is late.
-  if (payment && payment.status === "pending" && payment.provider === "doku") {
+  if (payment && payment.status === "pending" && payment.provider === "xendit") {
     await refreshPayment(payment.id);
     payment = await getBookingPayment(booking.id);
   }
@@ -799,25 +464,25 @@ async function awardPointsForBooking(bookingId: string): Promise<void> {
 export async function refreshPayment(paymentId: string): Promise<string | null> {
   const rows = await db.orm.public.Payment
     .select("id", "bookingId", "provider", "providerRef", "status", "providerAmountCents")
-    .where((f) => f.id.eq(paymentId))
+    .where({ id: paymentId })
     .limit(1)
     .all();
 
   const payment = rows[0];
-  if (!payment || payment.provider !== "doku" || !payment.providerRef) {
+  if (!payment || payment.provider !== "xendit" || !payment.providerRef) {
     return payment?.status ?? "pending";
   }
   if (payment.status === "paid") return "paid";
 
   try {
-    const refreshed = await checkStatus(payment.providerRef);
-    const status = mapGatewayStatus(refreshed.transaction?.status);
+    const session = await getCardSession(payment.providerRef);
+    const status = mapGatewayStatus(session.status);
 
     if (status === "paid") {
       // The same amount rule as the webhook — a mismatch never confirms.
       const received =
-        typeof refreshed.order?.amount === "number"
-          ? Math.round(refreshed.order.amount * 100)
+        typeof session.amount === "number"
+          ? Math.round(session.amount * 100)
           : undefined;
       if (
         typeof received === "number" &&
@@ -831,14 +496,14 @@ export async function refreshPayment(paymentId: string): Promise<string | null> 
         return payment.status;
       }
 
-      await confirmPaidPayment(payment.id, payment.bookingId, refreshed);
+      await confirmPaidPayment(payment.id, payment.bookingId, session);
       return "paid";
     }
 
     if (status === "failed" && payment.status !== "failed") {
       await db.orm.public.Payment
-        .where((f) => f.id.eq(payment.id))
-        .update({ status: "failed", rawPayload: refreshed as never });
+        .where({ id: payment.id })
+        .update({ status: "failed", rawPayload: session as never });
       return "failed";
     }
 

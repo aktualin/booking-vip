@@ -1,0 +1,471 @@
+[
+  {
+    "id": "data_migration.normalize-doku-payment-amounts",
+    "label": "Data transform: normalize-doku-payment-amounts",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Check normalize-doku-payment-amounts has work to do",
+        "sql": "SELECT EXISTS (SELECT \"id\" FROM \"Payment\" WHERE \"provider\" = 'doku' AND \"providerAmountCents\" IS DISTINCT FROM \"amountUsdCents\" LIMIT 1) AS ok",
+        "params": []
+      }
+    ],
+    "execute": [
+      {
+        "description": "Run normalize-doku-payment-amounts",
+        "sql": "UPDATE \"Payment\" SET \"providerAmountCents\" = \"amountUsdCents\" WHERE \"provider\" = 'doku' AND \"providerAmountCents\" IS DISTINCT FROM \"amountUsdCents\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Verify normalize-doku-payment-amounts resolved all violations",
+        "sql": "SELECT NOT EXISTS (SELECT \"id\" FROM \"Payment\" WHERE \"provider\" = 'doku' AND \"providerAmountCents\" IS DISTINCT FROM \"amountUsdCents\" LIMIT 1) AS ok",
+        "params": []
+      }
+    ]
+  },
+  {
+    "id": "data_migration.payment-methods-xendit-usd",
+    "label": "Data transform: payment-methods-xendit-usd",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Check payment-methods-xendit-usd has work to do",
+        "sql": "SELECT EXISTS (SELECT \"id\" AS \"id\" FROM \"public\".\"PaymentMethod\" WHERE ((\"code\" = $1 AND \"active\" = $2) OR (\"code\" = $3 AND (\"provider\" != $4 OR \"provider\" IS NULL))) LIMIT 1) AS ok",
+        "params": [
+          "QRIS",
+          true,
+          "CREDIT_CARD",
+          "xendit"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "Run payment-methods-xendit-usd",
+        "sql": "UPDATE \"public\".\"PaymentMethod\" SET \"active\" = $1 WHERE \"code\" = $2",
+        "params": [
+          false,
+          "QRIS"
+        ]
+      },
+      {
+        "description": "Run payment-methods-xendit-usd",
+        "sql": "UPDATE \"public\".\"PaymentMethod\" SET \"provider\" = $1 WHERE \"code\" = $2",
+        "params": [
+          "xendit",
+          "CREDIT_CARD"
+        ]
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Verify payment-methods-xendit-usd resolved all violations",
+        "sql": "SELECT NOT EXISTS (SELECT \"id\" AS \"id\" FROM \"public\".\"PaymentMethod\" WHERE ((\"code\" = $1 AND \"active\" = $2) OR (\"code\" = $3 AND (\"provider\" != $4 OR \"provider\" IS NULL))) LIMIT 1) AS ok",
+        "params": [
+          "QRIS",
+          true,
+          "CREDIT_CARD",
+          "xendit"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Booking.currencyCode",
+    "label": "Drop column \"currencyCode\" from \"Booking\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "currencyCode",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"currencyCode\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "currencyCode"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"currencyCode\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"currencyCode\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" DROP COLUMN \"currencyCode\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"currencyCode\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "currencyCode"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"currencyCode\" on \"Booking\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Booking.fxRate",
+    "label": "Drop column \"fxRate\" from \"Booking\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "fxRate",
+        "table": "Booking"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"fxRate\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "fxRate"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"fxRate\" on \"Booking\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"fxRate\"",
+        "sql": "ALTER TABLE \"public\".\"Booking\" DROP COLUMN \"fxRate\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"fxRate\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Booking",
+          "fxRate"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"fxRate\" on \"Booking\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropTable.ExchangeRate",
+    "label": "Drop table \"ExchangeRate\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ExchangeRate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ExchangeRate\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExchangeRate\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"ExchangeRate\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"ExchangeRate\"",
+        "sql": "DROP TABLE \"public\".\"ExchangeRate\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ExchangeRate\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExchangeRate\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"ExchangeRate\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropTable.Currency",
+    "label": "Drop table \"Currency\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Currency"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Currency\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Currency\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"Currency\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"Currency\"",
+        "sql": "DROP TABLE \"public\".\"Currency\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Currency\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Currency\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"Currency\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Payment.currencyCode",
+    "label": "Drop column \"currencyCode\" from \"Payment\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "currencyCode",
+        "table": "Payment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"currencyCode\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "currencyCode"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"currencyCode\" on \"Payment\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"currencyCode\"",
+        "sql": "ALTER TABLE \"public\".\"Payment\" DROP COLUMN \"currencyCode\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"currencyCode\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "currencyCode"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"currencyCode\" on \"Payment\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Payment.fxRate",
+    "label": "Drop column \"fxRate\" from \"Payment\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "fxRate",
+        "table": "Payment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"fxRate\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "fxRate"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"fxRate\" on \"Payment\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"fxRate\"",
+        "sql": "ALTER TABLE \"public\".\"Payment\" DROP COLUMN \"fxRate\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"fxRate\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "fxRate"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"fxRate\" on \"Payment\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Payment.providerCurrency",
+    "label": "Drop column \"providerCurrency\" from \"Payment\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "providerCurrency",
+        "table": "Payment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"providerCurrency\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "providerCurrency"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"providerCurrency\" on \"Payment\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"providerCurrency\"",
+        "sql": "ALTER TABLE \"public\".\"Payment\" DROP COLUMN \"providerCurrency\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"providerCurrency\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Payment",
+          "providerCurrency"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"providerCurrency\" on \"Payment\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.PaymentMethod.providerCurrency",
+    "label": "Drop column \"providerCurrency\" from \"PaymentMethod\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "providerCurrency",
+        "table": "PaymentMethod"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"providerCurrency\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PaymentMethod",
+          "providerCurrency"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"providerCurrency\" on \"PaymentMethod\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"providerCurrency\"",
+        "sql": "ALTER TABLE \"public\".\"PaymentMethod\" DROP COLUMN \"providerCurrency\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"providerCurrency\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PaymentMethod",
+          "providerCurrency"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"providerCurrency\" on \"PaymentMethod\""
+        }
+      }
+    ]
+  }
+]

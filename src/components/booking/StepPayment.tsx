@@ -1,9 +1,9 @@
 "use client";
 
 // The wizard's PAYMENT step — everything payment happens here (per the
-// product decision): promo/voucher, the payment method and, for cards, the
-// card form embedded on OUR page (Host-to-Host). One "Bayar" button creates
-// the booking (once) and starts the payment.
+// product decision): promo/voucher and the payment method. One "Bayar"
+// button creates the booking (once) and starts the Xendit payment; the card
+// form lives on Xendit's hosted checkout page.
 
 import { useEffect, useState } from "react";
 import { getPaymentMethods } from "@/app/actions/catalog";
@@ -11,11 +11,6 @@ import { validatePromoCode } from "@/app/actions/booking";
 import { listMyVouchers, type VoucherDTO } from "@/app/actions/loyalty";
 import { useAccountOverview } from "@/components/providers/AccountProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import DokuCardForm, {
-  EMPTY_CARD_FIELDS,
-  parseCardFields,
-  type CardFields,
-} from "@/components/payment/DokuCardForm";
 import PaymentMethodPicker, {
   type PaymentMethodOption,
 } from "@/components/payment/PaymentMethodPicker";
@@ -27,19 +22,12 @@ export type AppliedPromo = {
   discountUsdCents: number;
 };
 
-/** The parsed card fields handed to the wizard's submit handler. */
-export type CardSubmit = {
-  cardNumber: string;
-  cardExpiry: string;
-  cardCvv: string;
-};
-
 type Props = {
   /**
-   * Pay: the chosen method and, for cards, the parsed card fields. The
-   * wizard creates the booking (once) and starts the DOKU payment.
+   * Pay: the wizard creates the booking (once) and starts the Xendit
+   * payment (credit card via the hosted checkout).
    */
-  onSubmit: (method: "CREDIT_CARD" | "QRIS", card?: CardSubmit) => void;
+  onSubmit: () => void;
   onBack: () => void;
   isSubmitting: boolean;
   error: string | null;
@@ -65,9 +53,6 @@ export default function StepPayment({
   const [methods, setMethods] = useState<PaymentMethodOption[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState("");
-
-  const [card, setCard] = useState<CardFields>(EMPTY_CARD_FIELDS);
-  const [cardError, setCardError] = useState<string | null>(null);
 
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -136,23 +121,7 @@ export default function StepPayment({
 
   const pay = () => {
     if (!selected || isSubmitting) return;
-
-    if (selected === "CREDIT_CARD") {
-      const parsed = parseCardFields(card);
-      if (!parsed.ok) {
-        setCardError(parsed.error);
-        return;
-      }
-      setCardError(null);
-      onSubmit("CREDIT_CARD", {
-        cardNumber: parsed.cardNumber,
-        cardExpiry: parsed.cardExpiry,
-        cardCvv: parsed.cardCvv,
-      });
-      return;
-    }
-
-    onSubmit("QRIS");
+    onSubmit();
   };
 
   // Points this booking will earn once paid (1 point per whole dollar of
@@ -160,13 +129,6 @@ export default function StepPayment({
   const earnPreview = Math.max(
     0,
     Math.floor((subtotalUsdCents - (appliedPromo?.discountUsdCents ?? 0)) / 100),
-  );
-
-  // The card form's amount strip: the discounted estimate. The server
-  // recomputes the charge amount from the booking total.
-  const totalAfterDiscountUsdCents = Math.max(
-    0,
-    subtotalUsdCents - (appliedPromo?.discountUsdCents ?? 0),
   );
 
   return (
@@ -179,7 +141,7 @@ export default function StepPayment({
         </div>
       )}
 
-      {/* Payment method + (for cards) the embedded card form */}
+      {/* Payment method */}
       <div className="mb-6 rounded-2xl border border-line bg-white p-5">
         <h3 className="mb-4 text-base font-bold text-ink">
           {t("wizard.payment.selectMethod")}
@@ -194,29 +156,12 @@ export default function StepPayment({
             <p className="text-sm text-muted">{t("wizard.payment.setupDesc")}</p>
           </div>
         ) : (
-          <>
-            <PaymentMethodPicker
-              methods={methods}
-              selected={selected}
-              onSelect={(code) => {
-                setSelected(code);
-                setCardError(null);
-              }}
-              disabled={isSubmitting}
-            />
-            {selected === "CREDIT_CARD" ? (
-              <div className="mt-5 border-t border-line pt-5">
-                <DokuCardForm
-                  value={card}
-                  onChange={setCard}
-                  amountUsdCents={totalAfterDiscountUsdCents}
-                  formatMoney={formatMoney}
-                  disabled={isSubmitting}
-                  error={cardError}
-                />
-              </div>
-            ) : null}
-          </>
+          <PaymentMethodPicker
+            methods={methods}
+            selected={selected}
+            onSelect={setSelected}
+            disabled={isSubmitting}
+          />
         )}
       </div>
 

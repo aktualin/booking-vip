@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'541e69033de9055ab8e2d0ca4e9d8402202ab3841087ee53cdaf36f1520163b2'>;
+  StorageHashBase<'1ae23f0067f0afa5978542c0eb38feda37bbb6da283163f4b49f3914f99194fd'>;
 export type ExecutionHash =
-  ExecutionHashBase<'f2e4202e9184c02e0cd5f82f954a1a2e7c68894bc5acbd833deab456a39b91b7'>;
+  ExecutionHashBase<'37dc325c044f5ae026e2b6c95565a2057a3c07138a86b4e9ebba9b0801e2a195'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -383,13 +383,11 @@ export namespace Models {
     childCount: FieldOutputTypes['public']['Booking']['childCount'];
     code: FieldOutputTypes['public']['Booking']['code'];
     createdAt: FieldOutputTypes['public']['Booking']['createdAt'];
-    currencyCode: FieldOutputTypes['public']['Booking']['currencyCode'];
     discountUsdCents: FieldOutputTypes['public']['Booking']['discountUsdCents'];
     driverOption: FieldOutputTypes['public']['Booking']['driverOption'];
     dropoffLabel: FieldOutputTypes['public']['Booking']['dropoffLabel'];
     dropoffLat: FieldOutputTypes['public']['Booking']['dropoffLat'];
     dropoffLng: FieldOutputTypes['public']['Booking']['dropoffLng'];
-    fxRate: FieldOutputTypes['public']['Booking']['fxRate'];
     id: FieldOutputTypes['public']['Booking']['id'];
     infantCount: FieldOutputTypes['public']['Booking']['infantCount'];
     invoiceNumber: FieldOutputTypes['public']['Booking']['invoiceNumber'];
@@ -474,18 +472,6 @@ export namespace Models {
     name: FieldOutputTypes['public']['Country']['name'];
     readonly [RelationKeys]?: never;
   };
-  export type public_Currency = {
-    active: FieldOutputTypes['public']['Currency']['active'];
-    code: FieldOutputTypes['public']['Currency']['code'];
-    decimals: FieldOutputTypes['public']['Currency']['decimals'];
-    isDefault: FieldOutputTypes['public']['Currency']['isDefault'];
-    locale: FieldOutputTypes['public']['Currency']['locale'];
-    name: FieldOutputTypes['public']['Currency']['name'];
-    sortOrder: FieldOutputTypes['public']['Currency']['sortOrder'];
-    symbol: FieldOutputTypes['public']['Currency']['symbol'];
-    rate: public_ExchangeRate | null;
-    readonly [RelationKeys]?: 'rate';
-  };
   export type public_Destination = {
     active: FieldOutputTypes['public']['Destination']['active'];
     countryEn: FieldOutputTypes['public']['Destination']['countryEn'];
@@ -499,14 +485,6 @@ export namespace Models {
     sortOrder: FieldOutputTypes['public']['Destination']['sortOrder'];
     tone: FieldOutputTypes['public']['Destination']['tone'];
     readonly [RelationKeys]?: never;
-  };
-  export type public_ExchangeRate = {
-    code: FieldOutputTypes['public']['ExchangeRate']['code'];
-    fetchedAt: FieldOutputTypes['public']['ExchangeRate']['fetchedAt'];
-    rateDate: FieldOutputTypes['public']['ExchangeRate']['rateDate'];
-    ratePerUsd: FieldOutputTypes['public']['ExchangeRate']['ratePerUsd'];
-    currency: public_Currency;
-    readonly [RelationKeys]?: 'currency';
   };
   export type public_FlightDetails = {
     airline: FieldOutputTypes['public']['FlightDetails']['airline'];
@@ -551,15 +529,12 @@ export namespace Models {
     bookingId: FieldOutputTypes['public']['Payment']['bookingId'];
     checkoutUrl: FieldOutputTypes['public']['Payment']['checkoutUrl'];
     createdAt: FieldOutputTypes['public']['Payment']['createdAt'];
-    currencyCode: FieldOutputTypes['public']['Payment']['currencyCode'];
     expiresAt: FieldOutputTypes['public']['Payment']['expiresAt'];
-    fxRate: FieldOutputTypes['public']['Payment']['fxRate'];
     id: FieldOutputTypes['public']['Payment']['id'];
     methodId: FieldOutputTypes['public']['Payment']['methodId'];
     paidAt: FieldOutputTypes['public']['Payment']['paidAt'];
     provider: FieldOutputTypes['public']['Payment']['provider'];
     providerAmountCents: FieldOutputTypes['public']['Payment']['providerAmountCents'];
-    providerCurrency: FieldOutputTypes['public']['Payment']['providerCurrency'];
     providerRef: FieldOutputTypes['public']['Payment']['providerRef'];
     rawPayload: FieldOutputTypes['public']['Payment']['rawPayload'];
     reference: FieldOutputTypes['public']['Payment']['reference'];
@@ -574,7 +549,6 @@ export namespace Models {
     id: FieldOutputTypes['public']['PaymentMethod']['id'];
     label: FieldOutputTypes['public']['PaymentMethod']['label'];
     provider: FieldOutputTypes['public']['PaymentMethod']['provider'];
-    providerCurrency: FieldOutputTypes['public']['PaymentMethod']['providerCurrency'];
     providerMethodCode: FieldOutputTypes['public']['PaymentMethod']['providerMethodCode'];
     sortOrder: FieldOutputTypes['public']['PaymentMethod']['sortOrder'];
     payments: public_Payment[];
@@ -928,9 +902,7 @@ export declare const models: {
     BookingItem: Models.public_BookingItem;
     Contact: Models.public_Contact;
     Country: Models.public_Country;
-    Currency: Models.public_Currency;
     Destination: Models.public_Destination;
-    ExchangeRate: Models.public_ExchangeRate;
     FlightDetails: Models.public_FlightDetails;
     LoyaltyLevel: Models.public_LoyaltyLevel;
     Media: Models.public_Media;
@@ -1457,16 +1429,6 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
-                readonly currencyCode: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/text@1', 'USD'>;
-                  };
-                  readonly many: false;
-                };
                 readonly discountUsdCents: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
@@ -1499,16 +1461,6 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/float8';
                   readonly codecId: 'pg/float8@1';
                   readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly fxRate: {
-                  readonly dataType: 'pg/float8';
-                  readonly codecId: 'pg/float8@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/float8@1', 1>;
-                  };
                   readonly many: false;
                 };
                 readonly id: {
@@ -2052,82 +2004,6 @@ type ContractBase = Omit<
               ];
               foreignKeys: readonly [];
             };
-            readonly Currency: {
-              columns: {
-                readonly active: {
-                  readonly dataType: 'pg/bool';
-                  readonly codecId: 'pg/bool@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
-                  };
-                  readonly many: false;
-                };
-                readonly code: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly decimals: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/int4@1', 2>;
-                  };
-                  readonly many: false;
-                };
-                readonly isDefault: {
-                  readonly dataType: 'pg/bool';
-                  readonly codecId: 'pg/bool@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
-                  };
-                  readonly many: false;
-                };
-                readonly locale: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/text@1', 'en-US'>;
-                  };
-                  readonly many: false;
-                };
-                readonly name: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly sortOrder: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
-                  };
-                  readonly many: false;
-                };
-                readonly symbol: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['code'] };
-              uniques: readonly [];
-              indexes: readonly [];
-              foreignKeys: readonly [];
-            };
             readonly Destination: {
               columns: {
                 readonly active: {
@@ -2219,53 +2095,6 @@ type ContractBase = Omit<
                 },
               ];
               foreignKeys: readonly [];
-            };
-            readonly ExchangeRate: {
-              columns: {
-                readonly code: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly fetchedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly rateDate: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly ratePerUsd: {
-                  readonly dataType: 'pg/float8';
-                  readonly codecId: 'pg/float8@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['code'] };
-              uniques: readonly [];
-              indexes: readonly [];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'ExchangeRate';
-                    readonly columns: readonly ['code'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Currency';
-                    readonly columns: readonly ['code'];
-                  };
-                },
-              ];
             };
             readonly FlightDetails: {
               columns: {
@@ -2547,27 +2376,11 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
-                readonly currencyCode: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
                 readonly expiresAt: {
                   readonly dataType: 'pg/timestamp';
                   readonly codecId: 'pg/timestamp-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly fxRate: {
-                  readonly dataType: 'pg/float8';
-                  readonly codecId: 'pg/float8@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/float8@1', 1>;
-                  };
                   readonly many: false;
                 };
                 readonly id: {
@@ -2598,12 +2411,6 @@ type ContractBase = Omit<
                 readonly providerAmountCents: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly providerCurrency: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
                   readonly nullable: true;
                   readonly many: false;
                 };
@@ -2703,12 +2510,6 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly provider: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly providerCurrency: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
@@ -4922,14 +4723,9 @@ type ContractBase = Omit<
     };
     readonly Contact: { readonly namespace: 'public' & NamespaceId; readonly model: 'Contact' };
     readonly Country: { readonly namespace: 'public' & NamespaceId; readonly model: 'Country' };
-    readonly Currency: { readonly namespace: 'public' & NamespaceId; readonly model: 'Currency' };
     readonly Destination: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'Destination';
-    };
-    readonly ExchangeRate: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'ExchangeRate';
     };
     readonly FlightDetails: {
       readonly namespace: 'public' & NamespaceId;
@@ -5377,10 +5173,6 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
-              readonly currencyCode: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly discountUsdCents: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
@@ -5399,10 +5191,6 @@ type ContractBase = Omit<
               };
               readonly dropoffLng: {
                 readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/float8@1' };
-              };
-              readonly fxRate: {
-                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/float8@1' };
               };
               readonly id: {
@@ -5570,13 +5358,11 @@ type ContractBase = Omit<
                 readonly childCount: { readonly column: 'childCount' };
                 readonly code: { readonly column: 'code' };
                 readonly createdAt: { readonly column: 'createdAt' };
-                readonly currencyCode: { readonly column: 'currencyCode' };
                 readonly discountUsdCents: { readonly column: 'discountUsdCents' };
                 readonly driverOption: { readonly column: 'driverOption' };
                 readonly dropoffLabel: { readonly column: 'dropoffLabel' };
                 readonly dropoffLat: { readonly column: 'dropoffLat' };
                 readonly dropoffLng: { readonly column: 'dropoffLng' };
-                readonly fxRate: { readonly column: 'fxRate' };
                 readonly id: { readonly column: 'id' };
                 readonly infantCount: { readonly column: 'infantCount' };
                 readonly invoiceNumber: { readonly column: 'invoiceNumber' };
@@ -5911,70 +5697,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly Currency: {
-            readonly fields: {
-              readonly active: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
-              };
-              readonly code: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly decimals: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly isDefault: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
-              };
-              readonly locale: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sortOrder: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly symbol: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly rate: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'ExchangeRate';
-                };
-                readonly cardinality: '1:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['code'];
-                  readonly targetFields: readonly ['code'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'Currency';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly active: { readonly column: 'active' };
-                readonly code: { readonly column: 'code' };
-                readonly decimals: { readonly column: 'decimals' };
-                readonly isDefault: { readonly column: 'isDefault' };
-                readonly locale: { readonly column: 'locale' };
-                readonly name: { readonly column: 'name' };
-                readonly sortOrder: { readonly column: 'sortOrder' };
-                readonly symbol: { readonly column: 'symbol' };
-              };
-            };
-          };
           readonly Destination: {
             readonly fields: {
               readonly active: {
@@ -6038,54 +5760,6 @@ type ContractBase = Omit<
                 readonly slug: { readonly column: 'slug' };
                 readonly sortOrder: { readonly column: 'sortOrder' };
                 readonly tone: { readonly column: 'tone' };
-              };
-            };
-          };
-          readonly ExchangeRate: {
-            readonly fields: {
-              readonly code: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly fetchedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly rateDate: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly ratePerUsd: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/float8@1' };
-              };
-            };
-            readonly relations: {
-              readonly currency: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Currency';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['code'];
-                  readonly targetFields: readonly ['code'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'ExchangeRate';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly code: { readonly column: 'code' };
-                readonly fetchedAt: { readonly column: 'fetchedAt' };
-                readonly rateDate: { readonly column: 'rateDate' };
-                readonly ratePerUsd: { readonly column: 'ratePerUsd' };
               };
             };
           };
@@ -6305,10 +5979,6 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
-              readonly currencyCode: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly expiresAt: {
                 readonly nullable: true;
                 readonly type: {
@@ -6316,10 +5986,6 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/timestamp-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
-              };
-              readonly fxRate: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/float8@1' };
               };
               readonly id: {
                 readonly nullable: false;
@@ -6344,10 +6010,6 @@ type ContractBase = Omit<
               readonly providerAmountCents: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly providerCurrency: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly providerRef: {
                 readonly nullable: true;
@@ -6400,15 +6062,12 @@ type ContractBase = Omit<
                 readonly bookingId: { readonly column: 'bookingId' };
                 readonly checkoutUrl: { readonly column: 'checkoutUrl' };
                 readonly createdAt: { readonly column: 'createdAt' };
-                readonly currencyCode: { readonly column: 'currencyCode' };
                 readonly expiresAt: { readonly column: 'expiresAt' };
-                readonly fxRate: { readonly column: 'fxRate' };
                 readonly id: { readonly column: 'id' };
                 readonly methodId: { readonly column: 'methodId' };
                 readonly paidAt: { readonly column: 'paidAt' };
                 readonly provider: { readonly column: 'provider' };
                 readonly providerAmountCents: { readonly column: 'providerAmountCents' };
-                readonly providerCurrency: { readonly column: 'providerCurrency' };
                 readonly providerRef: { readonly column: 'providerRef' };
                 readonly rawPayload: { readonly column: 'rawPayload' };
                 readonly reference: { readonly column: 'reference' };
@@ -6435,10 +6094,6 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly provider: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly providerCurrency: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -6473,7 +6128,6 @@ type ContractBase = Omit<
                 readonly id: { readonly column: 'id' };
                 readonly label: { readonly column: 'label' };
                 readonly provider: { readonly column: 'provider' };
-                readonly providerCurrency: { readonly column: 'providerCurrency' };
                 readonly providerMethodCode: { readonly column: 'providerMethodCode' };
                 readonly sortOrder: { readonly column: 'sortOrder' };
               };
@@ -8485,18 +8139,6 @@ type ContractBase = Omit<
           readonly ref: {
             readonly entry: 'Destination';
             readonly field: 'id';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: {
-            readonly id: 'timestampNow';
-            readonly kind: 'generator';
-            readonly params: { readonly precision: 3 };
-          };
-          readonly ref: {
-            readonly entry: 'ExchangeRate';
-            readonly field: 'fetchedAt';
             readonly namespace: 'public';
           };
         },

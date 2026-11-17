@@ -17,8 +17,8 @@ import {
  * A saved card is stored **encrypted** — only the last four digits are shown.
  * The CVV is never asked for: the form has no field for it.
  *
- * The other methods (DOKU, PayPal) are listed next to the cards; DOKU
- * settles Credit Card and QRIS payments on its hosted pages.
+ * The other methods (Xendit, PayPal) are listed next to the cards; Xendit
+ * settles Credit Card payments on its hosted checkout pages.
  */
 export default function PaymentsPanel() {
   const [cards, setCards] = useState<SavedCardDTO[]>([]);
@@ -260,9 +260,9 @@ export default function PaymentsPanel() {
           <div className="rounded-2xl border border-line bg-white p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-[14px] font-semibold text-ink">DOKU</h3>
+                <h3 className="text-[14px] font-semibold text-ink">Xendit</h3>
                 <p className="mt-1 text-[12px] leading-relaxed text-muted">
-                  Kartu kredit/debit dan QRIS. Diproses otomatis lewat DOKU
+                  Kartu kredit/debit. Diproses otomatis lewat Xendit
                   Payment Gateway.
                 </p>
               </div>

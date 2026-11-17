@@ -72,7 +72,7 @@ export default function TransportBookingClient({
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
   // The server computes the final total (incl. tax) and the invoice number —
-  // the payment step must show exactly what DOKU will charge.
+  // the payment step must show exactly what Xendit will charge.
   const [serverTotalUsdCents, setServerTotalUsdCents] = useState<number | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState<string | null>(null);
 
@@ -149,8 +149,6 @@ export default function TransportBookingClient({
       },
       flight: {},
       travelers: [],
-      currencyCode: "USD",
-      fxRate: 1,
     });
 
     setSubmitting(false);

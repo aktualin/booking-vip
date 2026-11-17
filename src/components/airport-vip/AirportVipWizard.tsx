@@ -278,8 +278,6 @@ export default function AirportVipWizard({
         direction,
       },
       travelers: [],
-      currencyCode: "USD",
-      fxRate: 1,
     });
 
     setSubmitting(false);

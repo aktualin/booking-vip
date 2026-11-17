@@ -417,8 +417,6 @@ model Booking {
   subtotalUsdCents Int
   addOnsUsdCents  Int       @default(0)
   totalUsdCents   Int
-  currencyCode    String    @default("USD")
-  fxRate          Float     @default(1)
   /// Firebase UID of the signed-in user (null for guest bookings).
   userId          String?
   /// The invoice number — `#INV/YYYY/MM/DD/4DIGIT/2RANDOM`.
@@ -544,12 +542,10 @@ model PaymentMethod {
   label     String
   sortOrder Int       @default(0)
   active    Boolean   @default(true)
-  /// The gateway that settles this method: "doku" | "paypal" | null (offline).
+  /// The gateway that settles this method: "xendit" | null (offline).
   provider  String?
-  /// The method code as the gateway names it ("VA", "EWALLET", "QRIS", "CREDIT_CARD").
+  /// The method code as the gateway names it ("CREDIT_CARD").
   providerMethodCode String?
-  /// The currency the customer is charged in for this method.
-  providerCurrency  String?
   payments  Payment[]
 }
 
@@ -560,16 +556,13 @@ model Payment {
   /// "pending" | "paid" | "failed" | "refunded"
   status         String   @default("pending")
   amountUsdCents Int
-  currencyCode   String
-  fxRate         Float    @default(1)
   reference      String?
-  /// The gateway that owns this payment: "doku" | "paypal" | null.
+  /// The gateway that owns this payment: "xendit" | null.
   provider       String?
-  /// The provider-side id (the DOKU invoice number, the PayPal order id).
+  /// The provider-side id (the Xendit invoice id).
   providerRef    String?
-  /// The amount charged by the provider, in the provider currency (cents).
+  /// The amount charged by the provider, in USD cents.
   providerAmountCents Int?
-  providerCurrency     String?
   /// The checkout URL the customer was redirected to.
   checkoutUrl    String?
   expiresAt      DateTime?
@@ -586,7 +579,7 @@ model Payment {
 /// A webhook event received from a gateway — the dedupe/audit ledger.
 model PaymentWebhookEvent {
   id           String   @id @default(uuid())
-  /// The gateway: "doku" | "paypal".
+  /// The gateway: "xendit".
   provider     String
   /// The provider's event id — unique per provider, so a replay is ignored.
   providerEventId String
@@ -616,27 +609,6 @@ model PushSubscription {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-}
-
-model Currency {
-  code        String        @id
-  name        String
-  symbol      String
-  decimals    Int           @default(2)
-  locale      String        @default("en-US")
-  isDefault   Boolean       @default(false)
-  sortOrder   Int           @default(0)
-  active      Boolean       @default(true)
-  rate        ExchangeRate?
-}
-
-model ExchangeRate {
-  code       String   @id
-  ratePerUsd Float
-  /// ISO date (YYYY-MM-DD) this rate is quoted for.
-  rateDate   String
-  fetchedAt  DateTime @default(now())
-  currency   Currency @relation(fields: [code], references: [code])
 }
 
 model Airline {

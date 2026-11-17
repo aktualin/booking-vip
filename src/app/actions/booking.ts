@@ -174,11 +174,6 @@ export async function createBooking(
       }
     }
 
-    // Validate fxRate is positive and finite
-    if (!Number.isFinite(input.fxRate) || input.fxRate <= 0) {
-      return { ok: false, error: "Invalid exchange rate" };
-    }
-
     // Resolve add-ons
     const addOnRecords: { id: string; slug: string; label: string; unitUsdCents: number | null }[] = [];
     if (input.addOns.length > 0) {
@@ -305,8 +300,6 @@ export async function createBooking(
         subtotalUsdCents,
         addOnsUsdCents,
         totalUsdCents,
-        currencyCode: input.currencyCode,
-        fxRate: input.fxRate,
         userId: userSession?.uid ?? null,
         invoiceNumber,
         promoCode: appliedPromoId ? promoInput!.toUpperCase() : null,
@@ -434,8 +427,6 @@ export async function createBooking(
         methodId: null,
         status: "pending",
         amountUsdCents: totalUsdCents,
-        currencyCode: input.currencyCode,
-        fxRate: input.fxRate,
       });
 
       // 8. The rental extras — the pickup policy, the driver option and the
@@ -548,8 +539,6 @@ export async function getBookingByCode(
         "subtotalUsdCents",
         "addOnsUsdCents",
         "totalUsdCents",
-        "currencyCode",
-        "fxRate",
         "createdAt"
       )
       .where((f) => f.code.eq(code))
@@ -606,8 +595,6 @@ export async function getBookingByCode(
         subtotalUsd: (booking.subtotalUsdCents ?? 0) / 100,
         addOnsUsd: (booking.addOnsUsdCents ?? 0) / 100,
         totalUsd: (booking.totalUsdCents ?? 0) / 100,
-        currencyCode: booking.currencyCode,
-        fxRate: booking.fxRate,
         items: items.map((item) => ({
           label: item.label,
           packageLabel: item.packageLabel ?? undefined,

@@ -64,7 +64,7 @@ type CarSeed = {
 
 const EXCLUDED_BASE = [
   { key: "fuel", name: "Bensin untuk penggunaan mobil", excluded: true },
-  { key: "driver_meal", name: "Uang makan sopir senilai IDR 75.000", excluded: true },
+  { key: "driver_meal", name: "Uang makan sopir senilai $5", excluded: true },
 ];
 
 const INCLUDED_ALLIN = [
@@ -146,7 +146,7 @@ function rulesFor(car: CarSeed): {
     ? [
         "Bensin" + (ev ? " / pengisian daya" : ""),
         "Tol & parkir",
-        "Uang makan sopir IDR 75.000/hari",
+        "Uang makan sopir $5/hari",
         "Overtime di luar 12 jam (lihat tarif per jam)",
       ]
     : [
@@ -159,7 +159,7 @@ function rulesFor(car: CarSeed): {
   const requirements = withDriver
     ? [
         "KTP pemesan yang masih berlaku",
-        "Deposit jaminan IDR 500.000 (dikembalikan setelah sewa)",
+        "Deposit jaminan $30 (dikembalikan setelah sewa)",
         "Minimal sewa 1 hari (12 jam)",
         "Pemesanan maksimal H-2 sebelum pemakaian",
         "Rute & tujuan disepakati saat konfirmasi",
@@ -168,7 +168,7 @@ function rulesFor(car: CarSeed): {
         "KTP + SIM A yang masih berlaku",
         "Usia pengemudi minimal 21 tahun",
         "Foto selfie sambil memegang KTP",
-        "Deposit jaminan IDR 1.000.000 (dikembalikan setelah sewa)",
+        "Deposit jaminan $60 (dikembalikan setelah sewa)",
         "Minimal sewa 1 hari (12 jam)",
         "Mobil dikembalikan dengan kondisi & bahan bakar seperti saat diambil",
       ];

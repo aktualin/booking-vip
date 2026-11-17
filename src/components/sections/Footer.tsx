@@ -8,7 +8,7 @@ import { serviceNav } from "@/data/services";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { SERVICE_LABEL_KEYS } from "@/lib/serviceLabels";
 import type { DictKey } from "@/i18n";
-import { VisaLogo, MastercardLogo, PayPalLogo, QrisLogo } from "@/components/icons";
+import { VisaLogo, MastercardLogo, PayPalLogo } from "@/components/icons";
 
 /** Label → route, so the Services column links to the service sub-pages. */
 const serviceRoutes = Object.fromEntries(
@@ -101,7 +101,6 @@ export default function Footer() {
                   ["Visa", VisaLogo],
                   ["Mastercard", MastercardLogo],
                   ["PayPal", PayPalLogo],
-                  ["QRIS", QrisLogo],
                 ] as const
               ).map(([label, LogoMark]) => (
                 <span

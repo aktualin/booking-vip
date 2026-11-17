@@ -25,10 +25,6 @@ function bump(table: string, created: boolean) {
   else counts[table].existing++;
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 // ---------- ServiceLine ----------
 async function seedServiceLines(): Promise<Record<string, string>> {
   const map: Record<string, string> = {};
@@ -1078,55 +1074,6 @@ async function seedCountries() {
   }
 }
 
-// ---------- Currency + ExchangeRate ----------
-async function seedCurrencies() {
-  // USD
-  const usdExisting = await db.orm.public.Currency.select("code").where({ code: "USD" }).first();
-  if (!usdExisting) {
-    await db.orm.public.Currency.create({
-      code: "USD",
-      name: "US Dollar",
-      symbol: "$",
-      decimals: 2,
-      locale: "en-US",
-      isDefault: true,
-      sortOrder: 0,
-    });
-    bump("Currency", true);
-  } else {
-    bump("Currency", false);
-  }
-
-  const idrExisting = await db.orm.public.Currency.select("code").where({ code: "IDR" }).first();
-  if (!idrExisting) {
-    await db.orm.public.Currency.create({
-      code: "IDR",
-      name: "Indonesian Rupiah",
-      symbol: "Rp",
-      decimals: 0,
-      locale: "id-ID",
-      isDefault: false,
-      sortOrder: 1,
-    });
-    bump("Currency", true);
-  } else {
-    bump("Currency", false);
-  }
-
-  // Exchange rate for IDR
-  const rateExisting = await db.orm.public.ExchangeRate.select("code").where({ code: "IDR" }).first();
-  if (!rateExisting) {
-    await db.orm.public.ExchangeRate.create({
-      code: "IDR",
-      ratePerUsd: 16500,
-      rateDate: todayISO(),
-    });
-    bump("ExchangeRate", true);
-  } else {
-    bump("ExchangeRate", false);
-  }
-}
-
 // ---------- LoyaltyLevel ----------
 const loyaltyLevels = [
   {
@@ -1198,10 +1145,10 @@ async function seedLoyaltyLevels() {
 }
 
 // ---------- Payment methods ----------
-// The methods the customer can pick on the payment page. The gateway is DOKU
-// (non-SNAP): Credit Card via the Card Payment Page and QRIS via DOKU
-// Checkout. The other channels are kept as inactive rows — historical
-// payments still reference them — but they cannot be started.
+// The methods the customer can pick on the payment page. The gateway is
+// Xendit: Credit Card is the only active channel. QRIS and the other
+// channels are kept as inactive rows — historical payments still reference
+// them — but they cannot be started.
 const paymentMethods: {
   code: string;
   label: string;
@@ -1221,7 +1168,7 @@ const paymentMethods: {
   {
     code: "CREDIT_CARD",
     label: "Kartu Kredit / Debit — Visa, Mastercard, JCB",
-    provider: "doku",
+    provider: "xendit",
     providerMethodCode: "CREDIT_CARD",
     sortOrder: 20,
     active: true,
@@ -1237,10 +1184,10 @@ const paymentMethods: {
   {
     code: "QRIS",
     label: "QRIS — scan dengan aplikasi apa pun",
-    provider: "doku",
+    provider: null,
     providerMethodCode: "QRIS",
     sortOrder: 40,
-    active: true,
+    active: false,
   },
   {
     code: "DIRECT_DEBIT",
@@ -1280,7 +1227,6 @@ async function seedPaymentMethods() {
         label: method.label,
         provider: method.provider,
         providerMethodCode: method.providerMethodCode,
-        providerCurrency: method.provider ? "IDR" : null,
         sortOrder: method.sortOrder,
         active: method.active,
       });
@@ -1294,7 +1240,6 @@ async function seedPaymentMethods() {
       label: method.label,
       provider: method.provider,
       providerMethodCode: method.providerMethodCode,
-      providerCurrency: method.provider ? "IDR" : null,
       sortOrder: method.sortOrder,
       active: method.active,
     });
@@ -1317,7 +1262,6 @@ async function main() {
   await seedPriceTiers(lineIds);
   await seedAirlines();
   await seedCountries();
-  await seedCurrencies();
   await seedLoyaltyLevels();
   await seedPaymentMethods();
 

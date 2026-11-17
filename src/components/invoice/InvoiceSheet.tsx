@@ -295,27 +295,16 @@ export default function InvoiceSheet({ invoice }: { invoice: InvoiceDTO }) {
                   })}
                 </span>
               ) : null}
-              <span className="text-muted">{payment.methodLabel ?? "DOKU"}</span>
+              <span className="text-muted">{payment.methodLabel ?? "Xendit"}</span>
             </div>
             {payment.providerRef ? (
               <p className="font-mono text-[12px] text-muted">
-                Ref DOKU: {payment.providerRef}
+                Ref Xendit: {payment.providerRef}
               </p>
             ) : null}
             {payment.providerAmountCents != null ? (
               <p className="text-ink">
-                Ditagih:{" "}
-                {new Intl.NumberFormat("id-ID", {
-                  style: "currency",
-                  currency: payment.providerCurrency ?? "IDR",
-                  maximumFractionDigits: 0,
-                }).format(payment.providerAmountCents / 100)}
-              </p>
-            ) : null}
-            {payment.fxRate != null && payment.fxRate > 1 ? (
-              <p className="text-[12px] text-muted">
-                Konversi saat bayar: 1 USD = Rp
-                {Math.round(payment.fxRate).toLocaleString("id-ID")}
+                Ditagih: {money(payment.providerAmountCents)}
               </p>
             ) : null}
           </div>

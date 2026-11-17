@@ -4,10 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { getProduct, getPlaceOptions } from "@/app/actions/catalog";
 import { createBooking } from "@/app/actions/booking";
-import {
-  startBookingPayment,
-  startCardDirectBookingPayment,
-} from "@/app/actions/payments";
+import { startBookingPayment } from "@/app/actions/payments";
 import { parsePickedPoint } from "@/lib/picked-point";
 import type { PlaceNode } from "@/lib/places";
 import { useLocale } from "@/components/providers/LocaleProvider";
@@ -17,7 +14,7 @@ import WizardStepper from "./WizardStepper";
 import BookingSummary from "./BookingSummary";
 import StepAddOns from "./StepAddOns";
 import StepDetails from "./StepDetails";
-import StepPayment, { type AppliedPromo, type CardSubmit } from "./StepPayment";
+import StepPayment, { type AppliedPromo } from "./StepPayment";
 import SignaturePad from "./SignaturePad";
 import type { RenterIdentity } from "./RenterIdentityForm";
 
@@ -45,7 +42,7 @@ const LAST_BOOKING_KEY = "booking-vip:last-booking";
 export default function BookingWizard() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { currency, rates, formatMoney, t } = useLocale();
+  const { formatMoney, t } = useLocale();
 
   const slug = params.slug as string;
   const [product, setProduct] = useState<ProductDetailDTO | null>(null);
@@ -117,7 +114,7 @@ export default function BookingWizard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // The booking created by "Bayar Sekarang" — created ONCE; payment retries
-  // (a declined card, an expired 3DS session) reuse the same booking.
+  // (a declined card, an expired checkout session) reuse the same booking.
   const [created, setCreated] = useState<{
     code: string;
     totalUsdCents: number;
@@ -205,13 +202,11 @@ export default function BookingWizard() {
   }, [selectedAddOns, product]);
 
   /**
-   * Pay: create the booking (once) and start the DOKU payment.
-   *  - Card → the embedded form was already filled on OUR page; the server
-   *    starts the 3DS authentication and the browser goes to the issuer's
-   *    page, then back to /payment/3ds/return → /payment/return.
-   *  - QRIS → the DOKU hosted checkout, back via /payment/return.
+   * Pay: create the booking (once) and start the Xendit payment. The browser
+   * is redirected to Xendit's hosted checkout (credit card); the customer
+   * comes back via /payment/return, which polls the payment status.
    */
-  const handlePay = async (method: "CREDIT_CARD" | "QRIS", card?: CardSubmit) => {
+  const handlePay = async () => {
     if (!product || !selectedPackage) return;
 
     // Guard against missing/invalid date/time BEFORE constructing the ISO
@@ -231,10 +226,6 @@ export default function BookingWizard() {
     let booking = created;
     if (!booking) {
       const serviceAtISO = serviceAtValue.toISOString();
-
-      // Use the live cached FX rate from the provider (same rate shown in UI).
-      // USD rate is implicitly 1; for other currencies pull from `rates`.
-      const fxRate = currency === "USD" ? 1 : (rates[currency] ?? 1);
 
       // Renter identity + signature ride on the contact payload. For other
       // lines the identity state stays empty, so these fields are undefined.
@@ -264,8 +255,6 @@ export default function BookingWizard() {
         // identity replaces them.
         flight: isTransport ? {} : flight,
         travelers: isTransport ? [] : travelers,
-        currencyCode: currency,
-        fxRate,
         promoCode: appliedPromo?.code,
       });
 
@@ -293,34 +282,16 @@ export default function BookingWizard() {
       }
     }
 
-    // 2. Start the payment.
-    if (method === "CREDIT_CARD" && card) {
-      const result = await startCardDirectBookingPayment({
-        bookingCode: booking.code,
-        email: contact.email,
-        cardNumber: card.cardNumber,
-        cardExpiry: card.cardExpiry,
-        cardCvv: card.cardCvv,
-      });
-      if (result.ok) {
-        // Off to the issuer's 3DS page — no result step, the return page
-        // takes over after the charge.
-        window.location.href = result.authenticationUrl;
-        return;
-      }
-      setSubmitError(result.error);
-      setIsSubmitting(false);
-      return;
-    }
-
-    // QRIS → the DOKU hosted checkout.
+    // 2. Start the payment — credit card via the Xendit hosted checkout.
     const result = await startBookingPayment({
       bookingCode: booking.code,
       email: contact.email,
-      methodCode: "QRIS",
+      methodCode: "CREDIT_CARD",
     });
     if (result.ok) {
-      window.location.href = result.checkoutUrl;
+      // Off to Xendit's checkout — no result step, the return page takes
+      // over after the charge.
+      window.location.assign(result.checkoutUrl);
       return;
     }
     setSubmitError(result.error);
