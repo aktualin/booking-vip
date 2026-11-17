@@ -1,15 +1,20 @@
 // Server-side helpers for Cloudflare R2 (S3-compatible object storage).
 //
 // Files live in the `vip-book` bucket; the database stores a stable public
-// URL for every object (`R2_PUBLIC_BASE_URL` + key). Never store signed or
-// expiring URLs — those belong to the `Media.url` column as plain strings.
+// URL for every object (`CLOUDFLARE_S3_ENDPOINT` + key). Never store signed
+// or expiring URLs — those belong to the `Media.url` column as plain strings.
 //
 // Environment:
-//   CLOUDFLARE_S3_ENDPOINT  S3 endpoint, e.g. https://<account>.r2.cloudflarestorage.com
+//   CLOUDFLARE_S3_API       S3 API, e.g. https://<account>.r2.cloudflarestorage.com/vip-book
+//                           — used for signed server-side ops (put/head/get).
+//                           A trailing bucket path is tolerated and ignored
+//                           (the bucket is supplied per command).
+//   CLOUDFLARE_S3_ENDPOINT  public base of the bucket, e.g. a custom domain
+//                           like https://cdn.example.com or an r2.dev
+//                           subdomain — the prefix stored in the database.
+//                           Must NOT be an r2.cloudflarestorage.com host.
 //   CLOUDFLARE_ACCESS_KEY_ID / CLOUDFLARE_ACCESS_SECRET  S3 credentials
 //   R2_BUCKET               bucket name (default "vip-book")
-//   R2_PUBLIC_BASE_URL      public base, e.g. https://pub-<hash>.r2.dev or a
-//                           custom domain — the prefix stored in the database
 
 import {
   S3Client,
@@ -31,30 +36,59 @@ export const R2_BUCKET = process.env["R2_BUCKET"] ?? "vip-book";
  */
 export const PRIVATE_R2_BUCKET = process.env["PRIVATE_R2_BUCKET"] ?? R2_BUCKET;
 
-/** The public URL prefix stored in the database, or null while unset. */
+/** True when the URL points at the S3 API host rather than a public domain. */
+function isS3ApiHost(url: string): boolean {
+  return url.includes("r2.cloudflarestorage.com");
+}
+
+/**
+ * The public URL prefix stored in the database — the bucket's custom domain
+ * (`CLOUDFLARE_S3_ENDPOINT`), or null while unset. An r2.cloudflarestorage.com
+ * host is an S3 API, not a public domain: it is rejected so images fall back
+ * to the `/media/<key>` proxy instead of getting unreachable URLs.
+ */
 export function publicBaseUrl(): string | null {
-  const base = process.env["R2_PUBLIC_BASE_URL"];
-  if (!base) return null;
+  const base = process.env["CLOUDFLARE_S3_ENDPOINT"];
+  if (!base || isS3ApiHost(base)) return null;
   return base.replace(/\/+$/, "");
 }
 
 /** Stable public URL of an object key (placeholder `/media/<key>` until the
- * public base URL is configured). */
+ * public base URL is configured). Only for public site images — never for
+ * PII, which must stay behind the authenticated proxy (`proxyMediaUrl`). */
 export function mediaUrl(key: string): string {
   const base = publicBaseUrl();
   return base ? `${base}/${key}` : `/media/${key}`;
 }
 
+/** Authenticated-proxy URL of an object key — always `/media/<key>`, even
+ * when a public base URL is configured. Use this for private documents
+ * (passport scans, e-VOA documents, renter identity): the proxy route
+ * enforces the ownership check, a public CDN URL would bypass it. */
+export function proxyMediaUrl(key: string): string {
+  return `/media/${key}`;
+}
+
 let client: S3Client | null = null;
 
-/** Shared S3 client — R2 uses path-style addressing and the "auto" region. */
+/**
+ * Shared S3 client — R2 uses path-style addressing and the "auto" region.
+ * The endpoint comes from `CLOUDFLARE_S3_API` (a trailing bucket path is
+ * tolerated and ignored — the bucket is supplied per command); a
+ * `CLOUDFLARE_S3_ENDPOINT` that is an r2.cloudflarestorage.com host works too.
+ */
 export function r2(): S3Client {
   if (client) return client;
-  const endpoint =
-    process.env["CLOUDFLARE_S3_ENDPOINT"] ?? process.env["CLOUDFLARE_S3_API"];
+  const endpoint = (() => {
+    const api = process.env["CLOUDFLARE_S3_API"];
+    if (api) return new URL(api).origin; // strip any /<bucket> suffix
+    const custom = process.env["CLOUDFLARE_S3_ENDPOINT"];
+    if (custom && isS3ApiHost(custom)) return custom;
+    return null;
+  })();
   if (!endpoint || !process.env["CLOUDFLARE_ACCESS_KEY_ID"] || !process.env["CLOUDFLARE_ACCESS_SECRET"]) {
     throw new Error(
-      "Missing R2 configuration — set CLOUDFLARE_S3_ENDPOINT, CLOUDFLARE_ACCESS_KEY_ID and CLOUDFLARE_ACCESS_SECRET."
+      "Missing R2 configuration — set CLOUDFLARE_S3_API (S3 endpoint) and CLOUDFLARE_ACCESS_KEY_ID / CLOUDFLARE_ACCESS_SECRET."
     );
   }
   client = new S3Client({

@@ -3,13 +3,13 @@
 // re-points the database at the public URLs.
 //
 //   npm run images:upload   → upload objects + upsert `Media` rows (+ DB sync
-//                             once R2_PUBLIC_BASE_URL is configured)
+//                             once CLOUDFLARE_S3_ENDPOINT is a public domain)
 //   npm run images:prune    → after a successful upload, delete
 //                             `public/images/` and the bucket probe object
 //
 // The script is idempotent: objects already in the bucket are skipped,
 // `Media` rows are upserted by key and URLs are rewritten to the current
-// `R2_PUBLIC_BASE_URL` on every run.
+// `CLOUDFLARE_S3_ENDPOINT` on every run.
 
 import "dotenv/config";
 import { readdir, readFile, rm, stat, copyFile, mkdir } from "node:fs/promises";

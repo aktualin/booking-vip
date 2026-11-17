@@ -8,8 +8,9 @@
 // Contract: `{ ok: true, key, url, fileName, mimeType, sizeBytes }` on
 // success, `{ ok: false, error }` otherwise. `mimeType`/`sizeBytes` describe
 // the STORED bytes — passport/photo images may be recompressed to JPEG.
-// `url` is the stable public URL (`/media/<key>` while R2_PUBLIC_BASE_URL is
-// unset), served by src/app/media/[...key]/route.ts.
+// `url` is always the authenticated proxy path `/media/<key>` (served by
+// src/app/media/[...key]/route.ts) — e-VOA documents are PII and must never
+// get a public CDN URL, even when CLOUDFLARE_S3_ENDPOINT is a public domain.
 //
 // Auth: customer slots need the user session; "visa-pdf" is uploaded by ops
 // after the visa is issued, so it needs the admin session instead.
@@ -23,7 +24,7 @@ import { NextResponse } from "next/server";
 import sharp from "sharp";
 import { db } from "@/prisma/db";
 import { evoaDocSlot, type EvoaDocSlotDef } from "@/lib/evoa-shared";
-import { mediaUrl, putObject } from "@/lib/storage";
+import { proxyMediaUrl, putObject } from "@/lib/storage";
 import { getAdminSession } from "@/lib/admin/session";
 import { getUserSession } from "@/lib/user/session";
 
@@ -237,7 +238,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     key,
-    url: mediaUrl(key),
+    url: proxyMediaUrl(key),
     fileName: sanitizeFileName(file.name),
     mimeType,
     sizeBytes: bytes.byteLength,

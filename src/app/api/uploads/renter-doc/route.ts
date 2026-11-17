@@ -5,8 +5,10 @@
 // bytes in Cloudflare R2. R2 credentials never reach the client.
 //
 // Contract: `{ ok: true, url, key }` on success, `{ ok: false, error }`
-// otherwise. `url` is the stable public URL (`/media/<key>` while
-// R2_PUBLIC_BASE_URL is unset), served by src/app/media/[...key]/route.ts.
+// otherwise. `url` is always the authenticated proxy path `/media/<key>`
+// (served by src/app/media/[...key]/route.ts) — renter documents are PII and
+// must never get a public CDN URL, even when CLOUDFLARE_S3_ENDPOINT is a
+// public domain.
 //
 // Runs on the default Node.js runtime (Buffer + @aws-sdk need it). The
 // `runtime` segment config is intentionally omitted — it is unsupported
@@ -14,7 +16,7 @@
 
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { mediaUrl, putObject } from "@/lib/storage";
+import { proxyMediaUrl, putObject } from "@/lib/storage";
 
 const MB = 1024 * 1024;
 
@@ -95,5 +97,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, url: mediaUrl(key), key });
+  return NextResponse.json({ ok: true, url: proxyMediaUrl(key), key });
 }
