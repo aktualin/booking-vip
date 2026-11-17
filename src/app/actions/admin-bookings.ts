@@ -613,6 +613,10 @@ export async function setBookingStatus(
           bookingId: id,
           error: credit.error,
         });
+      } else if (!credit.credited) {
+        console.warn("[admin-bookings] wallet credit skipped (already credited or no user)", {
+          bookingId: id,
+        });
       }
     } catch (error) {
       console.error("[admin-bookings] wallet credit failed", { bookingId: id, error });
