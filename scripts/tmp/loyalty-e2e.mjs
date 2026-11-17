@@ -58,20 +58,9 @@ const fail = async (msg) => {
   process.exit(1);
 };
 
-/** Wait until the Turnstile widget wrote its token into the form. */
+/** Turnstile is gone from the forms — nothing to wait for anymore. */
 async function waitTurnstile() {
-  try {
-    await page.waitForFunction(
-      () => {
-        const el = document.querySelector('input[name="cf-turnstile-response"]');
-        return el && el.value && el.value.length > 20;
-      },
-      { timeout: 45000 },
-    );
-    console.log("turnstile token present");
-  } catch {
-    await fail("Turnstile never produced a token (bot-flagged browser?)");
-  }
+  console.log("turnstile removed — skipping");
 }
 
 if (stage === "register") {

@@ -1,12 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState } from "react";
 import Link from "next/link";
 import { registerUser, type UserAuthState } from "@/app/actions/user-auth";
 import AuthField from "@/components/auth/AuthField";
 import FacebookButton from "@/components/auth/FacebookButton";
 import GoogleButton from "@/components/auth/GoogleButton";
-import TurnstileWidget from "@/components/auth/TurnstileWidget";
 
 /**
  * Customer registration form.
@@ -20,15 +19,6 @@ export default function RegisterForm() {
     registerUser,
     {},
   );
-  // Turnstile tokens are single-use — the widget is reset after a rejected
-  // submission so the user can solve it again.
-  const [turnstileReset, setTurnstileReset] = useState(0);
-
-  useEffect(() => {
-    // `state` is replaced on every action result — the error text alone is
-    // not a reliable dependency (the same message twice would not re-run it).
-    if (state.error) setTurnstileReset((n) => n + 1);
-  }, [state]);
 
   return (
     <div>
@@ -108,12 +98,6 @@ export default function RegisterForm() {
             {state.error}
           </p>
         ) : null}
-
-        <TurnstileWidget
-          sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""}
-          action="register"
-          resetSignal={turnstileReset}
-        />
 
         <button
           type="submit"
