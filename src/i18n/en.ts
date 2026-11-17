@@ -92,7 +92,7 @@ export const en = {
   "footer.secure": "Secure your transaction",
   "footer.awards": "Awards",
   "footer.followUs": "Follow us",
-  "footer.copyright": "© 2011-2026 Booking VIP Demo. This is an educational UI clone — not affiliated with tiket.com.",
+  "footer.copyright": "© 2026 Bali VIP Fasttrack",
 
   // Bottom tab bar
   "tabBar.home": "Home",

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { connection } from "next/server";
 import { getUserSession } from "@/lib/user/session";
 import { getMyInvoice } from "@/app/actions/account";
@@ -16,8 +17,34 @@ export const metadata: Metadata = {
  *
  * The page is deliberately plain: a white sheet with thin borders, so
  * "Print → Save as PDF" produces a clean document.
+ *
+ * The session + invoice read is request-time, so it lives in `InvoiceContent`
+ * behind a page-level `<Suspense>` boundary — the account layout's boundary
+ * persists across navigations and cannot stream a page-level read, so without
+ * this the navigation is not instant under Cache Components.
  */
-export default async function InvoicePage({
+export default function InvoicePage({
+  params,
+}: {
+  params: Promise<{ code: string }>;
+}) {
+  return (
+    <Suspense fallback={<InvoiceSkeleton />}>
+      <InvoiceContent params={params} />
+    </Suspense>
+  );
+}
+
+/** Fallback shown while the session and invoice load. */
+function InvoiceSkeleton() {
+  return (
+    <div className="mx-auto max-w-3xl">
+      <div className="h-72 animate-pulse rounded-2xl bg-white" />
+    </div>
+  );
+}
+
+async function InvoiceContent({
   params,
 }: {
   params: Promise<{ code: string }>;

@@ -94,7 +94,7 @@ export const id: Record<DictKey, string> = {
   "footer.secure": "Amankan transaksi Anda",
   "footer.awards": "Penghargaan",
   "footer.followUs": "Ikuti kami",
-  "footer.copyright": "© 2011-2026 Booking VIP Demo. Ini adalah klon UI edukatif — tidak berafiliasi dengan tiket.com.",
+  "footer.copyright": "© 2026 Bali VIP Fasttrack",
 
   // Bottom tab bar
   "tabBar.home": "Beranda",
