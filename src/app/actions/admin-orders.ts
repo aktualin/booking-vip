@@ -12,6 +12,7 @@ import {
   type ModelAccessor,
 } from "@prisma/orm-postgres/orm-client";
 import type { Contract } from "@/prisma/contract.d";
+import type { AdminExportTable } from "@/types/admin";
 
 /**
  * Admin back-office for Airport VIP orders & document handling.
@@ -760,6 +761,93 @@ export async function updateVisaStatus(input: {
     return { ok: true, message: "Status VOA diperbarui." };
   } catch (error) {
     console.error("[admin-orders] could not update visa status", error);
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+// ---------------------------------------------------------------------------
+// exportOrdersTable
+// ---------------------------------------------------------------------------
+
+/** The Indonesian labels used by the order export columns. */
+const EXPORT_PAYMENT_LABELS: Record<string, string> = {
+  awaiting_payment: "Menunggu pembayaran",
+  confirmed: "Dibayar",
+  cancelled: "Dibatalkan",
+  completed: "Selesai",
+};
+
+const EXPORT_OPS_LABELS: Record<string, string> = {
+  waiting_documents: "Menunggu dokumen",
+  processing: "Diproses",
+  ready: "Siap",
+  in_service: "Layanan berjalan",
+  done: "Selesai",
+};
+
+/**
+ * The filtered order table as a flat header + rows structure — the client
+ * turns it into a CSV file or an .xlsx workbook (src/lib/admin/download.ts).
+ * Caps at 2000 rows so one export never runs away.
+ */
+export async function exportOrdersTable(input?: {
+  q?: string;
+  status?: string;
+  opsStatus?: string;
+}): Promise<
+  { ok: true; table: AdminExportTable } | { ok: false; error: string }
+> {
+  try {
+    await assertAdmin();
+
+    const header = [
+      "Kode", "Dibuat", "Jadwal Layanan", "Pelanggan", "Email", "Kewarganegaraan",
+      "Bandara", "Penerbangan", "Dewasa", "Anak", "Bayi", "Total USD",
+      "Pembayaran", "Operasional", "Dokumen Siap", "Dokumen Total",
+    ];
+
+    const rows: (string | number | null)[][] = [];
+    const limit = 100;
+    let offset = 0;
+    let total = 0;
+    for (;;) {
+      const result = await listOrders({ ...input, limit, offset });
+      total = result.total;
+      for (const r of result.rows) {
+        rows.push([
+          r.code,
+          r.createdAt,
+          r.serviceAt,
+          r.contactName,
+          r.contactEmail,
+          r.nationality ?? "",
+          r.airportSummary,
+          r.flightSummary,
+          r.adultCount,
+          r.childCount,
+          r.infantCount,
+          (r.totalUsdCents / 100).toFixed(2),
+          EXPORT_PAYMENT_LABELS[r.status] ?? r.status,
+          EXPORT_OPS_LABELS[r.opsStatus] ?? r.opsStatus,
+          r.docsReceived,
+          r.docsTotal,
+        ]);
+      }
+      offset += result.rows.length;
+      if (result.rows.length === 0 || offset >= total || offset >= 2000) break;
+    }
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    return {
+      ok: true,
+      table: {
+        header,
+        rows,
+        filename: `orders-${stamp}`,
+        sheetName: "Orders",
+      },
+    };
+  } catch (error) {
+    console.error("[admin-orders] could not export orders", error);
     return { ok: false, error: errorMessage(error) };
   }
 }

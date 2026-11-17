@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  exportBookingsTable,
   getAdminBooking,
   getAdminTransactionStats,
   listAdminBookings,
   setBookingStatus,
 } from "@/app/actions/admin-bookings";
+import ExportButtons from "./ExportButtons";
 import type {
   AdminBookingDetail,
   AdminBookingRow,
@@ -459,39 +461,53 @@ export default function TransactionsManager({
           ))}
         </div>
 
-        <form onSubmit={submitSearch} className="flex items-center gap-2">
-          <div className="relative">
-            <SearchIcon
-              width={14}
-              height={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-muted)]"
-            />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Cari kode / email…"
-              aria-label="Cari booking berdasarkan kode atau email"
-              className={`${adminClass.input} w-[220px] pl-8`}
-            />
-          </div>
-          <button type="submit" className={adminClass.buttonSecondary}>
-            Cari
-          </button>
-          {query !== "" ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchInput("");
-                setQuery("");
-                setPage(1);
-              }}
-              className={adminClass.buttonGhost}
-            >
-              Reset
+        <div className="flex flex-wrap items-center gap-2">
+          <form onSubmit={submitSearch} className="flex items-center gap-2">
+            <div className="relative">
+              <SearchIcon
+                width={14}
+                height={14}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-muted)]"
+              />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Cari kode / email…"
+                aria-label="Cari booking berdasarkan kode atau email"
+                className={`${adminClass.input} w-[220px] pl-8`}
+              />
+            </div>
+            <button type="submit" className={adminClass.buttonSecondary}>
+              Cari
             </button>
-          ) : null}
-        </form>
+            {query !== "" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput("");
+                  setQuery("");
+                  setPage(1);
+                }}
+                className={adminClass.buttonGhost}
+              >
+                Reset
+              </button>
+            ) : null}
+          </form>
+
+          {/* Export the current filter (line + status + search) to CSV / Excel. */}
+          <ExportButtons
+            disabled={loading}
+            load={() =>
+              exportBookingsTable({
+                lineSlug,
+                status: status === "all" ? undefined : status,
+                query: query === "" ? undefined : query,
+              })
+            }
+          />
+        </div>
       </div>
 
       {error ? (

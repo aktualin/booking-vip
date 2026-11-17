@@ -2,7 +2,12 @@
 
 import { useCallback, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { listOrders, type AdminOrderRow } from "@/app/actions/admin-orders";
+import {
+  exportOrdersTable,
+  listOrders,
+  type AdminOrderRow,
+} from "@/app/actions/admin-orders";
+import ExportButtons from "@/components/admin/ExportButtons";
 import { ADMIN_PAGE_SIZES, type AdminSortDir } from "@/types/admin-pagination";
 import DataTable, { type Column, type TableSort } from "@/components/admin/DataTable";
 import { adminClass } from "@/components/admin/tokens";
@@ -211,11 +216,24 @@ export default function OrdersManager() {
 
   return (
     <div>
-      <div className="mb-4">
-        <h1 className={adminClass.h1}>Orders</h1>
-        <p className="mt-1 text-[13px] text-[var(--admin-muted)]">
-          Pesanan Airport VIP — fast track dan penanganan dokumen penumpang.
-        </p>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className={adminClass.h1}>Orders</h1>
+          <p className="mt-1 text-[13px] text-[var(--admin-muted)]">
+            Pesanan Airport VIP — fast track dan penanganan dokumen penumpang.
+          </p>
+        </div>
+        {/* Export the current filter (search + payment + ops status). */}
+        <ExportButtons
+          disabled={loading}
+          load={() =>
+            exportOrdersTable({
+              q: q || undefined,
+              status: status || undefined,
+              opsStatus: opsStatus || undefined,
+            })
+          }
+        />
       </div>
 
       {error ? (

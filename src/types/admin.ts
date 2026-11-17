@@ -307,6 +307,67 @@ export type AdminBookingDetail = AdminBookingRow & {
   } | null;
 };
 
+// ---------------------------------------------------------------------------
+// Table export (CSV / Excel)
+// ---------------------------------------------------------------------------
+
+/**
+ * A flat table ready for download — the server actions build it from the
+ * filtered rows, the client turns it into a CSV file or an .xlsx workbook.
+ */
+export type AdminExportTable = {
+  header: string[];
+  rows: (string | number | null)[][];
+  /** Base name without extension — the client appends .csv / .xlsx. */
+  filename: string;
+  /** The worksheet name used by the Excel export. */
+  sheetName: string;
+};
+
+// ---------------------------------------------------------------------------
+// Dashboard analytics
+// ---------------------------------------------------------------------------
+
+/** One point of a dashboard time series. */
+export type DashboardPoint = {
+  label: string;
+  bookings: number;
+  /** Sum of totalUsdCents over completed + confirmed bookings (USD cents). */
+  revenueUsdCents: number;
+};
+
+/** One named bucket (service line / product). */
+export type DashboardBucket = {
+  label: string;
+  bookings: number;
+  revenueUsdCents: number;
+};
+
+/** Everything the admin dashboard charts render — derived from Bookings. */
+export type AdminDashboardData = {
+  /** The last 12 calendar months, oldest first. */
+  monthly: DashboardPoint[];
+  /** The last 30 days, oldest first. */
+  daily: { label: string; bookings: number }[];
+  /** Booking counts per status inside the 12-month window. */
+  statusCounts: Record<AdminBookingStatus, number>;
+  /** Bookings + revenue per service line (by the booking's first item). */
+  lineBreakdown: DashboardBucket[];
+  /** The five most-booked products inside the window. */
+  topProducts: DashboardBucket[];
+  kpi: {
+    /** All bookings created inside the 12-month window. */
+    bookings: number;
+    /** completed + confirmed revenue (USD cents). */
+    revenueUsdCents: number;
+    /** completed-only revenue (USD cents). */
+    completedRevenueUsdCents: number;
+    /** Average revenue per non-cancelled booking (USD cents). */
+    avgUsdCents: number;
+    cancelled: number;
+  };
+};
+
 /** Per-status counters of one line scope, plus the completed revenue. */
 export type AdminTransactionStats = {
   counts: Record<AdminBookingStatus, number>;

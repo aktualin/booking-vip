@@ -3,17 +3,17 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import {
-  exportBookingsCsv,
+  exportBookingsTable,
   getAdminTransactionStats,
   listAdminBookings,
 } from "@/app/actions/admin-bookings";
+import ExportButtons from "@/components/admin/ExportButtons";
 import type { AdminBookingStatus, AdminTransactionStats } from "@/types/admin";
 import type { AdminBookingRowFull } from "@/types/admin-bookings";
 import { ADMIN_BOOKING_LINES } from "@/types/admin-bookings";
 import { ADMIN_PAGE_SIZES, type AdminSortDir } from "@/types/admin-pagination";
 import DataTable, { type Column, type TableSort } from "@/components/admin/DataTable";
 import { adminClass } from "@/components/admin/tokens";
-import { showAdminToast } from "@/components/admin/toast";
 import { useAdminValue } from "@/components/admin/useAdminList";
 import { usd } from "@/lib/format";
 
@@ -71,7 +71,6 @@ export default function BookingsManager() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSizeState] = useState(5);
   const [sort, setSort] = useState<TableSort | null>(null);
-  const [exporting, setExporting] = useState(false);
 
   const filters = {
     lineSlug: lineSlug || undefined,
@@ -117,29 +116,6 @@ export default function BookingsManager() {
     event.preventDefault();
     setQuery(queryInput.trim());
     setPage(1);
-  };
-
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const result = await exportBookingsCsv(filters);
-      if (!result.ok) {
-        showAdminToast(result.error, "error");
-        return;
-      }
-      const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = result.filename;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      showAdminToast("CSV diunduh.");
-    } catch (err) {
-      showAdminToast(err instanceof Error ? err.message : "Gagal mengekspor CSV", "error");
-    } finally {
-      setExporting(false);
-    }
   };
 
   const columns: Column<AdminBookingRowFull>[] = [
@@ -262,14 +238,7 @@ export default function BookingsManager() {
             Semua booking lintas layanan. Klik kode untuk detail, assignment driver &amp; mobil, dan aksi status.
           </p>
         </div>
-        <button
-          type="button"
-          className={adminClass.buttonSecondary}
-          onClick={handleExport}
-          disabled={exporting || loading}
-        >
-          {exporting ? "Mengekspor…" : "Export CSV"}
-        </button>
+        <ExportButtons disabled={loading} load={() => exportBookingsTable(filters)} />
       </div>
 
       {/* Status counters — click to filter. */}

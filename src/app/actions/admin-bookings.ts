@@ -18,6 +18,7 @@ import type {
   AdminBookingListResult,
   AdminBookingRow,
   AdminBookingStatus,
+  AdminExportTable,
   AdminTransactionStats,
 } from "@/types/admin";
 import type {
@@ -977,7 +978,7 @@ export async function appendOpsNote(
 }
 
 // ---------------------------------------------------------------------------
-// exportBookingsCsv
+// exportBookingsTable / exportBookingsCsv
 // ---------------------------------------------------------------------------
 
 /** Escape one CSV cell — quotes doubled, always quoted. */
@@ -986,14 +987,17 @@ function csvCell(value: string | number | null | undefined): string {
 }
 
 /**
- * The filtered transaction table as a CSV string (client-side download).
- * Caps at 2000 rows so one export never runs away.
+ * The filtered transaction table as a flat header + rows structure — the
+ * client turns it into a CSV file or an .xlsx workbook (src/lib/admin/
+ * download.ts). Caps at 2000 rows so one export never runs away.
  */
-export async function exportBookingsCsv(input: {
+export async function exportBookingsTable(input: {
   lineSlug?: string;
   status?: AdminBookingStatus;
   query?: string;
-}): Promise<{ ok: true; csv: string; filename: string } | { ok: false; error: string }> {
+}): Promise<
+  { ok: true; table: AdminExportTable } | { ok: false; error: string }
+> {
   await assertAdmin();
 
   const header = [
@@ -1001,14 +1005,14 @@ export async function exportBookingsCsv(input: {
     "Customer", "Email", "Dewasa", "Anak", "Infant", "Total USD", "Pembayaran", "Driver",
   ];
 
-  const lines: string[] = [header.map(csvCell).join(",")];
+  const rows: (string | number | null)[][] = [];
   const pageSize = 100;
   let page = 1;
   let collected = 0;
   for (;;) {
     const result = await listAdminBookings({ ...input, page, pageSize });
     for (const row of result.rows) {
-      lines.push([
+      rows.push([
         row.code,
         row.status,
         row.serviceAt,
@@ -1023,7 +1027,7 @@ export async function exportBookingsCsv(input: {
         (row.totalUsdCents / 100).toFixed(2),
         row.paymentStatus ?? "",
         row.driverName ?? "",
-      ].map(csvCell).join(","));
+      ]);
     }
     collected += result.rows.length;
     if (collected >= result.total || result.rows.length === 0 || collected >= 2000) break;
@@ -1031,7 +1035,34 @@ export async function exportBookingsCsv(input: {
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
-  return { ok: true, csv: lines.join("\n"), filename: `transaksi-${stamp}.csv` };
+  const suffix = input.lineSlug ? `-${input.lineSlug}` : "";
+  return {
+    ok: true,
+    table: {
+      header,
+      rows,
+      filename: `transaksi${suffix}-${stamp}`,
+      sheetName: "Transaksi",
+    },
+  };
+}
+
+/**
+ * The filtered transaction table as a CSV string (client-side download).
+ * Thin wrapper over `exportBookingsTable` kept for the existing callers.
+ */
+export async function exportBookingsCsv(input: {
+  lineSlug?: string;
+  status?: AdminBookingStatus;
+  query?: string;
+}): Promise<{ ok: true; csv: string; filename: string } | { ok: false; error: string }> {
+  const result = await exportBookingsTable(input);
+  if (!result.ok) return result;
+  const { table } = result;
+  const lines = [table.header, ...table.rows].map((row) =>
+    row.map(csvCell).join(","),
+  );
+  return { ok: true, csv: lines.join("\n"), filename: `${table.filename}.csv` };
 }
 
 // ---------------------------------------------------------------------------
