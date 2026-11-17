@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import LocaleMenu from "@/components/layout/LocaleMenu";
 
 /**
  * The centered canvas used by the login and register pages.
@@ -6,11 +7,15 @@ import type { ReactNode } from "react";
  * A plain white page with a single centered column: a small brand plane icon
  * on top, then the page content (heading, form, SSO buttons). Deliberately
  * without the site header/footer — these pages are a focused,
- * distraction-free step.
+ * distraction-free step. The only exception is the language switcher,
+ * pinned to the top-right corner since there is no navbar to host it.
  */
 export default function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center bg-white px-4 py-10">
+      <div className="absolute right-4 top-4 z-10 text-[13px] font-medium text-muted">
+        <LocaleMenu />
+      </div>
       <main className="w-full max-w-[380px]">
         <div className="mb-8 flex justify-center text-ink">
           <PlaneMark />

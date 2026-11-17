@@ -656,6 +656,7 @@ model Booking {
   addOns          BookingAddOn[]
   payments        Payment[]
   visaApplications VisaApplication[]
+  signedContract  SignedContract?
   user            User?     @relation(fields: [userId], references: [id])
   departure       TourDeparture? @relation(fields: [departureId], references: [id], onDelete: SetNull)
   driver          Driver?        @relation(fields: [driverId], references: [id], onDelete: SetNull)
@@ -894,6 +895,49 @@ model PaymentWebhookEvent {
   receivedAt   DateTime @default(now())
 
   @@unique([provider, providerEventId])
+}
+
+/// One article of the transport rental agreement ("pasal").
+///
+/// The content is authored by the operator in the admin area — in English,
+/// because the agreement is signed as an English contract — and rendered
+/// as-is on the booking wizard's agreement step. `sortOrder` drives the
+/// article numbering (1 → "Article 1").
+model ContractClause {
+  id        String   @id @default(uuid())
+  /// The article heading, e.g. "Renter Documents".
+  title     String
+  /// The article body — may carry several paragraphs separated by newlines.
+  body      String
+  /// Inactive articles are hidden from the agreement step.
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+/// The signed rental agreement of one transport booking.
+///
+/// `clausesSnapshot` freezes the articles as they were when the renter
+/// signed, so later admin edits never rewrite a signed contract. The
+/// signature image itself lives in the object storage (the same upload
+/// endpoint the wizard's signature pad uses); `signatureUrl` points at it.
+model SignedContract {
+  id              String   @id @default(uuid())
+  bookingId       String   @unique
+  /// The articles as signed — [{ id, title, body, sortOrder }].
+  clausesSnapshot Json
+  /// The full name the renter typed under the signature.
+  signerName      String
+  /// Stored URL of the signature image (PNG).
+  signatureUrl    String
+  signedAt        DateTime @default(now())
+
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([signedAt])
 }
 
 /// A browser push subscription (Web Push / VAPID).

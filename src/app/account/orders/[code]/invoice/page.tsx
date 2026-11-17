@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { getUserSession } from "@/lib/user/session";
 import { getMyInvoice } from "@/app/actions/account";
+import { getBranding } from "@/lib/branding";
 import PrintInvoiceButton from "@/components/account/PrintInvoiceButton";
 import InvoiceSheet from "@/components/invoice/InvoiceSheet";
+import {
+  BackToOrdersLink,
+  NotFoundNotice,
+  SessionInvalidNotice,
+} from "@/components/account/OrderTrackingParts";
 
 export const metadata: Metadata = {
   title: "Invoice · Booking VIP",
@@ -56,53 +61,26 @@ async function InvoiceContent({
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-lg rounded-2xl border border-line bg-white p-10 text-center">
-        <h1 className="text-[18px] font-bold text-ink">Sesi tidak valid</h1>
-        <p className="mt-2 text-[13px] text-muted">
-          Silakan masuk kembali untuk membuka invoice.
-        </p>
-        <Link
-          href="/login"
-          className="mt-5 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-[13px] font-semibold text-white"
-        >
-          Masuk
-        </Link>
-      </div>
+      <SessionInvalidNotice body="invoice" className="mx-auto max-w-lg" />
     );
   }
 
   const invoice = await getMyInvoice(code);
 
   if (!invoice) {
-    return (
-      <div className="mx-auto max-w-lg rounded-2xl border border-line bg-white p-10 text-center">
-        <h1 className="text-[18px] font-bold text-ink">Invoice tidak ditemukan</h1>
-        <p className="mt-2 text-[13px] text-muted">
-          Pesanan ini tidak ada atau bukan milik akun kamu.
-        </p>
-        <Link
-          href="/account/orders"
-          className="mt-5 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-[13px] font-semibold text-white"
-        >
-          Kembali ke pesanan
-        </Link>
-      </div>
-    );
+    return <NotFoundNotice kind="invoice" className="mx-auto max-w-lg" />;
   }
+
+  const brand = await getBranding();
 
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex items-center justify-between gap-3 print:hidden">
-        <Link
-          href="/account/orders"
-          className="text-[12px] font-medium text-muted transition-colors hover:text-ink"
-        >
-          ← Kembali ke pesanan
-        </Link>
+        <BackToOrdersLink />
         <PrintInvoiceButton />
       </div>
 
-      <InvoiceSheet invoice={invoice} />
+      <InvoiceSheet invoice={invoice} brand={brand} />
     </div>
   );
 }

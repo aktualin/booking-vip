@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import Link from "next/link";
 import { connection } from "next/server";
 import { getUserSession } from "@/lib/user/session";
 import { getMyOrderTracking } from "@/app/actions/order-tracking";
+import { db } from "@/prisma/db";
 import VipTracking from "@/components/booking/VipTracking";
+import OrderActionLinks from "@/components/account/OrderActionLinks";
+import {
+  BackToOrdersLink,
+  NotFoundNotice,
+  OrderSummaryCard,
+  OrdersLoadingText,
+  SessionInvalidNotice,
+} from "@/components/account/OrderTrackingParts";
 
 export const metadata: Metadata = {
   title: "Lacak Pesanan · Booking VIP",
@@ -30,19 +38,10 @@ export default function OrderTrackingPage({
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-4">
-        <Link
-          href="/account/orders"
-          className="text-[12px] font-medium text-muted transition-colors hover:text-ink"
-        >
-          ← Kembali ke pesanan
-        </Link>
+        <BackToOrdersLink />
       </div>
 
-      <Suspense
-        fallback={
-          <p className="px-5 py-10 text-center text-[13px] text-muted">Memuat…</p>
-        }
-      >
+      <Suspense fallback={<OrdersLoadingText />}>
         <TrackingSection params={params} />
       </Suspense>
     </div>
@@ -61,78 +60,47 @@ async function TrackingSection({
   const session = await getUserSession();
 
   if (!session) {
-    return (
-      <div className="rounded-2xl border border-line bg-white p-10 text-center">
-        <h1 className="text-[18px] font-bold text-ink">Sesi tidak valid</h1>
-        <p className="mt-2 text-[13px] text-muted">
-          Silakan masuk kembali untuk melacak pesanan.
-        </p>
-        <Link
-          href="/login"
-          className="mt-5 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-[13px] font-semibold text-white"
-        >
-          Masuk
-        </Link>
-      </div>
-    );
+    return <SessionInvalidNotice body="track" />;
   }
 
   const result = await getMyOrderTracking(code);
 
   if (!result.found) {
-    return (
-      <div className="rounded-2xl border border-line bg-white p-10 text-center">
-        <h1 className="text-[18px] font-bold text-ink">Pesanan tidak ditemukan</h1>
-        <p className="mt-2 text-[13px] text-muted">
-          Pesanan ini tidak ada atau bukan milik akun kamu.
-        </p>
-        <Link
-          href="/account/orders"
-          className="mt-5 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-[13px] font-semibold text-white"
-        >
-          Kembali ke pesanan
-        </Link>
-      </div>
-    );
+    return <NotFoundNotice kind="order" />;
   }
 
   const booking = result.booking;
 
+  // Extra entry points: the checkout retry of an unpaid order and the
+  // signed rental agreement of a transport order.
+  const bookingRows = await db.orm.public.Booking
+    .select("id", "status")
+    .where((f) => f.code.eq(booking.code))
+    .limit(1)
+    .all();
+  const bookingRow = bookingRows[0];
+  const contracts = bookingRow
+    ? await db.orm.public.SignedContract.select("id")
+        .where((f) => f.bookingId.eq(bookingRow.id))
+        .limit(1)
+        .all()
+    : [];
+
   return (
     <>
-      <div className="mb-6 rounded-2xl border border-line bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between border-b border-line pb-4">
-          <div>
-            <p className="text-xs text-muted">Kode booking</p>
-            <p className="font-mono text-lg font-bold text-ink">{booking.code}</p>
-          </div>
-          <Link
-            href={`/account/orders/${encodeURIComponent(booking.code)}/invoice`}
-            className="text-[12px] font-semibold text-brand transition-opacity hover:opacity-80"
-          >
-            Unduh invoice
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-4 pt-4 text-sm">
-          <div>
-            <p className="text-muted">Tanggal layanan</p>
-            <p className="font-semibold text-ink">
-              {new Date(booking.serviceAt).toLocaleDateString("id-ID", {
-                weekday: "short",
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-          <div>
-            <p className="text-muted">Total</p>
-            <p className="font-semibold text-brand">
-              ${(booking.totalUsd).toFixed(2)}
-            </p>
-          </div>
-        </div>
-      </div>
+      <OrderSummaryCard
+        code={booking.code}
+        serviceAt={booking.serviceAt}
+        totalUsd={booking.totalUsd}
+      />
+
+      {bookingRow?.status === "awaiting_payment" || contracts.length > 0 ? (
+        <OrderActionLinks
+          code={booking.code}
+          showPay={bookingRow?.status === "awaiting_payment"}
+          showAgreement={contracts.length > 0}
+        />
+      ) : null}
 
       <VipTracking booking={booking} />
     </>

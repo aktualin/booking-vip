@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import AccountPageHeader from "@/components/account/AccountPageHeader";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { showToast } from "@/components/ui/toast";
 import {
   deleteSavedCard,
@@ -21,6 +22,7 @@ import {
  * settles Credit Card payments on its hosted checkout pages.
  */
 export default function PaymentsPanel() {
+  const { t } = useLocale();
   const [cards, setCards] = useState<SavedCardDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,7 +67,7 @@ export default function PaymentsPanel() {
       setError(result.error);
       setField(result.field);
     } else {
-      showToast("Kartu berhasil disimpan.");
+      showToast(t("payments.savedToast"));
       setNumber("");
       setExpMonth("");
       setExpYear("");
@@ -81,7 +83,7 @@ export default function PaymentsPanel() {
       showToast(result.error, "error");
       return;
     }
-    showToast("Kartu berhasil dihapus.");
+    showToast(t("payments.deletedToast"));
     void load();
   };
 
@@ -91,7 +93,7 @@ export default function PaymentsPanel() {
       showToast(result.error, "error");
       return;
     }
-    showToast("Kartu utama berhasil diubah.");
+    showToast(t("payments.defaultToast"));
     void load();
   };
 
@@ -100,21 +102,21 @@ export default function PaymentsPanel() {
   return (
     <div>
       <AccountPageHeader
-        title="Metode Pembayaran"
-        description="Kartu disimpan terenkripsi (AES-256-GCM). Nomor kartu tidak pernah disimpan dalam bentuk terbuka dan CVV tidak pernah diminta."
+        title={t("payments.title")}
+        description={t("payments.subtitle")}
       />
 
       {/* Saved cards */}
       <section className="rounded-2xl border border-line bg-white p-5 md:p-6">
         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-          Kartu tersimpan
+          {t("payments.savedTitle")}
         </h2>
 
         {loading ? (
-          <p className="mt-3 text-[13px] text-muted">Memuat…</p>
+          <p className="mt-3 text-[13px] text-muted">{t("payments.loading")}</p>
         ) : cards.length === 0 ? (
           <p className="mt-3 text-[13px] text-muted">
-            Belum ada kartu tersimpan. Tambahkan kartu di bawah.
+            {t("payments.empty")}
           </p>
         ) : (
           <ul className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -130,13 +132,15 @@ export default function PaymentsPanel() {
                       •••• •••• •••• {card.last4}
                     </p>
                     <p className="mt-1 text-[12px] text-muted">
-                      Berlaku {String(card.expMonth).padStart(2, "0")}/{card.expYear}
+                      {t("payments.validThru", {
+                        exp: `${String(card.expMonth).padStart(2, "0")}/${card.expYear}`,
+                      })}
                       {card.holderName ? ` · ${card.holderName}` : ""}
                     </p>
                   </div>
                   {card.isDefault ? (
                     <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-brand-dark">
-                      Utama
+                      {t("payments.default")}
                     </span>
                   ) : null}
                 </div>
@@ -148,7 +152,7 @@ export default function PaymentsPanel() {
                       onClick={() => void makeDefault(card.id)}
                       className="text-[12px] font-medium text-brand transition-opacity hover:opacity-80"
                     >
-                      Jadikan utama
+                      {t("payments.makeDefault")}
                     </button>
                   ) : null}
                   <button
@@ -156,7 +160,7 @@ export default function PaymentsPanel() {
                     onClick={() => void remove(card.id)}
                     className="text-[12px] font-medium text-danger transition-opacity hover:opacity-80"
                   >
-                    Hapus
+                    {t("payments.delete")}
                   </button>
                 </div>
               </li>
@@ -168,7 +172,7 @@ export default function PaymentsPanel() {
       {/* Add card */}
       <section className="mt-6 rounded-2xl border border-line bg-white p-5 md:p-6">
         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-          Tambah kartu
+          {t("payments.addTitle")}
         </h2>
 
         <form onSubmit={submit} className="mt-4 grid gap-3.5 sm:grid-cols-2">
@@ -180,7 +184,7 @@ export default function PaymentsPanel() {
 
           <label className="block sm:col-span-2">
             <span className="mb-1.5 block text-[12px] font-medium text-ink">
-              Nomor kartu
+              {t("payments.cardNumber")}
             </span>
             <input
               type="text"
@@ -194,7 +198,7 @@ export default function PaymentsPanel() {
           </label>
 
           <label className="block">
-            <span className="mb-1.5 block text-[12px] font-medium text-ink">Bulan</span>
+            <span className="mb-1.5 block text-[12px] font-medium text-ink">{t("payments.month")}</span>
             <select
               value={expMonth}
               onChange={(e) => setExpMonth(e.target.value)}
@@ -210,7 +214,7 @@ export default function PaymentsPanel() {
           </label>
 
           <label className="block">
-            <span className="mb-1.5 block text-[12px] font-medium text-ink">Tahun</span>
+            <span className="mb-1.5 block text-[12px] font-medium text-ink">{t("payments.year")}</span>
             <select
               value={expYear}
               onChange={(e) => setExpYear(e.target.value)}
@@ -227,7 +231,7 @@ export default function PaymentsPanel() {
 
           <label className="block sm:col-span-2">
             <span className="mb-1.5 block text-[12px] font-medium text-ink">
-              Nama di kartu (opsional)
+              {t("payments.holderName")}
             </span>
             <input
               type="text"
@@ -244,7 +248,7 @@ export default function PaymentsPanel() {
               disabled={saving}
               className="h-10 rounded-lg bg-brand px-4 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {saving ? "Menyimpan…" : "Simpan kartu"}
+              {saving ? t("payments.saving") : t("payments.save")}
             </button>
           </div>
         </form>
@@ -253,7 +257,7 @@ export default function PaymentsPanel() {
       {/* Other methods */}
       <section className="mt-6">
         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-          Metode pembayaran lain
+          {t("payments.otherTitle")}
         </h2>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -262,12 +266,11 @@ export default function PaymentsPanel() {
               <div>
                 <h3 className="text-[14px] font-semibold text-ink">Xendit</h3>
                 <p className="mt-1 text-[12px] leading-relaxed text-muted">
-                  Kartu kredit/debit. Diproses otomatis lewat Xendit
-                  Payment Gateway.
+                  {t("payments.xenditDesc")}
                 </p>
               </div>
               <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-brand-dark">
-                Aktif
+                {t("payments.active")}
               </span>
             </div>
           </div>
@@ -277,7 +280,7 @@ export default function PaymentsPanel() {
               <div>
                 <h3 className="text-[14px] font-semibold text-ink">PayPal</h3>
                 <p className="mt-1 text-[12px] leading-relaxed text-muted">
-                  Bayar lewat akun PayPal resmi Booking VIP.
+                  {t("payments.paypalDesc")}
                 </p>
               </div>
               {paypalUrl ? (
@@ -287,11 +290,11 @@ export default function PaymentsPanel() {
                   rel="noopener noreferrer"
                   className="shrink-0 rounded-full bg-brand-soft px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-brand-dark"
                 >
-                  Hubungi
+                  {t("payments.contact")}
                 </a>
               ) : (
                 <span className="shrink-0 rounded-full bg-canvas px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted">
-                  Segera
+                  {t("payments.soon")}
                 </span>
               )}
             </div>

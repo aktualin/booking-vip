@@ -20,6 +20,7 @@ import { adminClass } from "@/components/admin/tokens";
 import { showAdminToast } from "@/components/admin/toast";
 import { useAdminValue } from "@/components/admin/useAdminList";
 import { formatDateLabel, usd } from "@/lib/format";
+import { dialDigits } from "@/lib/flag";
 import { BookingStatusBadge } from "../BookingsManager";
 
 function dateTimeLabel(iso: string): string {
@@ -41,7 +42,7 @@ function mapsUrl(lat: number | null, lng: number | null): string | null {
 }
 
 function waUrl(countryCode: string, phone: string): string {
-  const digits = `${countryCode}${phone}`.replace(/\D/g, "");
+  const digits = `${dialDigits(countryCode)}${phone}`.replace(/\D/g, "");
   return `https://wa.me/${digits}`;
 }
 

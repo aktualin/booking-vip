@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Boxes,
+  Building2,
   Calendar,
   Car,
   ChevronDown,
@@ -22,6 +23,7 @@ import {
   Plane,
   ReceiptText,
   Settings,
+  Stamp,
   Tag,
   Ticket,
   Tickets,
@@ -102,11 +104,14 @@ const settingsGroup: NavGroup = {
   label: "Pengaturan",
   icon: Settings,
   items: [
+    { href: "/admin/settings/site-info", label: "Info Situs & Legal", icon: Building2 },
     { href: "/admin/settings/popup", label: "Popup Homepage", icon: FileText },
     { href: "/admin/settings/notifications", label: "Notifikasi Order", icon: Bell },
     { href: "/admin/settings/tax", label: "Pajak", icon: Percent },
     { href: "/admin/settings/evoa-fields", label: "Form Dinamis e-VOA", icon: List },
     { href: "/admin/settings/cancellation", label: "Pembatalan Tour", icon: Ticket },
+    { href: "/admin/settings/contract-clauses", label: "Pasal Perjanjian Sewa", icon: FileText },
+    { href: "/admin/settings/branding", label: "Branding", icon: Stamp },
   ],
 };
 

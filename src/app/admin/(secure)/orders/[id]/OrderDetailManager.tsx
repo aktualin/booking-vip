@@ -14,6 +14,8 @@ import {
   type AdminOrderVisa,
 } from "@/app/actions/admin-orders";
 import Field from "@/components/admin/Field";
+import PhoneInput from "@/components/ui/PhoneInput";
+import { formatInternational, parseInternationalPhone } from "@/lib/flag";
 import { adminClass } from "@/components/admin/tokens";
 import { useAdminValue } from "@/components/admin/useAdminList";
 import { formatCents } from "@/components/admin/MoneyField";
@@ -466,14 +468,21 @@ function TravelerDocCard({
 function OpsSection({ order }: { order: AdminOrderDetail }) {
   const [opsStatus, setOpsStatus] = useState(order.opsStatus);
   const [greeterName, setGreeterName] = useState(order.greeterName ?? "");
-  const [greeterPhone, setGreeterPhone] = useState(order.greeterPhone ?? "");
+  const [greeterPhoneCountryCode, setGreeterPhoneCountryCode] = useState(
+    () => parseInternationalPhone(order.greeterPhone ?? "").countryCode,
+  );
+  const [greeterPhone, setGreeterPhone] = useState(
+    () => parseInternationalPhone(order.greeterPhone ?? "").phone,
+  );
   const [opsNote, setOpsNote] = useState(order.opsNote ?? "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setOpsStatus(order.opsStatus);
     setGreeterName(order.greeterName ?? "");
-    setGreeterPhone(order.greeterPhone ?? "");
+    const parsed = parseInternationalPhone(order.greeterPhone ?? "");
+    setGreeterPhoneCountryCode(parsed.countryCode);
+    setGreeterPhone(parsed.phone);
     setOpsNote(order.opsNote ?? "");
   }, [order.opsStatus, order.greeterName, order.greeterPhone, order.opsNote]);
 
@@ -486,7 +495,7 @@ function OpsSection({ order }: { order: AdminOrderDetail }) {
           bookingId: order.id,
           opsStatus,
           greeterName,
-          greeterPhone,
+          greeterPhone: formatInternational(greeterPhoneCountryCode, greeterPhone),
           opsNote,
         }),
       setSaving,
@@ -540,13 +549,16 @@ function OpsSection({ order }: { order: AdminOrderDetail }) {
           />
         </Field>
         <Field label="Telepon greeter" htmlFor="ops-greeter-phone">
-          <input
+          <PhoneInput
             id="ops-greeter-phone"
-            type="tel"
-            value={greeterPhone}
-            onChange={(e) => setGreeterPhone(e.target.value)}
-            placeholder="+62…"
-            className={adminClass.input}
+            countryCode={greeterPhoneCountryCode}
+            phone={greeterPhone}
+            onChange={({ countryCode, phone }) => {
+              setGreeterPhoneCountryCode(countryCode);
+              setGreeterPhone(phone);
+            }}
+            placeholder="812 3456 7890"
+            inputClassName={adminClass.input}
           />
         </Field>
         <Field label="Catatan operasional" htmlFor="ops-note" wide>

@@ -13,6 +13,7 @@ import {
 } from "@/lib/evoa-shared";
 import { quoteEvoaFor, type EvoaFormData } from "@/app/actions/evoa";
 import type { EvoaQuote } from "@/lib/evoa-pricing";
+import { formatInternational } from "@/lib/flag";
 import {
   docCount,
   formatDate,
@@ -217,7 +218,7 @@ export default function ReviewStep({
       >
         <Row label={t("Booker", "Pemesan")} value={travel.contactName} />
         <Row label="Email" value={travel.email} />
-        <Row label={t("Phone", "Telepon")} value={travel.phone} />
+        <Row label={t("Phone", "Telepon")} value={formatInternational(travel.phoneCountryCode, travel.phone)} />
         <Row label={t("Purpose", "Tujuan")} value={purposeLabel} />
         <Row
           label={t("Arrival", "Kedatangan")}

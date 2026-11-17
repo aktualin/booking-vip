@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { registerUser, type UserAuthState } from "@/app/actions/user-auth";
 import AuthField from "@/components/auth/AuthField";
-import FacebookButton from "@/components/auth/FacebookButton";
+import PhoneInput from "@/components/ui/PhoneInput";
 import GoogleButton from "@/components/auth/GoogleButton";
+import { formatInternational } from "@/lib/flag";
+import { useLocale } from "@/components/providers/LocaleProvider";
 
 /**
  * Customer registration form.
@@ -15,68 +17,81 @@ import GoogleButton from "@/components/auth/GoogleButton";
  * customer side.
  */
 export default function RegisterForm() {
+  const { t } = useLocale();
   const [state, formAction, pending] = useActionState<UserAuthState, FormData>(
     registerUser,
     {},
   );
+  const [phoneCountryCode, setPhoneCountryCode] = useState("ID");
+  const [phone, setPhone] = useState("");
 
   return (
     <div>
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-ink">
-          Buat akun kamu
+          {t("auth.register.title")}
         </h1>
         <p className="mt-2 text-sm text-muted">
-          Sudah punya akun?{" "}
+          {t("auth.register.hasAccount")}{" "}
           <Link
             href="/login"
             className="font-medium text-ink underline underline-offset-4 transition-colors hover:text-brand"
           >
-            Masuk
+            {t("auth.register.loginLink")}
           </Link>
         </p>
       </div>
 
       <form action={formAction} className="flex flex-col gap-4">
         <AuthField
-          label="Nama lengkap"
+          label={t("auth.register.nameLabel")}
           name="name"
           autoComplete="name"
-          placeholder="Nama lengkap"
+          placeholder={t("auth.register.namePlaceholder")}
         />
 
         <AuthField
-          label="Email"
+          label={t("auth.register.emailLabel")}
           name="email"
           type="email"
           autoComplete="email"
-          placeholder="nama@email.com"
+          placeholder={t("auth.register.emailPlaceholder")}
         />
 
-        <AuthField
-          label="Nomor telepon"
+        <PhoneInput
+          label={t("auth.register.phoneLabel")}
+          required
+          countryCode={phoneCountryCode}
+          phone={phone}
+          onChange={({ countryCode, phone }) => {
+            setPhoneCountryCode(countryCode);
+            setPhone(phone);
+          }}
+          placeholder={t("auth.register.phonePlaceholder")}
+          inputClassName="h-11 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/15"
+        />
+        <input
+          type="hidden"
           name="phone"
-          type="tel"
-          autoComplete="tel"
-          placeholder="+62 812 3456 7890"
+          value={formatInternational(phoneCountryCode, phone)}
         />
 
         <AuthField
-          label="Password"
+          label={t("auth.register.passwordLabel")}
           name="password"
           type="password"
           autoComplete="new-password"
           minLength={8}
-          placeholder="Minimal 8 karakter"
+          placeholder={t("auth.register.passwordPlaceholder")}
         />
 
         <AuthField
-          label="Ulangi password"
+          label={t("auth.register.confirmLabel")}
           name="confirm"
           type="password"
           autoComplete="new-password"
           minLength={8}
-          placeholder="••••••••"
+          placeholder={t("auth.register.confirmPlaceholder")}
         />
 
         <div className="-mt-1 flex items-start gap-2 text-[12px] leading-relaxed text-muted">
@@ -87,10 +102,7 @@ export default function RegisterForm() {
             required
             className="mt-0.5 h-4 w-4 shrink-0 rounded border-line accent-ink"
           />
-          <span>
-            Saya menyetujui Syarat &amp; Ketentuan serta Kebijakan Privasi
-            Booking VIP.
-          </span>
+          <span>{t("auth.register.termsAgree")}</span>
         </div>
 
         {state.error ? (
@@ -104,24 +116,22 @@ export default function RegisterForm() {
           disabled={pending}
           className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-ink text-sm font-semibold text-white transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {pending ? "Membuat akun…" : "Daftar"}
+          {pending
+            ? t("auth.register.submitting")
+            : t("auth.register.submit")}
         </button>
       </form>
 
       <div className="my-6 flex items-center gap-3">
         <span className="h-px flex-1 bg-line" />
-        <span className="text-xs text-muted">Atau</span>
+        <span className="text-xs text-muted">{t("auth.register.or")}</span>
         <span className="h-px flex-1 bg-line" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <GoogleButton label="Google" className="w-full" />
-        <FacebookButton className="w-full" />
-      </div>
+      <GoogleButton label={t("auth.register.google")} className="w-full" />
 
       <p className="mt-6 text-center text-xs leading-relaxed text-muted">
-        Dengan melanjutkan, kamu menyetujui Syarat &amp; Ketentuan dan
-        Kebijakan Privasi Booking VIP.
+        {t("auth.register.termsNotice")}
       </p>
     </div>
   );

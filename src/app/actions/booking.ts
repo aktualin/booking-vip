@@ -123,6 +123,65 @@ function plusSixMonths(date: Date): Date {
 }
 
 /**
+ * The active rental-agreement articles, numbered by `sortOrder`.
+ *
+ * The agreement step of the transport wizard renders exactly these rows;
+ * a signed booking snapshots them so later admin edits never rewrite a
+ * signed contract.
+ */
+async function activeContractClauses() {
+  return db.orm.public.ContractClause.select("id", "title", "body", "sortOrder")
+    .where((f) => f.active.eq(true))
+    .orderBy((f) => f.sortOrder.asc())
+    .all();
+}
+
+/**
+ * The rental-agreement gate of the transport lines.
+ *
+ * Returns an error message when the service publishes articles but the
+ * request carries no signed agreement; null when the booking may proceed
+ * (no articles published, or a complete signature payload).
+ */
+async function assertRentalContractSigned(input: CreateBookingInput): Promise<string | null> {
+  const clauses = await activeContractClauses();
+  if (clauses.length === 0) return null;
+
+  const signerName = input.contract?.signerName.trim() ?? "";
+  const signatureUrl = input.contract?.signatureUrl?.trim() ?? "";
+  if (!signerName || !signatureUrl) {
+    return "Perjanjian sewa wajib ditandatangani sebelum memesan.";
+  }
+  return null;
+}
+
+/** Snapshot the active articles into a SignedContract row of the booking. */
+async function createSignedContract(
+  bookingId: string,
+  input: CreateBookingInput,
+): Promise<void> {
+  const signerName = input.contract?.signerName.trim() ?? "";
+  const signatureUrl = input.contract?.signatureUrl?.trim() ?? "";
+  if (!signerName || !signatureUrl) return;
+
+  const clauses = await activeContractClauses();
+  if (clauses.length === 0) return;
+
+  await db.orm.public.SignedContract.create({
+    id: crypto.randomUUID(),
+    bookingId,
+    clausesSnapshot: clauses.map((clause) => ({
+      id: clause.id,
+      title: clause.title,
+      body: clause.body,
+      sortOrder: clause.sortOrder,
+    })) as never,
+    signerName,
+    signatureUrl,
+  });
+}
+
+/**
  * The cart path of createBooking — several transport rental lines in ONE
  * booking (one invoice, one payment).
  *
@@ -171,6 +230,11 @@ async function createCartBooking(
       };
     }
   }
+
+  // 2b. The rental agreement gate — the cart is transport-only, so a signed
+  //     agreement is mandatory as soon as articles are published.
+  const contractError = await assertRentalContractSigned(input);
+  if (contractError) return { ok: false, error: contractError };
 
   // 3. Resolve every package and validate each line.
   const packageIds = [...new Set(lines.map((l) => l.packageId))];
@@ -416,6 +480,9 @@ async function createCartBooking(
       signatureUrl: input.contact.signatureUrl || null,
     });
 
+    // 3b. Signed rental agreement snapshot (the cart is transport-only).
+    await createSignedContract(bookingId, input);
+
     // 4. Traveler* (normalize names).
     for (let i = 0; i < travelers.length; i++) {
       const traveler = travelers[i];
@@ -585,6 +652,13 @@ export async function createBooking(
       .limit(1)
       .all();
     const isTransport = lines[0]?.slug === "transport";
+
+    // The rental agreement gate — a transport booking may only be created
+    // with a signed agreement once articles are published.
+    if (isTransport) {
+      const contractError = await assertRentalContractSigned(input);
+      if (contractError) return { ok: false, error: contractError };
+    }
 
     // Validate the vehicle count (transport rentals) — default 1, integer 1-99.
     let vehicleCount = input.vehicleCount ?? 1;
@@ -986,6 +1060,9 @@ export async function createBooking(
         signatureUrl: input.contact.signatureUrl || null,
         nationality: input.contact.nationality?.trim() || null,
       });
+
+      // 4b. Signed rental agreement snapshot (transport rentals only).
+      if (isTransport) await createSignedContract(bookingId, input);
 
       // 5. Traveler* (normalize names). The passport fields are optional —
       // only the airport VIP flow sends them. docStatus starts at "received"

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getOptions } from "@/app/actions/catalog";
 import PlaceSelect from "@/components/ui/PlaceSelect";
+import PhoneInput from "@/components/ui/PhoneInput";
 import type { PlaceNode } from "@/lib/places";
 import type { OptionDTO } from "@/types";
 import { useLocale } from "@/components/providers/LocaleProvider";
@@ -68,11 +69,9 @@ export default function StepDetails({
 }: Props) {
   const { t } = useLocale();
   const [airlines, setAirlines] = useState<OptionDTO[]>([]);
-  const [countries, setCountries] = useState<OptionDTO[]>([]);
 
   useEffect(() => {
     getOptions("airline").then(setAirlines);
-    getOptions("country").then(setCountries);
   }, []);
 
   const totalTravelers = adults + children;
@@ -285,42 +284,15 @@ export default function StepDetails({
               className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-sm text-ink"
             />
           </div>
-          <div className="grid grid-cols-[100px_1fr] gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">
-                {t("wizard.details.country")}
-              </label>
-              <select
-                value={contact.phoneCountryCode}
-                onChange={(e) =>
-                  onContactChange({
-                    ...contact,
-                    phoneCountryCode: e.target.value,
-                  })
-                }
-                className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-ink"
-              >
-                {countries.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.value}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">
-                {t("wizard.details.phone")}
-              </label>
-              <input
-                type="tel"
-                value={contact.phone}
-                onChange={(e) =>
-                  onContactChange({ ...contact, phone: e.target.value })
-                }
-                className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-sm text-ink"
-              />
-            </div>
-          </div>
+          <PhoneInput
+            label={t("wizard.details.phone")}
+            countryCode={contact.phoneCountryCode}
+            phone={contact.phone}
+            onChange={({ countryCode, phone }) =>
+              onContactChange({ ...contact, phoneCountryCode: countryCode, phone })
+            }
+            inputClassName="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-sm text-ink"
+          />
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted">
               {t("wizard.details.notes")}

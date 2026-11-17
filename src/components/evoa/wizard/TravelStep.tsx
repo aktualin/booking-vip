@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { EVOA_PURPOSES, evoaArrivalTooEarly } from "@/lib/evoa-shared";
 import type { EvoaFormData } from "@/app/actions/evoa";
 import { FIELD_CLASS, AREA_CLASS, fieldClass, todayISO, type FieldError, type Lang, type TravelForm } from "./shared";
+import PhoneInput from "@/components/ui/PhoneInput";
 
 /**
  * Step 1 — the shared travel plan: the pemesan's contact, purpose, arrival
@@ -80,12 +81,13 @@ export default function TravelStep({ travel, onChange, data, lang, error }: Prop
             />
           </Field>
           <Field label={t("Phone / WhatsApp", "Telepon / WhatsApp")} required errored={at("phone")}>
-            <input
-              type="tel"
-              value={travel.phone}
-              onChange={(e) => onChange({ phone: e.target.value })}
+            <PhoneInput
+              countryCode={travel.phoneCountryCode}
+              phone={travel.phone}
+              onChange={({ countryCode, phone }) => onChange({ phoneCountryCode: countryCode, phone })}
               placeholder="08xx xxxx xxxx"
-              className={cls("phone")}
+              errored={at("phone")}
+              inputClassName={FIELD_CLASS}
             />
           </Field>
         </div>

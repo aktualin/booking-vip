@@ -37,8 +37,8 @@ export default function DriversForm({
       {
         name: "phone",
         label: "WhatsApp",
-        kind: "text",
-        hint: "Format internasional, contoh 6281234567890",
+        kind: "phone",
+        hint: "Pilih kode negara, lalu isi nomor. Contoh: 6281234567890",
       },
       { name: "languages", label: "Bahasa", kind: "text", hint: "Contoh: ID, EN" },
       { name: "photoUrl", label: "URL Foto", kind: "text", wide: true },

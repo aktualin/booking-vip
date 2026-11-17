@@ -2,16 +2,25 @@ import "server-only";
 
 import { db } from "@/prisma/db";
 import { convertUsdCentsToIdr, getUsdToIdrRate } from "@/lib/fx";
+import { dialDigits } from "@/lib/flag";
 import { recomputeUserPoints } from "@/lib/loyalty";
 import {
   createPaymentSession,
+  createCardPaymentToken,
+  createTokenPayment,
   failureUrl,
   getCardSession,
+  getPaymentRequest,
+  getPaymentToken,
   mapGatewayStatus,
+  redirectActionUrl,
   successUrl,
+  SESSION_TTL_MS,
   type GatewayPayment,
   type PaymentChannel,
 } from "@/lib/xendit";
+import { decryptSecret } from "@/lib/crypto";
+import { loadInvoice, type InvoiceDTO } from "@/lib/invoice";
 import {
   captureOrder,
   createOrder,
@@ -24,6 +33,7 @@ import {
 import { sendBookingConfirmation } from "@/lib/notify";
 import { notifyEvoaStatusChange } from "@/lib/evoa-notify";
 import { notifyAdminOrderPaid } from "@/lib/order-notifications";
+import { syncOrderToGoogleCalendar } from "@/lib/google-calendar";
 
 /**
  * The payment service.
@@ -129,7 +139,7 @@ function invoiceForAttempt(base: string, attempt: number): string {
 
 /** Build an E.164 phone number from the contact's country code + number. */
 function e164Phone(countryCode: string, phone: string): string | undefined {
-  const cc = countryCode.replace(/\D/g, "");
+  const cc = dialDigits(countryCode);
   let p = phone.replace(/\D/g, "");
   if (!cc || !p) return undefined;
   if (p.startsWith("0")) p = p.slice(1);
@@ -169,7 +179,12 @@ type PendingGatewayRowData = {
  */
 async function writePendingGatewayRow(
   bookingId: string,
-  existing: Awaited<ReturnType<typeof getBookingPayment>>,
+  existing: {
+    id: string;
+    status: string;
+    provider: string | null;
+    providerRef: string | null;
+  } | null,
   gatewayData: PendingGatewayRowData,
 ): Promise<string> {
   if (
@@ -398,6 +413,274 @@ export async function startPayment(params: {
 }
 
 /**
+ * Charge one of the customer's saved cards — the CVV-only path.
+ *
+ * The PAN rests encrypted on the `SavedCard` row; the CVV arrives with this
+ * call and lives in memory only. The server tokenizes the pair at Xendit
+ * (`POST /v3/payment_tokens`) and charges the token with a PAY payment
+ * request. Two answers need a browser step:
+ *
+ *   - the tokenization answers REQUIRES_ACTION (3DS) — the payment row is
+ *     stored with the token id as provider reference and the 3DS URL as
+ *     checkout URL; the waiting page polls `refreshPayment`, which finishes
+ *     the charge once the token turns ACTIVE;
+ *   - the charge itself answers REQUIRES_ACTION — same shape, the provider
+ *     reference is then the payment request id.
+ *
+ * A synchronous SUCCEEDED charge confirms the booking right here.
+ */
+export type SavedCardPaymentResult =
+  | { ok: true; status: "paid"; paymentId: string }
+  | { ok: true; status: "requires_action"; redirectUrl: string; paymentId: string }
+  | { ok: true; status: "pending"; paymentId: string }
+  | { ok: false; error: string };
+
+export async function startSavedCardPayment(params: {
+  bookingCode: string;
+  email: string;
+  cardId: string;
+  cvv: string;
+}): Promise<SavedCardPaymentResult> {
+  const code = params.bookingCode.trim().toUpperCase();
+  const email = params.email.trim().toLowerCase();
+  const cvv = params.cvv.trim();
+
+  if (!/^\d{3,4}$/.test(cvv)) {
+    return { ok: false, error: "CVV tidak valid." };
+  }
+
+  const bookings = await db.orm.public.Booking
+    .select("id", "code", "status", "totalUsdCents", "invoiceNumber")
+    .where((f) => f.code.eq(code))
+    .limit(1)
+    .all();
+  const booking = bookings[0];
+  if (!booking) return { ok: false, error: "Pesanan tidak ditemukan." };
+
+  const contacts = await db.orm.public.Contact
+    .select("email", "firstName", "lastName", "phoneCountryCode", "phone")
+    .where((f) => f.bookingId.eq(booking.id))
+    .limit(1)
+    .all();
+  const contact = contacts[0];
+  if (!contact || contact.email.trim().toLowerCase() !== email) {
+    return { ok: false, error: "Pesanan tidak ditemukan." };
+  }
+
+  if (booking.status === "confirmed" || booking.status === "completed") {
+    return { ok: false, error: "Pesanan ini sudah dibayar." };
+  }
+
+  const cards = await db.orm.public.SavedCard
+    .select("id", "brand", "last4", "encryptedNumber", "expMonth", "expYear", "holderName")
+    .where((f) => f.id.eq(params.cardId))
+    .limit(1)
+    .all();
+  const card = cards[0];
+  if (!card) return { ok: false, error: "Kartu tidak ditemukan." };
+
+  const pan = decryptSecret(card.encryptedNumber);
+  if (!pan) return { ok: false, error: "Kartu tidak bisa dibaca. Simpan ulang kartunya." };
+
+  // The card method row the payment is booked against (CREDIT_CARD).
+  const methods = await listPaymentMethods();
+  const method =
+    methods.find((m) => m.providerMethodCode === "CREDIT_CARD") ??
+    methods.find((m) => m.code === "CREDIT_CARD");
+  if (!method) return { ok: false, error: "Metode pembayaran tidak tersedia." };
+
+  const existing = await getBookingPayment(booking.id);
+
+  const amountUsdCents = booking.totalUsdCents;
+  const rate = await getUsdToIdrRate();
+  const amountIdr = convertUsdCentsToIdr(amountUsdCents, rate);
+
+  const previous = await db.orm.public.Payment
+    .select("id")
+    .where((f) => f.bookingId.eq(booking.id))
+    .where((f) => f.provider.eq("xendit"))
+    .all();
+  const invoiceNumber = invoiceForAttempt(
+    booking.invoiceNumber ?? `INV-${booking.code}`,
+    previous.length + 1,
+  );
+
+  const returnSuccess = successUrl(booking.code);
+  const returnFailure = failureUrl(booking.code);
+  const phone = e164Phone(contact.phoneCountryCode ?? "", contact.phone ?? "");
+
+  let token;
+  try {
+    token = await createCardPaymentToken({
+      referenceId: `${invoiceNumber}-T`,
+      cardNumber: pan,
+      cvv,
+      expMonth: card.expMonth,
+      expYear: card.expYear,
+      payerEmail: email,
+      payerFirstName: contact.firstName,
+      payerLastName: contact.lastName,
+      payerPhone: phone,
+      customerReferenceId: booking.id,
+      successReturnUrl: returnSuccess,
+      failureReturnUrl: returnFailure,
+    });
+  } catch (error) {
+    console.error("[payments] saved-card tokenization failed", error);
+    return { ok: false, error: messageOf(error, "Tokenisasi kartu ditolak gateway.") };
+  }
+
+  const tokenId = token.payment_token_id;
+  if (!tokenId) {
+    return { ok: false, error: "Gateway tidak mengembalikan token kartu." };
+  }
+
+  const savedCardMeta = {
+    savedCard: { cardId: card.id, brand: card.brand, last4: card.last4 },
+  };
+
+  // 3DS on the tokenization — store the open attempt and let the waiting
+  // page finish the charge once the customer authenticated.
+  if ((token.status ?? "").toUpperCase() === "REQUIRES_ACTION") {
+    const redirectUrl = redirectActionUrl(token.actions);
+    if (!redirectUrl) {
+      return { ok: false, error: "Gateway meminta autentikasi tanpa tautan." };
+    }
+    const paymentId = await writePendingGatewayRow(booking.id, existing, {
+      methodId: method.id,
+      status: "pending",
+      amountUsdCents,
+      reference: invoiceNumber,
+      provider: "xendit",
+      providerRef: tokenId,
+      providerAmountCents: Math.round(amountIdr * 100),
+      providerCurrency: "IDR",
+      fxRate: rate,
+      checkoutUrl: redirectUrl,
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      rawPayload: { ...savedCardMeta, stage: "token", token: token } as never,
+    });
+    return { ok: true, status: "requires_action", redirectUrl, paymentId };
+  }
+
+  if ((token.status ?? "").toUpperCase() === "FAILED") {
+    return { ok: false, error: "Kartu ditolak gateway. Periksa kembali datanya." };
+  }
+
+  return chargeWithToken({
+    booking,
+    contact,
+    existing,
+    methodId: method.id,
+    tokenId,
+    invoiceNumber,
+    amountUsdCents,
+    amountIdr,
+    rate,
+    savedCardMeta,
+  });
+}
+
+/** The shared tail of the saved-card flow: charge a READY token. */
+async function chargeWithToken(params: {
+  booking: { id: string; code: string; totalUsdCents: number };
+  contact: { firstName: string; lastName: string };
+  existing: {
+    id: string;
+    status: string;
+    provider: string | null;
+    providerRef: string | null;
+  } | null;
+  methodId: string;
+  tokenId: string;
+  invoiceNumber: string;
+  amountUsdCents: number;
+  amountIdr: number;
+  rate: number;
+  savedCardMeta: { savedCard: { cardId: string; brand: string; last4: string } };
+}): Promise<SavedCardPaymentResult> {
+  const {
+    booking,
+    existing,
+    methodId,
+    tokenId,
+    invoiceNumber,
+    amountUsdCents,
+    amountIdr,
+    rate,
+    savedCardMeta,
+  } = params;
+
+  let request;
+  try {
+    request = await createTokenPayment({
+      referenceId: invoiceNumber,
+      paymentTokenId: tokenId,
+      amountIdr,
+      description: `Booking VIP ${booking.code}`,
+      successReturnUrl: successUrl(booking.code),
+      failureReturnUrl: failureUrl(booking.code),
+    });
+  } catch (error) {
+    console.error("[payments] saved-card charge failed", error);
+    return { ok: false, error: messageOf(error, "Charge kartu ditolak gateway.") };
+  }
+
+  const requestId = request.payment_request_id;
+  if (!requestId) {
+    return { ok: false, error: "Gateway tidak mengembalikan payment request." };
+  }
+
+  const status = mapGatewayStatus(request.status);
+
+  const paymentId = await writePendingGatewayRow(booking.id, existing, {
+    methodId,
+    status: "pending",
+    amountUsdCents,
+    reference: invoiceNumber,
+    provider: "xendit",
+    providerRef: requestId,
+    providerAmountCents: Math.round(amountIdr * 100),
+    providerCurrency: "IDR",
+    fxRate: rate,
+    checkoutUrl: redirectActionUrl(request.actions),
+    expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+    rawPayload: { ...savedCardMeta, stage: "charge", request } as never,
+  });
+
+  if (status === "paid") {
+    await confirmPaidPayment(paymentId, booking.id, {
+      ...savedCardMeta,
+      request,
+    });
+    return { ok: true, status: "paid", paymentId };
+  }
+
+  if (status === "failed") {
+    await db.orm.public.Payment
+      .where((f) => f.id.eq(paymentId))
+      .update({ status: "failed", rawPayload: { ...savedCardMeta, request } as never });
+    return { ok: false, error: "Pembayaran ditolak. Coba kartu atau metode lain." };
+  }
+
+  const redirectUrl = redirectActionUrl(request.actions);
+  if (status === "requires_action" && redirectUrl) {
+    return { ok: true, status: "requires_action", redirectUrl, paymentId };
+  }
+
+  return { ok: true, status: "pending", paymentId };
+}
+
+/** A gateway error message safe to show, with a local fallback. */
+function messageOf(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    // Xendit error bodies carry a human message — surface it verbatim.
+    return error.message.slice(0, 200);
+  }
+  return fallback;
+}
+
+/**
  * Apply a gateway callback.
  *
  * The event id is written first — a replay hits the unique constraint and
@@ -516,18 +799,29 @@ async function confirmPaidPayment(
   // Was this attempt already paid? The confirmation writes stay idempotent
   // either way, but the customer notification fires only on the first one.
   const priorRows = await db.orm.public.Payment
-    .select("status")
+    .select("status", "rawPayload")
     .where((f) => f.id.eq(paymentId))
     .limit(1)
     .all();
   const alreadyPaid = priorRows[0]?.status === "paid";
+
+  // Saved-card attempts carry the masked card meta in `rawPayload` so the
+  // success page can show "ending in 1234" — a webhook confirmation must
+  // not wipe it, so the meta survives every raw payload overwrite.
+  const priorRaw = priorRows[0]?.rawPayload as Record<string, unknown> | null;
+  const savedCardMeta =
+    priorRaw && typeof priorRaw === "object" ? priorRaw.savedCard : undefined;
+  const mergedRaw =
+    raw !== undefined && savedCardMeta !== undefined
+      ? { ...(raw as Record<string, unknown>), savedCard: savedCardMeta }
+      : raw;
 
   await db.orm.public.Payment
     .where((f) => f.id.eq(paymentId))
     .update({
       status: "paid",
       paidAt: new Date(),
-      ...(raw !== undefined ? { rawPayload: raw as never } : {}),
+      ...(mergedRaw !== undefined ? { rawPayload: mergedRaw as never } : {}),
     });
 
   await db.orm.public.Booking
@@ -574,6 +868,13 @@ async function confirmPaidPayment(
     });
     void notifyAdminOrderPaid(bookingId).catch((error) => {
       console.error("[payments] admin order notification failed", error);
+    });
+    // Google Calendar event for the service time — fires for every product
+    // (bookings and e-VOA alike, since both flow through this pipeline) on
+    // the first paid transition only, so no duplicate events. The sync
+    // swallows its own errors and can never affect the confirmation.
+    void syncOrderToGoogleCalendar(bookingId).catch((error) => {
+      console.error("[payments] google calendar sync failed", error);
     });
   }
 }
@@ -780,7 +1081,21 @@ export async function isAttemptExpired(
 /** Refresh a pending payment from the gateway — used by the return page. */
 export async function refreshPayment(paymentId: string): Promise<string | null> {
   const rows = await db.orm.public.Payment
-    .select("id", "bookingId", "provider", "providerRef", "status", "providerAmountCents", "expiresAt")
+    .select(
+      "id",
+      "bookingId",
+      "provider",
+      "providerRef",
+      "status",
+      "providerAmountCents",
+      "expiresAt",
+      "methodId",
+      "fxRate",
+      "rawPayload",
+      "reference",
+      "checkoutUrl",
+      "amountUsdCents",
+    )
     .where({ id: paymentId })
     .limit(1)
     .all();
@@ -856,6 +1171,116 @@ export async function refreshPayment(paymentId: string): Promise<string | null> 
     }
   }
 
+  // Saved-card attempt, tokenization stage — the provider reference is the
+  // payment token (3DS was pending). Once the token turns ACTIVE the charge
+  // is created right here; the waiting page keeps polling this refresh.
+  if (payment.provider === "xendit" && payment.providerRef.startsWith("pt-")) {
+    try {
+      const token = await getPaymentToken(payment.providerRef);
+      const status = (token.status ?? "").toUpperCase();
+
+      if (status === "FAILED" || status === "CANCELED" || status === "EXPIRED") {
+        if (payment.status !== "failed") {
+          await db.orm.public.Payment
+            .where({ id: payment.id })
+            .update({ status: "failed", rawPayload: token as never });
+        }
+        return "failed";
+      }
+      if (status !== "ACTIVE") return payment.status;
+
+      const bookingRows = await db.orm.public.Booking
+        .select("id", "code", "totalUsdCents")
+        .where({ id: payment.bookingId })
+        .limit(1)
+        .all();
+      const contactRows = await db.orm.public.Contact
+        .select("firstName", "lastName")
+        .where((f) => f.bookingId.eq(payment.bookingId))
+        .limit(1)
+        .all();
+      const bookingRow = bookingRows[0];
+      const contactRow = contactRows[0];
+      if (!bookingRow || !contactRow) return payment.status;
+
+      const priorRaw = payment.rawPayload as Record<string, unknown> | null;
+      const savedCardMeta = (
+        priorRaw && typeof priorRaw.savedCard === "object" && priorRaw.savedCard
+          ? { savedCard: priorRaw.savedCard as { cardId: string; brand: string; last4: string } }
+          : { savedCard: { cardId: "", brand: "card", last4: "" } }
+      ) as { savedCard: { cardId: string; brand: string; last4: string } };
+
+      const result = await chargeWithToken({
+        booking: bookingRow,
+        contact: contactRow,
+        existing: payment,
+        methodId: payment.methodId ?? "",
+        tokenId: payment.providerRef,
+        invoiceNumber: payment.reference ?? `INV-${bookingRow.code}`,
+        amountUsdCents: payment.amountUsdCents,
+        amountIdr: (payment.providerAmountCents ?? 0) / 100,
+        rate: payment.fxRate || 1,
+        savedCardMeta,
+      });
+
+      if (!result.ok) return "failed";
+      return result.status === "paid" ? "paid" : payment.status;
+    } catch (error) {
+      console.error("[payments] could not refresh the saved-card token", error);
+      return payment.status;
+    }
+  }
+
+  // Saved-card attempt, charge stage — the provider reference is the payment
+  // request id.
+  if (payment.provider === "xendit" && payment.providerRef.startsWith("pr-")) {
+    try {
+      const request = await getPaymentRequest(payment.providerRef);
+      const status = mapGatewayStatus(request.status);
+
+      if (status === "paid") {
+        const received =
+          typeof request.request_amount === "number"
+            ? Math.round(request.request_amount * 100)
+            : undefined;
+        if (
+          typeof received === "number" &&
+          typeof payment.providerAmountCents === "number" &&
+          received !== payment.providerAmountCents
+        ) {
+          console.error("[payments] amount mismatch on status refresh", {
+            expected: payment.providerAmountCents,
+            received,
+          });
+          return payment.status;
+        }
+        await confirmPaidPayment(payment.id, payment.bookingId, request);
+        return "paid";
+      }
+
+      if (status === "failed" && payment.status !== "failed") {
+        await db.orm.public.Payment
+          .where({ id: payment.id })
+          .update({ status: "failed", rawPayload: request as never });
+        return "failed";
+      }
+
+      if (status === "requires_action") {
+        const url = redirectActionUrl(request.actions);
+        if (url && url !== payment.checkoutUrl) {
+          await db.orm.public.Payment
+            .where({ id: payment.id })
+            .update({ checkoutUrl: url });
+        }
+      }
+
+      return payment.status;
+    } catch (error) {
+      console.error("[payments] could not refresh the saved-card charge", error);
+      return payment.status;
+    }
+  }
+
   try {
     const session = await getCardSession(payment.providerRef);
     const status = mapGatewayStatus(session.status);
@@ -894,4 +1319,104 @@ export async function refreshPayment(paymentId: string): Promise<string | null> 
     console.error("[payments] could not refresh the payment", error);
     return payment.status;
   }
+}
+
+/**
+ * The full payload of the waiting and success pages.
+ *
+ * Ownership is proven with the contact email — the same rule the payment
+ * start and the invoice use. The payment is refreshed from the gateway
+ * first, so a late webhook never shows a stale status.
+ */
+export type PaymentPageData = {
+  invoice: InvoiceDTO;
+  payment: {
+    status: string;
+    checkoutUrl: string | null;
+    expiresAt: string | null;
+    methodLabel: string | null;
+    paidAt: string | null;
+    /** The masked saved card of a saved-card charge, when that was used. */
+    savedCard: { brand: string; last4: string } | null;
+  };
+  /** The e-VOA application of this booking, when it carries one. */
+  visaCode: string | null;
+};
+
+export async function getPaymentPageData(params: {
+  bookingCode: string;
+  email: string;
+}): Promise<{ ok: true; data: PaymentPageData } | { ok: false; error: string }> {
+  const code = params.bookingCode.trim().toUpperCase();
+  const email = params.email.trim().toLowerCase();
+
+  const bookings = await db.orm.public.Booking
+    .select("id", "code")
+    .where((f) => f.code.eq(code))
+    .limit(1)
+    .all();
+  const booking = bookings[0];
+  if (!booking) return { ok: false, error: "Pesanan tidak ditemukan." };
+
+  const contacts = await db.orm.public.Contact
+    .select("email")
+    .where((f) => f.bookingId.eq(booking.id))
+    .limit(1)
+    .all();
+  if (!contacts[0] || contacts[0].email.trim().toLowerCase() !== email) {
+    return { ok: false, error: "Pesanan tidak ditemukan." };
+  }
+
+  let payment = await getBookingPayment(booking.id);
+  if (
+    payment &&
+    payment.status === "pending" &&
+    (payment.provider === "xendit" || payment.provider === "paypal")
+  ) {
+    await refreshPayment(payment.id);
+    payment = await getBookingPayment(booking.id);
+  }
+
+  const invoice = await loadInvoice(booking.id);
+  if (!invoice) return { ok: false, error: "Pesanan tidak ditemukan." };
+
+  let visaCode: string | null = null;
+  try {
+    const applications = await db.orm.public.VisaApplication
+      .select("code")
+      .where((f) => f.bookingId.eq(booking.id))
+      .limit(1)
+      .all();
+    visaCode = applications[0]?.code ?? null;
+  } catch {
+    visaCode = null;
+  }
+
+  const raw = payment?.rawPayload as Record<string, unknown> | null;
+  const savedCardRaw =
+    raw && typeof raw.savedCard === "object" && raw.savedCard
+      ? (raw.savedCard as Record<string, unknown>)
+      : null;
+
+  return {
+    ok: true,
+    data: {
+      invoice,
+      payment: {
+        status: payment?.status ?? "pending",
+        checkoutUrl: payment?.checkoutUrl ?? null,
+        expiresAt: payment?.expiresAt ? new Date(payment.expiresAt).toISOString() : null,
+        methodLabel: invoice.payment?.methodLabel ?? null,
+        paidAt: payment?.paidAt ? new Date(payment.paidAt).toISOString() : null,
+        savedCard:
+          savedCardRaw && typeof savedCardRaw.last4 === "string"
+            ? {
+                brand: typeof savedCardRaw.brand === "string" ? savedCardRaw.brand : "card",
+                last4: savedCardRaw.last4,
+              }
+            : null,
+      },
+      visaCode,
+    },
+  };
 }

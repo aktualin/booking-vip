@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { getBranding, type BrandInfo } from "@/lib/branding";
 import GuestInvoiceClient from "@/components/invoice/GuestInvoiceClient";
 
 export const metadata: Metadata = {
@@ -37,6 +38,7 @@ async function InvoiceStep({
   await connection();
 
   const { code } = await params;
+  const brand = await getBranding();
 
-  return <GuestInvoiceClient code={code} />;
+  return <GuestInvoiceClient code={code} brand={brand} />;
 }

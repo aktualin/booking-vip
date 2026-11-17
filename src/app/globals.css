@@ -49,6 +49,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Fade-in animation for pages and forms */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.35s ease-out both;
+}
+
 /* Hide scrollbars on horizontal carousels while keeping scroll */
 .no-scrollbar {
   -ms-overflow-style: none;
@@ -79,4 +95,103 @@ body {
 .transport-description a {
   color: var(--color-brand);
   text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Rich text — shared by the admin editor (Tiptap) and the public legal
+   pages (/terms, /privacy) so both render the stored HTML identically.
+   -------------------------------------------------------------------------- */
+.rich-text {
+  line-height: 1.65;
+  word-break: break-word;
+}
+.rich-text h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.5rem;
+}
+.rich-text h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.4rem;
+}
+.rich-text h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 1rem 0 0.35rem;
+}
+.rich-text h2:first-child,
+.rich-text h3:first-child,
+.rich-text h4:first-child {
+  margin-top: 0;
+}
+.rich-text p {
+  margin: 0 0 0.75rem;
+}
+.rich-text ul {
+  list-style: disc;
+  padding-left: 1.4rem;
+  margin: 0.25rem 0 0.75rem;
+}
+.rich-text ol {
+  list-style: decimal;
+  padding-left: 1.4rem;
+  margin: 0.25rem 0 0.75rem;
+}
+.rich-text li {
+  margin: 0.2rem 0;
+}
+.rich-text li p {
+  margin: 0;
+}
+.rich-text blockquote {
+  border-left: 3px solid currentColor;
+  opacity: 0.85;
+  padding-left: 0.9rem;
+  margin: 0.75rem 0;
+}
+.rich-text a {
+  text-decoration: underline;
+}
+.rich-text strong {
+  font-weight: 700;
+}
+.rich-text hr {
+  border: 0;
+  border-top: 1px solid currentColor;
+  opacity: 0.2;
+  margin: 1.25rem 0;
+}
+.rich-text code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  background: rgb(0 0 0 / 0.06);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+}
+.rich-text pre {
+  background: rgb(0 0 0 / 0.06);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+}
+.rich-text pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Admin editor specifics. */
+.admin-rich-text a {
+  color: var(--admin-accent, #111);
+}
+.admin-rich-text.ProseMirror {
+  min-height: 280px;
+}
+.admin-rich-text p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--admin-muted);
+  float: left;
+  height: 0;
+  pointer-events: none;
 }

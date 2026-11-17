@@ -1,6 +1,15 @@
 "use server";
 
-import { getPaymentStatus, startPayment } from "@/lib/payments";
+import {
+  getPaymentStatus,
+  startPayment,
+  startSavedCardPayment,
+  getPaymentPageData,
+  type PaymentPageData,
+  type SavedCardPaymentResult,
+} from "@/lib/payments";
+import { getUserSession } from "@/lib/user/session";
+import { db } from "@/prisma/db";
 
 /**
  * The customer-facing payment actions.
@@ -65,5 +74,54 @@ export async function getBookingPaymentStatus(params: {
   } catch (error) {
     console.error("[payments] could not read the payment status", error);
     return { ok: false, error: "Status pembayaran tidak bisa dibaca." };
+  }
+}
+
+/**
+ * Charge one of the signed-in customer's saved cards — the CVV-only path.
+ *
+ * The card must belong to the session user; the CVV travels to the gateway
+ * tokenization and is never stored. See `startSavedCardPayment` for the
+ * 3DS / pending semantics of the result.
+ */
+export async function payWithSavedCard(params: {
+  bookingCode: string;
+  email: string;
+  cardId: string;
+  cvv: string;
+}): Promise<SavedCardPaymentResult> {
+  const session = await getUserSession();
+  if (!session) return { ok: false, error: "Masuk terlebih dahulu untuk memakai kartu tersimpan." };
+
+  const cards = await db.orm.public.SavedCard
+    .select("id")
+    .where((f) => f.id.eq(params.cardId))
+    .where((f) => f.userId.eq(session.uid))
+    .limit(1)
+    .all();
+  if (cards.length === 0) return { ok: false, error: "Kartu tidak ditemukan di akun Anda." };
+
+  try {
+    return await startSavedCardPayment(params);
+  } catch (error) {
+    console.error("[payments] saved-card payment failed", error);
+    return { ok: false, error: "Pembayaran tidak bisa dimulai. Coba lagi sebentar." };
+  }
+}
+
+export type PaymentPageDataResult =
+  | { ok: true; data: PaymentPageData }
+  | { ok: false; error: string };
+
+/** The waiting / success page payload — polled by the waiting page. */
+export async function getPaymentPageDataAction(params: {
+  bookingCode: string;
+  email: string;
+}): Promise<PaymentPageDataResult> {
+  try {
+    return await getPaymentPageData(params);
+  } catch (error) {
+    console.error("[payments] could not read the payment page data", error);
+    return { ok: false, error: "Data pembayaran tidak bisa dibaca." };
   }
 }

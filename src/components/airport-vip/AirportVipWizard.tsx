@@ -7,6 +7,7 @@ import { createBooking, previewTaxes } from "@/app/actions/booking";
 import { getPlaceOptions } from "@/app/actions/catalog";
 import PaxStepper from "@/components/booking/PaxStepper";
 import PlaceOptionList from "@/components/ui/PlaceOptionList";
+import PhoneInput from "@/components/ui/PhoneInput";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import { SearchIcon } from "@/components/icons";
 import { placeLabel, type PlaceNode } from "@/lib/places";
@@ -165,6 +166,7 @@ export default function AirportVipWizard({
   const [child, setChild] = useState(0);
   const [leadName, setLeadName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("ID");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   /** Add-on slug → quantity. Only entries with a quantity above 0 are kept. */
@@ -498,7 +500,7 @@ export default function AirportVipWizard({
         firstName: leadName.trim(),
         lastName: "",
         email: email.trim(),
-        phoneCountryCode: "ID",
+        phoneCountryCode,
         phone: phone.trim(),
         isGuestSelf: false,
         nationality: country || undefined,
@@ -1238,16 +1240,17 @@ export default function AirportVipWizard({
                   />
                 </label>
 
-                <label className="block">
-                  <span className={FIELD_LABEL}>{t("airportVip.passenger.phone")}</span>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder={t("airportVip.passenger.phonePlaceholder")}
-                    className={FIELD_INPUT}
-                  />
-                </label>
+                <PhoneInput
+                  label={t("airportVip.passenger.phone")}
+                  countryCode={phoneCountryCode}
+                  phone={phone}
+                  onChange={({ countryCode, phone }) => {
+                    setPhoneCountryCode(countryCode);
+                    setPhone(phone);
+                  }}
+                  placeholder={t("airportVip.passenger.phonePlaceholder")}
+                  inputClassName={FIELD_INPUT}
+                />
 
                 <label className="block sm:col-span-2">
                   <span className={FIELD_LABEL}>{t("airportVip.passenger.notes")}</span>

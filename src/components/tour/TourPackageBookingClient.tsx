@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createBooking, previewTaxes } from "@/app/actions/booking";
 import PaymentStep from "@/components/payment/PaymentStep";
+import PhoneInput from "@/components/ui/PhoneInput";
 import { getTourDepartures, type TourPackageDTO } from "@/app/actions/catalog";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { pickLang } from "@/lib/content";
@@ -76,6 +77,7 @@ export default function TourPackageBookingClient({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("ID");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -274,7 +276,7 @@ export default function TourPackageBookingClient({
         firstName,
         lastName,
         email,
-        phoneCountryCode: "ID",
+        phoneCountryCode,
         phone,
         isGuestSelf: false,
         notes: notes || undefined,
@@ -698,17 +700,17 @@ export default function TourPackageBookingClient({
               />
             </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-[12px] font-medium text-ink">Telepon</span>
-              <input
-                type="tel"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="08xx xxxx xxxx"
-                className="h-11 w-full rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
-              />
-            </label>
+            <PhoneInput
+              label="Telepon"
+              required
+              countryCode={phoneCountryCode}
+              phone={phone}
+              onChange={({ countryCode, phone }) => {
+                setPhoneCountryCode(countryCode);
+                setPhone(phone);
+              }}
+              placeholder="08xx xxxx xxxx"
+            />
 
             <label className="block sm:col-span-2">
               <span className="mb-1.5 block text-[12px] font-medium text-ink">

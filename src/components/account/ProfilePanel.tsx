@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AccountPageHeader from "@/components/account/AccountPageHeader";
 import EmailVerificationBanner from "@/components/account/EmailVerificationBanner";
+import PhoneInput from "@/components/ui/PhoneInput";
 import { showToast } from "@/components/ui/toast";
 import {
   changeAccountPassword,
@@ -10,6 +11,7 @@ import {
 } from "@/app/actions/account";
 import { useAccountOverview } from "@/components/providers/AccountProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import { formatInternational, parseInternationalPhone } from "@/lib/flag";
 
 /**
  * The profile page.
@@ -23,6 +25,7 @@ export default function ProfilePanel() {
   const { t, lang } = useLocale();
   const dateLocale = lang === "id" ? "id-ID" : "en-US";
   const [name, setName] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("ID");
   const [phone, setPhone] = useState("");
 
   const [savingProfile, setSavingProfile] = useState(false);
@@ -41,7 +44,9 @@ export default function ProfilePanel() {
   useEffect(() => {
     if (!overview) return;
     setName(overview.name ?? "");
-    setPhone(overview.phone ?? "");
+    const parsed = parseInternationalPhone(overview.phone ?? "");
+    setPhoneCountryCode(parsed.countryCode);
+    setPhone(parsed.phone);
   }, [overview]);
 
   const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -52,7 +57,10 @@ export default function ProfilePanel() {
     setProfileError("");
     setProfileField(undefined);
 
-    const result = await updateAccountProfile({ name, phone });
+    const result = await updateAccountProfile({
+      name,
+      phone: formatInternational(phoneCountryCode, phone),
+    });
     if (!result.ok) {
       setProfileError(result.error);
       setProfileField(result.field);
@@ -166,18 +174,17 @@ export default function ProfilePanel() {
               />
             </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                {t("profile.phoneLabel")}
-              </span>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="h-10 w-full rounded-lg border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
-                placeholder="+62 812 3456 7890"
-              />
-            </label>
+            <PhoneInput
+              label={t("profile.phoneLabel")}
+              countryCode={phoneCountryCode}
+              phone={phone}
+              onChange={({ countryCode, phone }) => {
+                setPhoneCountryCode(countryCode);
+                setPhone(phone);
+              }}
+              placeholder={t("profile.phonePlaceholder")}
+              inputClassName="h-10 w-full rounded-lg border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
+            />
 
             <button
               type="submit"

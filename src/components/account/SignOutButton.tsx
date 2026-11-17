@@ -1,6 +1,7 @@
 "use client";
 
 import { signOutUser } from "@/app/actions/user-auth";
+import { useLocale } from "@/components/providers/LocaleProvider";
 
 /**
  * Log out of the customer session.
@@ -9,6 +10,7 @@ import { signOutUser } from "@/app/actions/user-auth";
  * the session; a client-side navigation would leave it signed in.
  */
 export default function SignOutButton() {
+  const { t } = useLocale();
   return (
     <button
       type="button"
@@ -17,7 +19,7 @@ export default function SignOutButton() {
       }}
       className="inline-flex h-9 items-center justify-center rounded-lg border border-line bg-white px-3 text-[13px] font-medium text-ink transition-colors hover:bg-canvas"
     >
-      Keluar
+      {t("account.signOut")}
     </button>
   );
 }

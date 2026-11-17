@@ -1,0 +1,296 @@
+[
+  {
+    "id": "table.ContractClause",
+    "label": "Create table \"ContractClause\"",
+    "summary": "Creates table \"ContractClause\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ContractClause"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ContractClause\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ContractClause\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"ContractClause\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ContractClause\"",
+        "sql": "CREATE TABLE \"public\".\"ContractClause\" (\n  \"active\" bool DEFAULT true NOT NULL,\n  \"body\" text NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"sortOrder\" int4 DEFAULT 0 NOT NULL,\n  \"title\" text NOT NULL,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ContractClause\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"ContractClause\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"ContractClause\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.SignedContract",
+    "label": "Create table \"SignedContract\"",
+    "summary": "Creates table \"SignedContract\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SignedContract"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"SignedContract\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SignedContract\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"SignedContract\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"SignedContract\"",
+        "sql": "CREATE TABLE \"public\".\"SignedContract\" (\n  \"bookingId\" text NOT NULL,\n  \"clausesSnapshot\" jsonb NOT NULL,\n  \"id\" text NOT NULL,\n  \"signatureUrl\" text NOT NULL,\n  \"signedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"signerName\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"SignedContract\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"SignedContract\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"SignedContract\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "index.ContractClause.ContractClause_sortOrder_idx",
+    "label": "Create index \"ContractClause_sortOrder_idx\" on \"ContractClause\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ContractClause_sortOrder_idx",
+        "table": "ContractClause"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ContractClause_sortOrder_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ContractClause_sortOrder_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"ContractClause_sortOrder_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ContractClause_sortOrder_idx\"",
+        "sql": "CREATE INDEX \"ContractClause_sortOrder_idx\" ON \"public\".\"ContractClause\" (\"sortOrder\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ContractClause_sortOrder_idx\" exists on \"ContractClause\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"ContractClause_sortOrder_idx\"",
+          "i",
+          "I",
+          "\"public\".\"ContractClause\"",
+          "btree",
+          "[\"sortOrder\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.SignedContract.SignedContract_bookingId_key",
+    "label": "Create index \"SignedContract_bookingId_key\" on \"SignedContract\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SignedContract_bookingId_key",
+        "table": "SignedContract"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SignedContract_bookingId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SignedContract_bookingId_key\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"SignedContract_bookingId_key\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"SignedContract_bookingId_key\"",
+        "sql": "CREATE UNIQUE INDEX \"SignedContract_bookingId_key\" ON \"public\".\"SignedContract\" (\"bookingId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SignedContract_bookingId_key\" exists on \"SignedContract\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"SignedContract_bookingId_key\"",
+          "i",
+          "I",
+          "\"public\".\"SignedContract\"",
+          "btree",
+          "[\"bookingId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.SignedContract.SignedContract_signedAt_idx",
+    "label": "Create index \"SignedContract_signedAt_idx\" on \"SignedContract\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SignedContract_signedAt_idx",
+        "table": "SignedContract"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SignedContract_signedAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SignedContract_signedAt_idx\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"SignedContract_signedAt_idx\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"SignedContract_signedAt_idx\"",
+        "sql": "CREATE INDEX \"SignedContract_signedAt_idx\" ON \"public\".\"SignedContract\" (\"signedAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SignedContract_signedAt_idx\" exists on \"SignedContract\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"SignedContract_signedAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"SignedContract\"",
+          "btree",
+          "[\"signedAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.SignedContract.SignedContract_bookingId_fkey",
+    "label": "Add foreign key \"SignedContract_bookingId_fkey\" on \"SignedContract\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "SignedContract_bookingId_fkey",
+        "table": "SignedContract"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"SignedContract_bookingId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SignedContract_bookingId_fkey",
+          "public",
+          "\"public\".\"SignedContract\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"SignedContract_bookingId_fkey\" on \"SignedContract\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"SignedContract_bookingId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"SignedContract\"\nADD CONSTRAINT \"SignedContract_bookingId_fkey\"\nFOREIGN KEY (\"bookingId\")\nREFERENCES \"public\".\"Booking\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"SignedContract_bookingId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "SignedContract_bookingId_fkey",
+          "public",
+          "\"public\".\"SignedContract\"",
+          "f",
+          "[\"bookingId\"]",
+          "\"public\".\"Booking\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

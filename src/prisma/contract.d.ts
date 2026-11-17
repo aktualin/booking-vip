@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'9299c5d71e5fec1f5b346e9c181e082ada1eea6d45b029789216886be3ddb890'>;
+  StorageHashBase<'0df10fda98737dfdf2f45840be645c36312159758bfa6b085803eee39da99641'>;
 export type ExecutionHash =
-  ExecutionHashBase<'bc9704dab0d00521de93b81408bbe68ea074de4cb79de8162426e37286778e17'>;
+  ExecutionHashBase<'a91078cfb00ae08f99a421afcc4a4908bcdd3f154f7b4c468f57e68c621ee9bd'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -424,6 +424,7 @@ export namespace Models {
     flight: public_FlightDetails | null;
     items: public_BookingItem[];
     payments: public_Payment[];
+    signedContract: public_SignedContract | null;
     travelers: public_Traveler[];
     user: public_User | null;
     vehicle: public_Vehicle | null;
@@ -436,6 +437,7 @@ export namespace Models {
       | 'flight'
       | 'items'
       | 'payments'
+      | 'signedContract'
       | 'travelers'
       | 'user'
       | 'vehicle'
@@ -491,6 +493,16 @@ export namespace Models {
     title: FieldOutputTypes['public']['Contact']['title'];
     booking: public_Booking;
     readonly [RelationKeys]?: 'booking';
+  };
+  export type public_ContractClause = {
+    active: FieldOutputTypes['public']['ContractClause']['active'];
+    body: FieldOutputTypes['public']['ContractClause']['body'];
+    createdAt: FieldOutputTypes['public']['ContractClause']['createdAt'];
+    id: FieldOutputTypes['public']['ContractClause']['id'];
+    sortOrder: FieldOutputTypes['public']['ContractClause']['sortOrder'];
+    title: FieldOutputTypes['public']['ContractClause']['title'];
+    updatedAt: FieldOutputTypes['public']['ContractClause']['updatedAt'];
+    readonly [RelationKeys]?: never;
   };
   export type public_Country = {
     active: FieldOutputTypes['public']['Country']['active'];
@@ -926,6 +938,16 @@ export namespace Models {
     value: FieldOutputTypes['public']['Setting']['value'];
     readonly [RelationKeys]?: never;
   };
+  export type public_SignedContract = {
+    bookingId: FieldOutputTypes['public']['SignedContract']['bookingId'];
+    clausesSnapshot: FieldOutputTypes['public']['SignedContract']['clausesSnapshot'];
+    id: FieldOutputTypes['public']['SignedContract']['id'];
+    signatureUrl: FieldOutputTypes['public']['SignedContract']['signatureUrl'];
+    signedAt: FieldOutputTypes['public']['SignedContract']['signedAt'];
+    signerName: FieldOutputTypes['public']['SignedContract']['signerName'];
+    booking: public_Booking;
+    readonly [RelationKeys]?: 'booking';
+  };
   export type public_TourDeparture = {
     createdAt: FieldOutputTypes['public']['TourDeparture']['createdAt'];
     date: FieldOutputTypes['public']['TourDeparture']['date'];
@@ -1095,6 +1117,7 @@ export declare const models: {
     BookingAddOn: Models.public_BookingAddOn;
     BookingItem: Models.public_BookingItem;
     Contact: Models.public_Contact;
+    ContractClause: Models.public_ContractClause;
     Country: Models.public_Country;
     Destination: Models.public_Destination;
     Driver: Models.public_Driver;
@@ -1123,6 +1146,7 @@ export declare const models: {
     ServiceLine: Models.public_ServiceLine;
     ServiceType: Models.public_ServiceType;
     Setting: Models.public_Setting;
+    SignedContract: Models.public_SignedContract;
     TourDeparture: Models.public_TourDeparture;
     Traveler: Models.public_Traveler;
     User: Models.public_User;
@@ -2301,6 +2325,73 @@ type ContractBase = Omit<
                   };
                 },
               ];
+            };
+            readonly ContractClause: {
+              columns: {
+                readonly active: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
+                  readonly many: false;
+                };
+                readonly body: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sortOrder: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly title: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'ContractClause_sortOrder_idx';
+                  readonly columns: readonly ['sortOrder'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [];
             };
             readonly Country: {
               columns: {
@@ -5145,6 +5236,76 @@ type ContractBase = Omit<
               indexes: readonly [];
               foreignKeys: readonly [];
             };
+            readonly SignedContract: {
+              columns: {
+                readonly bookingId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly clausesSnapshot: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly signatureUrl: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly signedAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly signerName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'SignedContract_bookingId_key';
+                  readonly columns: readonly ['bookingId'];
+                  readonly unique: true;
+                },
+                {
+                  readonly name: 'SignedContract_signedAt_idx';
+                  readonly columns: readonly ['signedAt'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'SignedContract';
+                    readonly columns: readonly ['bookingId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Booking';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly TourDeparture: {
               columns: {
                 readonly createdAt: {
@@ -6183,6 +6344,10 @@ type ContractBase = Omit<
       readonly model: 'BookingItem';
     };
     readonly Contact: { readonly namespace: 'public' & NamespaceId; readonly model: 'Contact' };
+    readonly ContractClause: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ContractClause';
+    };
     readonly Country: { readonly namespace: 'public' & NamespaceId; readonly model: 'Country' };
     readonly Destination: {
       readonly namespace: 'public' & NamespaceId;
@@ -6253,6 +6418,10 @@ type ContractBase = Omit<
       readonly model: 'ServiceType';
     };
     readonly Setting: { readonly namespace: 'public' & NamespaceId; readonly model: 'Setting' };
+    readonly SignedContract: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'SignedContract';
+    };
     readonly TourDeparture: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'TourDeparture';
@@ -6886,6 +7055,18 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['bookingId'];
                 };
               };
+              readonly signedContract: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'SignedContract';
+                };
+                readonly cardinality: '1:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['bookingId'];
+                };
+              };
               readonly travelers: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -7259,6 +7440,60 @@ type ContractBase = Omit<
                 readonly phoneCountryCode: { readonly column: 'phoneCountryCode' };
                 readonly signatureUrl: { readonly column: 'signatureUrl' };
                 readonly title: { readonly column: 'title' };
+              };
+            };
+          };
+          readonly ContractClause: {
+            readonly fields: {
+              readonly active: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly body: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sortOrder: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly title: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'ContractClause';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly active: { readonly column: 'active' };
+                readonly body: { readonly column: 'body' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly sortOrder: { readonly column: 'sortOrder' };
+                readonly title: { readonly column: 'title' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
               };
             };
           };
@@ -9617,6 +9852,64 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly SignedContract: {
+            readonly fields: {
+              readonly bookingId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly clausesSnapshot: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly signatureUrl: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly signedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly signerName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly booking: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Booking';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['bookingId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'SignedContract';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly bookingId: { readonly column: 'bookingId' };
+                readonly clausesSnapshot: { readonly column: 'clausesSnapshot' };
+                readonly id: { readonly column: 'id' };
+                readonly signatureUrl: { readonly column: 'signatureUrl' };
+                readonly signedAt: { readonly column: 'signedAt' };
+                readonly signerName: { readonly column: 'signerName' };
+              };
+            };
+          };
           readonly TourDeparture: {
             readonly fields: {
               readonly createdAt: {
@@ -10732,6 +11025,43 @@ type ContractBase = Omit<
           };
         },
         {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'ContractClause';
+            readonly field: 'createdAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'ContractClause';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'ContractClause';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
           readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Country';
@@ -11173,6 +11503,26 @@ type ContractBase = Omit<
           readonly ref: {
             readonly entry: 'Setting';
             readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'SignedContract';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'SignedContract';
+            readonly field: 'signedAt';
             readonly namespace: 'public';
           };
         },

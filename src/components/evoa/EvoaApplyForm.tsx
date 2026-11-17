@@ -38,6 +38,7 @@ import {
   type EvoaFileRef,
   type EvoaOrderInput,
 } from "@/lib/evoa-shared";
+import { formatInternational } from "@/lib/flag";
 
 export type EvoaStepDTO = {
   title: string;
@@ -277,7 +278,7 @@ export default function EvoaApplyForm({ steps }: Props) {
     const input: EvoaOrderInput = {
       contactName: travel.contactName,
       email: travel.email,
-      phone: travel.phone,
+      phone: formatInternational(travel.phoneCountryCode, travel.phone),
       purpose: travel.purpose,
       arrivalDate: travel.arrivalDate,
       flightNumber: travel.flightNumber,
@@ -302,7 +303,7 @@ export default function EvoaApplyForm({ steps }: Props) {
         passportIssueDate: a.passportIssueDate || undefined,
         passportExpiryDate: a.passportExpiryDate,
         email: a.email,
-        phone: a.phone,
+        phone: formatInternational(a.phoneCountryCode, a.phone),
         relation: a.relation,
         extraAnswers: a.extraAnswers,
         documents: a.documents,

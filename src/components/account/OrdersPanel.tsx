@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import AccountPageHeader from "@/components/account/AccountPageHeader";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import {
   listMyOrders,
   type MyOrderDTO,
@@ -20,6 +21,9 @@ import { EVOA_STATUS_LABELS } from "@/lib/evoa-shared";
  * below) and a link to the downloadable invoice of every order.
  */
 export default function OrdersPanel() {
+  const { lang, t } = useLocale();
+  const dateLocale = lang === "id" ? "id-ID" : "en-US";
+
   const [orders, setOrders] = useState<MyOrderDTO[]>([]);
   const [evoaOrders, setEvoaOrders] = useState<EvoaOrderSummaryDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,23 +48,23 @@ export default function OrdersPanel() {
   return (
     <div>
       <AccountPageHeader
-        title="Pesanan"
-        description="Riwayat pesanan kamu. Invoice bisa diunduh kapan saja."
+        title={t("orders.title")}
+        description={t("orders.subtitle")}
       />
 
       {/* Orders table */}
       <section className="overflow-hidden rounded-2xl border border-line bg-white">
         <div className="border-b border-line px-5 py-4">
           <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-            Riwayat pesanan
+            {t("orders.historyTitle")}
           </h2>
         </div>
 
         {loading ? (
-          <p className="px-5 py-10 text-center text-[13px] text-muted">Memuat…</p>
+          <p className="px-5 py-10 text-center text-[13px] text-muted">{t("orders.loading")}</p>
         ) : orders.length === 0 ? (
           <p className="px-5 py-10 text-center text-[13px] text-muted">
-            Belum ada pesanan. Pesanan yang kamu buat akan muncul di sini.
+            {t("orders.empty")}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -68,22 +72,22 @@ export default function OrdersPanel() {
               <thead>
                 <tr className="border-b border-line bg-canvas/60">
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Kode
+                    {t("orders.col.code")}
                   </th>
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Tanggal
+                    {t("orders.col.date")}
                   </th>
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Layanan
+                    {t("orders.col.service")}
                   </th>
                   <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Total
+                    {t("orders.col.total")}
                   </th>
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Status
+                    {t("orders.col.status")}
                   </th>
                   <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Aksi
+                    {t("orders.col.action")}
                   </th>
                 </tr>
               </thead>
@@ -101,7 +105,7 @@ export default function OrdersPanel() {
                       ) : null}
                     </td>
                     <td className="px-5 py-3.5 text-[13px] text-muted">
-                      {new Date(order.serviceAt).toLocaleDateString("id-ID", {
+                      {new Date(order.serviceAt).toLocaleDateString(dateLocale, {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
@@ -122,13 +126,13 @@ export default function OrdersPanel() {
                           href={`/account/orders/${encodeURIComponent(order.code)}`}
                           className="text-[12px] font-semibold text-brand transition-opacity hover:opacity-80"
                         >
-                          Lacak
+                          {t("orders.track")}
                         </Link>
                         <Link
                           href={`/account/orders/${encodeURIComponent(order.code)}/invoice`}
                           className="text-[12px] font-semibold text-muted transition-colors hover:text-ink"
                         >
-                          Unduh invoice
+                          {t("orders.downloadInvoice")}
                         </Link>
                       </div>
                     </td>
@@ -144,15 +148,15 @@ export default function OrdersPanel() {
       <section className="mt-6 overflow-hidden rounded-2xl border border-line bg-white">
         <div className="border-b border-line px-5 py-4">
           <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-            Pengajuan e-VOA
+            {t("orders.evoaTitle")}
           </h2>
         </div>
 
         {loading ? (
-          <p className="px-5 py-10 text-center text-[13px] text-muted">Memuat…</p>
+          <p className="px-5 py-10 text-center text-[13px] text-muted">{t("orders.loading")}</p>
         ) : evoaOrders.length === 0 ? (
           <p className="px-5 py-10 text-center text-[13px] text-muted">
-            Belum ada pengajuan visa.
+            {t("orders.evoaEmpty")}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -160,19 +164,19 @@ export default function OrdersPanel() {
               <thead>
                 <tr className="border-b border-line bg-canvas/60">
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Nomor
+                    {t("orders.col.number")}
                   </th>
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Pemohon
+                    {t("orders.col.applicant")}
                   </th>
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Kedatangan
+                    {t("orders.col.arrival")}
                   </th>
                   <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Status
+                    {t("orders.col.status")}
                   </th>
                   <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                    Aksi
+                    {t("orders.col.action")}
                   </th>
                 </tr>
               </thead>
@@ -190,11 +194,11 @@ export default function OrdersPanel() {
                     <td className="px-5 py-3.5">
                       <p className="text-[13px] text-ink">{application.primaryName}</p>
                       <p className="mt-0.5 text-[11px] text-muted">
-                        {application.applicantCount} pemohon
+                        {t("orders.applicantCount", { n: application.applicantCount })}
                       </p>
                     </td>
                     <td className="px-5 py-3.5 text-[13px] text-muted">
-                      {new Date(application.arrivalDate).toLocaleDateString("id-ID", {
+                      {new Date(application.arrivalDate).toLocaleDateString(dateLocale, {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
@@ -202,7 +206,7 @@ export default function OrdersPanel() {
                     </td>
                     <td className="px-5 py-3.5">
                       <span className="inline-flex rounded-full bg-canvas px-2.5 py-0.5 text-[11px] font-medium text-muted">
-                        {EVOA_STATUS_LABELS[application.status]?.id ?? application.status}
+                        {EVOA_STATUS_LABELS[application.status]?.[lang] ?? application.status}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
@@ -210,7 +214,7 @@ export default function OrdersPanel() {
                         href={`/account/visa/${encodeURIComponent(application.code)}`}
                         className="text-[12px] font-semibold text-brand transition-opacity hover:opacity-80"
                       >
-                        Lacak
+                        {t("orders.track")}
                       </Link>
                     </td>
                   </tr>

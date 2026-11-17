@@ -1,22 +1,17 @@
 "use client";
 
-// The wizard's PAYMENT step — everything payment happens here (per the
-// product decision): promo/voucher and the payment method. "Bayar Sekarang"
-// creates the booking (once) and starts the payment for the SELECTED method;
-// the yellow PayPal button is the express path for PAYPAL (PayPal never
-// appears as a picker radio). The card form / QR / PayPal approval all live
-// on the gateway's hosted checkout page.
+// The wizard's PAYMENT step — promo/voucher plus the shared checkout form
+// (gateway methods AND the signed-in customer's saved cards, CVV only).
+// "Bayar Sekarang" creates the booking (once) and dispatches the picked
+// intent; the yellow PayPal button is the express path for PAYPAL (PayPal
+// never appears as a picker radio).
 
 import { useEffect, useState } from "react";
-import { getPaymentMethods } from "@/app/actions/catalog";
 import { validatePromoCode } from "@/app/actions/booking";
 import { listMyVouchers, type VoucherDTO } from "@/app/actions/loyalty";
 import { useAccountOverview } from "@/components/providers/AccountProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import PaymentMethodPicker, {
-  type PaymentMethodOption,
-} from "@/components/payment/PaymentMethodPicker";
-import PayPalPayButton from "@/components/payment/PayPalPayButton";
+import PaymentForm, { type PayIntent } from "@/components/payment/PaymentForm";
 
 /** The promo/voucher currently applied to the booking (validated server-side). */
 export type AppliedPromo = {
@@ -27,10 +22,10 @@ export type AppliedPromo = {
 
 type Props = {
   /**
-   * Pay: the wizard creates the booking (once) and starts the payment for
-   * the given method code via its gateway's hosted checkout.
+   * Pay: the wizard creates the booking (once) and dispatches the intent —
+   * a gateway method (hosted checkout) or a saved card (token charge).
    */
-  onSubmit: (methodCode: string) => void;
+  onSubmit: (intent: PayIntent) => void;
   onBack: () => void;
   isSubmitting: boolean;
   error: string | null;
@@ -56,27 +51,12 @@ export default function StepPayment({
   const { t, formatMoney } = useLocale();
   const { overview } = useAccountOverview();
 
-  const [methods, setMethods] = useState<PaymentMethodOption[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [selected, setSelected] = useState("");
-
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
 
   // The signed-in customer's unused reward vouchers — one click applies one.
   const [vouchers, setVouchers] = useState<VoucherDTO[]>([]);
-
-  useEffect(() => {
-    getPaymentMethods().then((m) => {
-      setMethods(m);
-      setLoaded(true);
-      // PayPal is not a radio — it is the yellow express button below, so
-      // the picker (and the default selection) only sees the other methods.
-      const pickable = m.filter((x) => x.code !== "PAYPAL");
-      if (pickable.length > 0) setSelected(pickable[0].code);
-    });
-  }, []);
 
   useEffect(() => {
     if (!overview) {
@@ -128,16 +108,6 @@ export default function StepPayment({
     void checkCode(code);
   };
 
-  const pay = () => {
-    if (!selected || isSubmitting) return;
-    onSubmit(selected);
-  };
-
-  // PayPal only appears as the yellow express button — never as a radio.
-  const pickableMethods = methods.filter((m) => m.code !== "PAYPAL");
-  const paypalAvailable = methods.some((m) => m.code === "PAYPAL");
-
-
   // Points this booking will earn once paid (1 point per whole dollar of
   // the tax-inclusive discounted total — the same rule the server applies).
   const earnPreview = Math.max(
@@ -156,30 +126,6 @@ export default function StepPayment({
           {error}
         </div>
       )}
-
-      {/* Payment method */}
-      <div className="mb-6 rounded-2xl border border-line bg-white p-5">
-        <h3 className="mb-4 text-base font-bold text-ink">
-          {t("wizard.payment.selectMethod")}
-        </h3>
-        {!loaded ? (
-          <p className="text-sm text-muted">Memuat metode pembayaran…</p>
-        ) : pickableMethods.length === 0 ? (
-          <div className="rounded-2xl border border-line bg-canvas p-8 text-center">
-            <p className="mb-2 text-base font-semibold text-ink">
-              {t("wizard.payment.setupTitle")}
-            </p>
-            <p className="text-sm text-muted">{t("wizard.payment.setupDesc")}</p>
-          </div>
-        ) : (
-          <PaymentMethodPicker
-            methods={pickableMethods}
-            selected={selected}
-            onSelect={setSelected}
-            disabled={isSubmitting}
-          />
-        )}
-      </div>
 
       {/* Reward vouchers of the signed-in customer */}
       {vouchers.length > 0 ? (
@@ -285,31 +231,15 @@ export default function StepPayment({
         ) : null}
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-        <button
-          onClick={onBack}
-          disabled={isSubmitting}
-          className="rounded-xl border border-line bg-white px-6 py-3 text-base font-bold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
-        >
-          {t("wizard.payment.back")}
-        </button>
-        <div className="flex flex-wrap items-center gap-3">
-          {paypalAvailable ? (
-            <PayPalPayButton
-              onPay={() => onSubmit("PAYPAL")}
-              busy={isSubmitting}
-              disabled={!loaded}
-            />
-          ) : null}
-          <button
-            onClick={pay}
-            disabled={!selected || isSubmitting || !loaded}
-            className="rounded-xl bg-brand px-8 py-3 text-base font-bold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSubmitting ? t("wizard.payment.processing") : "Bayar Sekarang"}
-          </button>
-        </div>
-      </div>
+      {/* The checkout form — methods, saved cards, PayPal express, Pay now. */}
+      <PaymentForm
+        showHeader={false}
+        onPay={onSubmit}
+        onBack={onBack}
+        backLabel={t("wizard.payment.back")}
+        isSubmitting={isSubmitting}
+        payLabel={"Bayar Sekarang"}
+      />
     </div>
   );
 }

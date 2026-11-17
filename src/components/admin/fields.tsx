@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import MoneyField from "./MoneyField";
+import PhoneInput from "@/components/ui/PhoneInput";
+import { formatInternational, parseInternationalPhone } from "@/lib/flag";
 import { adminClass } from "./tokens";
 
 /**
@@ -25,6 +27,7 @@ export type FieldKind =
   | "tags"
   | "multiselect"
   | "datetime"
+  | "phone"
   | "keyvalue";
 
 /** One row of a free-form key/value list (Product.specs, ProductPackage.info). */
@@ -200,6 +203,17 @@ export default function FieldControl({
     );
   }
 
+  if (spec.kind === "phone") {
+    return (
+      <AdminPhoneField
+        id={id}
+        value={value}
+        placeholder={spec.placeholder}
+        onChange={onChange}
+      />
+    );
+  }
+
   return (
     <input
       id={id}
@@ -208,6 +222,48 @@ export default function FieldControl({
       placeholder={spec.placeholder}
       onChange={(e) => onChange(e.target.value)}
       className={adminClass.input}
+    />
+  );
+}
+
+/**
+ * A phone field for the admin forms — a country-code picker with flags plus
+ * the local number, stored as one international string.
+ *
+ * The form mounts only once its record is loaded, so the country code is read
+ * from the incoming value exactly once and then kept in local state. That way
+ * picking a country before typing a number does not reset back to the default.
+ *
+ * The driver roster stores the number without the "+" (e.g. "62812…"), so the
+ * emitted value drops it; `parseInternationalPhone` reads both forms back.
+ */
+function AdminPhoneField({
+  id,
+  value,
+  placeholder,
+  onChange,
+}: {
+  id: string;
+  value: unknown;
+  placeholder?: string;
+  onChange: (value: unknown) => void;
+}) {
+  const initial = parseInternationalPhone(typeof value === "string" ? value : "");
+  const [countryCode, setCountryCode] = useState(initial.countryCode);
+  const [local, setLocal] = useState(initial.phone);
+
+  return (
+    <PhoneInput
+      id={id}
+      countryCode={countryCode}
+      phone={local}
+      placeholder={placeholder}
+      onChange={({ countryCode: cc, phone }) => {
+        setCountryCode(cc);
+        setLocal(phone);
+        onChange(formatInternational(cc, phone).replace(/^\+/, ""));
+      }}
+      inputClassName={adminClass.input}
     />
   );
 }

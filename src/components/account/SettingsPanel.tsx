@@ -15,43 +15,47 @@ import { useLocale } from "@/components/providers/LocaleProvider";
  */
 export default function SettingsPanel() {
   const { overview } = useAccountOverview();
-  const { lang, setLang } = useLocale();
+  const { lang, setLang, t } = useLocale();
+  const numberLocale = lang === "id" ? "id-ID" : "en-US";
 
   return (
     <div>
       <AccountPageHeader
-        title="Pengaturan"
-        description="Atur akun, keamanan dan preferensi tampilan."
+        title={t("settings.title")}
+        description={t("settings.subtitle")}
       />
 
       <div className="space-y-5">
         {/* Account & security */}
         <section className="rounded-2xl border border-line bg-white p-5 md:p-6">
           <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-            Pusat Akun
+            {t("settings.accountTitle")}
           </h2>
           <p className="mt-1 text-[13px] text-muted">
-            Ubah data profil dan kata sandi akun kamu.
+            {t("settings.accountDesc")}
           </p>
 
           <ul className="mt-4 divide-y divide-line border-y border-line">
             <SettingRow
               href="/account/profile"
-              title="Pengaturan akun & profil"
-              description="Nama dan nomor telepon."
+              title={t("settings.row.profile")}
+              description={t("settings.row.profile.desc")}
             />
             <SettingRow
               href="/account/profile"
-              title="Ganti kata sandi"
-              description="Minimal 8 karakter, perlu kata sandi lama."
+              title={t("settings.row.password")}
+              description={t("settings.row.password.desc")}
             />
             <SettingRow
               href="/account/loyalty"
-              title="Poin & level"
+              title={t("settings.row.loyalty")}
               description={
                 overview?.level
-                  ? `Tier ${overview.level.name} · ${overview.points.toLocaleString("id-ID")} poin`
-                  : "Lihat perolehan poin kamu."
+                  ? t("settings.row.loyalty.desc", {
+                      tier: overview.level.name,
+                      points: overview.points.toLocaleString(numberLocale),
+                    })
+                  : t("settings.row.loyalty.descEmpty")
               }
             />
           </ul>
@@ -60,16 +64,16 @@ export default function SettingsPanel() {
         {/* Language */}
         <section className="rounded-2xl border border-line bg-white p-5 md:p-6">
           <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-            Bahasa
+            {t("settings.langTitle")}
           </h2>
           <p className="mt-1 text-[13px] text-muted">
-            Berlaku untuk seluruh halaman dan tersimpan di perangkat ini.
+            {t("settings.langDesc")}
           </p>
 
           <div className="mt-4">
             <label className="block">
               <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                Bahasa
+                {t("settings.langLabel")}
               </span>
               <select
                 value={lang}
@@ -96,6 +100,7 @@ function SettingRow({
   title: string;
   description: string;
 }) {
+  const { t } = useLocale();
   return (
     <li>
       <Link
@@ -106,7 +111,7 @@ function SettingRow({
           <span className="block text-[13px] font-medium text-ink">{title}</span>
           <span className="block text-[12px] text-muted">{description}</span>
         </span>
-        <span className="shrink-0 text-[13px] font-semibold text-brand">Buka</span>
+        <span className="shrink-0 text-[13px] font-semibold text-brand">{t("settings.open")}</span>
       </Link>
     </li>
   );

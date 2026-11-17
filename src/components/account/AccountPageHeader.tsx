@@ -1,17 +1,21 @@
+"use client";
+
 import Link from "next/link";
 import { ChevronLeft } from "@/components/icons";
+import { useLocale } from "@/components/providers/LocaleProvider";
 
 /**
  * The title block of an account sub-page.
  *
  * A back link to the account hub plus the title and an optional note — the
- * same minimal pattern as the rest of the site.
+ * same minimal pattern as the rest of the site. The default back label is
+ * translated; callers may still pass their own.
  */
 export default function AccountPageHeader({
   title,
   description,
   backHref = "/account",
-  backLabel = "Kembali ke Pusat Akun",
+  backLabel,
   action,
 }: {
   title: string;
@@ -20,6 +24,7 @@ export default function AccountPageHeader({
   backLabel?: string;
   action?: React.ReactNode;
 }) {
+  const { t } = useLocale();
   return (
     <div className="mb-6">
       <Link
@@ -27,7 +32,7 @@ export default function AccountPageHeader({
         className="inline-flex items-center gap-1 text-[12px] font-medium text-muted transition-colors hover:text-ink"
       >
         <ChevronLeft width={14} height={14} />
-        {backLabel}
+        {backLabel ?? t("account.backToHub")}
       </Link>
 
       <div className="mt-3 flex flex-wrap items-end justify-between gap-3">

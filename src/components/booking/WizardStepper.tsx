@@ -19,7 +19,7 @@ const STEPS: Step[] = [
 /** Car rental adds a renter-signature step between details and payment. */
 const SIGNATURE_STEP: Step = {
   key: "signature",
-  labelKey: "wizard.step.signature",
+  labelKey: "wizard.step.agreement",
 };
 
 export default function WizardStepper({

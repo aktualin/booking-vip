@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getGuestInvoice } from "@/app/actions/invoice";
 import type { InvoiceDTO } from "@/lib/invoice";
+import type { BrandInfo } from "@/lib/branding";
 import InvoiceSheet from "@/components/invoice/InvoiceSheet";
 import PrintInvoiceButton from "@/components/account/PrintInvoiceButton";
 
@@ -16,7 +17,13 @@ import PrintInvoiceButton from "@/components/account/PrintInvoiceButton";
 
 const LAST_BOOKING_KEY = "booking-vip:last-booking";
 
-export default function GuestInvoiceClient({ code }: { code: string }) {
+export default function GuestInvoiceClient({
+  code,
+  brand = null,
+}: {
+  code: string;
+  brand?: BrandInfo | null;
+}) {
   const [email, setEmail] = useState("");
   const [invoice, setInvoice] = useState<InvoiceDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +83,7 @@ export default function GuestInvoiceClient({ code }: { code: string }) {
           <PrintInvoiceButton />
         </div>
 
-        <InvoiceSheet invoice={invoice} />
+        <InvoiceSheet invoice={invoice} brand={brand} />
       </div>
     );
   }

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { getProduct, getPlaceOptions } from "@/app/actions/catalog";
 import { createBooking, previewTaxes } from "@/app/actions/booking";
-import { startBookingPayment } from "@/app/actions/payments";
+import { dispatchPayIntent } from "@/components/payment/dispatch";
+import type { PayIntent } from "@/components/payment/PaymentForm";
 import { parsePickedPoint } from "@/lib/picked-point";
 import type { PlaceNode } from "@/lib/places";
 import { useLocale } from "@/components/providers/LocaleProvider";
@@ -15,7 +16,8 @@ import BookingSummary from "./BookingSummary";
 import StepAddOns from "./StepAddOns";
 import StepDetails from "./StepDetails";
 import StepPayment, { type AppliedPromo } from "./StepPayment";
-import SignaturePad from "./SignaturePad";
+import ContractAgreementStep from "./ContractAgreementStep";
+import { getActiveContractClauses, type ContractClauseDTO } from "@/app/actions/contract";
 import type { RenterIdentity } from "./RenterIdentityForm";
 
 type Step = "addons" | "details" | "signature" | "payment";
@@ -110,6 +112,11 @@ export default function BookingWizard() {
     idDocumentUrl: null,
   });
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  // The rental agreement: articles from the admin area, the consent tick and
+  // the typed signer name. The signature pad image is `signatureUrl` above.
+  const [clauses, setClauses] = useState<ContractClauseDTO[]>([]);
+  const [agreed, setAgreed] = useState(false);
+  const [signerName, setSignerName] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -148,6 +155,30 @@ export default function BookingWizard() {
       phone: c.phone || (overview.phone ?? ""),
     }));
   }, [overview]);
+
+  // The rental agreement articles — only the transport line signs one.
+  useEffect(() => {
+    if (!isTransport) {
+      setClauses([]);
+      return;
+    }
+    let cancelled = false;
+    void getActiveContractClauses().then((rows) => {
+      if (!cancelled) setClauses(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isTransport]);
+
+  // Prefill the signer name from the contact once, without clobbering edits.
+  useEffect(() => {
+    setSignerName((current) => {
+      if (current) return current;
+      const full = `${contact.firstName} ${contact.lastName}`.trim();
+      return full || current;
+    });
+  }, [contact.firstName, contact.lastName]);
 
   // Load product
   useEffect(() => {
@@ -233,7 +264,7 @@ export default function BookingWizard() {
    * gateway's hosted checkout (Xendit for card/QRIS/VA, PayPal for PAYPAL);
    * the customer comes back via /payment/return, which polls the status.
    */
-  const handlePay = async (methodCode = "CREDIT_CARD") => {
+  const handlePay = async (intent: PayIntent) => {
     if (!product || !selectedPackage) return;
 
     // Guard against missing/invalid date/time BEFORE constructing the ISO
@@ -291,6 +322,14 @@ export default function BookingWizard() {
         flight: isTransport ? {} : flight,
         travelers: isTransport ? [] : travelers,
         promoCode: appliedPromo?.code,
+        // The signed rental agreement rides along with the booking creation;
+        // the server snapshots the active articles into a SignedContract row.
+        contract: isTransport
+          ? {
+              signerName: signerName.trim() || `${contact.firstName} ${contact.lastName}`.trim(),
+              signatureUrl: signatureUrl ?? "",
+            }
+          : undefined,
       });
 
       if (!result.ok) {
@@ -317,17 +356,15 @@ export default function BookingWizard() {
       }
     }
 
-    // 2. Start the payment — the method picked in the payment step (card,
-    //    QRIS, Virtual Account via Xendit; PAYPAL via PayPal).
-    const result = await startBookingPayment({
+    // 2. Dispatch the picked intent — a gateway method (hosted checkout) or
+    //    a saved card (CVV-only token charge). No result step: the waiting
+    //    page takes over after a redirect-based attempt.
+    const result = await dispatchPayIntent(intent, {
       bookingCode: booking.code,
       email: contact.email,
-      methodCode,
     });
     if (result.ok) {
-      // Off to the gateway's hosted checkout — no result step, the return
-      // page takes over after the charge.
-      window.location.assign(result.checkoutUrl);
+      window.location.assign(result.redirectUrl);
       return;
     }
     setSubmitError(result.error);
@@ -386,27 +423,24 @@ export default function BookingWizard() {
             />
           )}
           {step === "signature" && isTransport && (
-            <div>
-              <h2 className="mb-4 text-xl font-bold text-ink">
-                {t("wizard.signature.title")}
-              </h2>
-              <SignaturePad value={signatureUrl} onChange={setSignatureUrl} />
-              <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setStep("details")}
-                  className="rounded-xl border border-line bg-white px-6 py-3 text-base font-bold text-ink transition-colors hover:bg-canvas"
-                >
-                  {t("wizard.details.back")}
-                </button>
-                <button
-                  onClick={() => setStep("payment")}
-                  disabled={!signatureUrl}
-                  className="rounded-xl bg-brand px-8 py-3 text-base font-bold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {t("wizard.details.continueToPayment")}
-                </button>
-              </div>
-            </div>
+            <ContractAgreementStep
+              clauses={clauses}
+              signerName={signerName}
+              onSignerNameChange={setSignerName}
+              agreed={agreed}
+              onAgreedChange={setAgreed}
+              signatureUrl={signatureUrl}
+              onSignatureChange={setSignatureUrl}
+              onBack={() => setStep("details")}
+              onContinue={() => {
+                if (!agreed || !signatureUrl || signerName.trim().length < 2) {
+                  setSubmitError(t("wizard.agreement.needAgree"));
+                  return;
+                }
+                setSubmitError(null);
+                setStep("payment");
+              }}
+            />
           )}
           {step === "payment" && (
             <StepPayment

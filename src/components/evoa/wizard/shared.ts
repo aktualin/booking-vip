@@ -21,6 +21,7 @@ import {
   type EvoaFileRef,
 } from "@/lib/evoa-shared";
 import { formatMoneyWith } from "@/lib/currency";
+import { formatInternational } from "@/lib/flag";
 import type { EvoaFormData } from "@/app/actions/evoa";
 
 export type Lang = "en" | "id";
@@ -46,6 +47,8 @@ export type FieldError = { field: string; error: string } | null;
 export type TravelForm = {
   contactName: string;
   email: string;
+  /** ISO alpha-2 of the phone's country — combined with `phone` on submit. */
+  phoneCountryCode: string;
   phone: string;
   purpose: string;
   arrivalDate: string;
@@ -63,6 +66,7 @@ export function emptyTravel(): TravelForm {
   return {
     contactName: "",
     email: "",
+    phoneCountryCode: "ID",
     phone: "",
     purpose: "tourism",
     arrivalDate: "",
@@ -92,6 +96,8 @@ export type ApplicantForm = {
   passportIssueDate: string;
   passportExpiryDate: string;
   email: string;
+  /** ISO alpha-2 of the phone's country — combined with `phone` on submit. */
+  phoneCountryCode: string;
   phone: string;
   extraAnswers: EvoaAnswers;
   documents: Record<string, EvoaFileRef[]>;
@@ -112,6 +118,7 @@ export function newApplicant(): ApplicantForm {
     passportIssueDate: "",
     passportExpiryDate: "",
     email: "",
+    phoneCountryCode: "ID",
     phone: "",
     extraAnswers: {},
     documents: {},
@@ -213,7 +220,7 @@ export function validateTravel(
   if (!EVOA_EMAIL_RE.test(travel.email.trim())) {
     return { field: "email", error: t("Invalid email address.", "Email pemesan tidak valid.") };
   }
-  if (!EVOA_PHONE_RE.test(travel.phone.trim())) {
+  if (!EVOA_PHONE_RE.test(formatInternational(travel.phoneCountryCode, travel.phone))) {
     return { field: "phone", error: t("Invalid phone number.", "Nomor telepon pemesan tidak valid.") };
   }
   if (!EVOA_PURPOSES.some((p) => p.value === travel.purpose)) {
@@ -315,7 +322,7 @@ export function validateApplicant(
   if (!EVOA_EMAIL_RE.test(applicant.email.trim())) {
     return err("email", t("Invalid email address.", "email tidak valid."));
   }
-  if (!EVOA_PHONE_RE.test(applicant.phone.trim())) {
+  if (!EVOA_PHONE_RE.test(formatInternational(applicant.phoneCountryCode, applicant.phone))) {
     return err("phone", t("Invalid phone number.", "nomor telepon tidak valid."));
   }
   if (!EVOA_RELATIONS.some((r) => r.value === applicant.relation)) {

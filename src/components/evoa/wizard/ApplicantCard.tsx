@@ -11,6 +11,7 @@ import {
   type EvoaFileRef,
 } from "@/lib/evoa-shared";
 import DynamicFields from "@/components/evoa/DynamicFields";
+import PhoneInput from "@/components/ui/PhoneInput";
 import DocumentsUpload from "./DocumentsUpload";
 import {
   FIELD_CLASS,
@@ -331,13 +332,14 @@ export default function ApplicantCard({
                 />
               </Field>
               <Field label={t("Phone / WhatsApp", "Telepon / WhatsApp")} required errored={at("phone")}>
-                <input
-                  type="tel"
-                  value={applicant.phone}
+                <PhoneInput
+                  countryCode={applicant.phoneCountryCode}
+                  phone={applicant.phone}
                   disabled={disabled}
-                  onChange={(e) => onChange({ phone: e.target.value })}
+                  onChange={({ countryCode, phone }) => onChange({ phoneCountryCode: countryCode, phone })}
                   placeholder="08xx xxxx xxxx"
-                  className={cls("phone")}
+                  errored={at("phone")}
+                  inputClassName={FIELD_CLASS}
                 />
               </Field>
             </div>

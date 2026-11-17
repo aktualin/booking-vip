@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Figtree } from "next/font/google";
 import { AccountProvider } from "@/components/providers/AccountProvider";
 import { LocaleProvider } from "@/components/providers/LocaleProvider";
 import { UserSessionRefresh } from "@/components/providers/SessionRefresh";
+import PageFadeIn from "@/components/PageFadeIn";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -30,7 +32,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <LocaleProvider>
           <AccountProvider>
             <UserSessionRefresh />
-            {children}
+            {/* PageFadeIn reads the pathname (a client hook) — the Suspense
+                boundary lets static shells prerender while it streams in. */}
+            <Suspense fallback={null}>
+              <PageFadeIn>{children}</PageFadeIn>
+            </Suspense>
           </AccountProvider>
         </LocaleProvider>
       </body>

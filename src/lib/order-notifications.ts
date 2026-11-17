@@ -3,6 +3,7 @@ import "server-only";
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { db } from "@/prisma/db";
+import { dialDigits } from "@/lib/flag";
 
 /**
  * Admin order notifications — email (SMTP) and Telegram.
@@ -53,9 +54,34 @@ export type TelegramConfig = {
   chatIds: string[];
 };
 
+/**
+ * Google Calendar channel configuration.
+ *
+ * The OAuth refresh token is captured once through the admin "Hubungkan
+ * Google Calendar" flow (`/api/google/calendar/start` → Google consent →
+ * `/api/google/calendar/callback`) and stored here alongside the SMTP
+ * password and the Telegram bot token.
+ */
+export type GoogleCalendarConfig = {
+  enabled: boolean;
+  /** The OAuth refresh token of the connected Google account (secret). */
+  refreshToken: string;
+  /** The email of the connected Google account (read-only in the form). */
+  accountEmail: string;
+  /** Target calendar — `primary` (default) or a specific calendar id. */
+  calendarId: string;
+  /** Event duration in minutes (default 60). */
+  durationMinutes: number;
+  /** Popup reminders in minutes before the service time (default 1 day + 1 hour). */
+  reminderMinutes: number[];
+  /** Guest emails invited to every order event (separate from SMTP recipients). */
+  attendees: string[];
+};
+
 export type OrderNotificationsDTO = {
   smtp: SmtpConfig;
   telegram: TelegramConfig;
+  googleCalendar: GoogleCalendarConfig;
 };
 
 /** The configuration used when nothing has been saved yet — everything off. */
@@ -75,6 +101,15 @@ export const DEFAULT_ORDER_NOTIFICATIONS: OrderNotificationsDTO = {
     enabled: false,
     botToken: "",
     chatIds: [],
+  },
+  googleCalendar: {
+    enabled: false,
+    refreshToken: "",
+    accountEmail: "",
+    calendarId: "primary",
+    durationMinutes: 60,
+    reminderMinutes: [1440, 60],
+    attendees: [],
   },
 };
 
@@ -132,18 +167,53 @@ function parseTelegram(raw: unknown): TelegramConfig {
   };
 }
 
+/** Normalise a raw JSON array into a de-duplicated, capped positive-integer list. */
+function readNumberList(value: unknown, min: number, max: number, limit: number): number[] {
+  if (!Array.isArray(value)) return [];
+  const out: number[] = [];
+  for (const item of value) {
+    const n = Math.trunc(readNumber(item, NaN));
+    if (!Number.isFinite(n) || n < min || n > max) continue;
+    if (!out.includes(n)) out.push(n);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function parseGoogleCalendar(raw: unknown): GoogleCalendarConfig {
+  const d = DEFAULT_ORDER_NOTIFICATIONS.googleCalendar;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { ...d, reminderMinutes: [...d.reminderMinutes], attendees: [] };
+  }
+  const v = raw as Record<string, unknown>;
+  const calendarId = readString(v.calendarId, d.calendarId).trim();
+  return {
+    enabled: readBoolean(v.enabled, d.enabled),
+    refreshToken: readString(v.refreshToken, d.refreshToken),
+    accountEmail: readString(v.accountEmail, d.accountEmail).trim(),
+    calendarId: calendarId || "primary",
+    // 15 minutes – 24 hours.
+    durationMinutes: Math.max(15, Math.min(1440, Math.trunc(readNumber(v.durationMinutes, d.durationMinutes)))),
+    // Up to five reminders, each 0 minutes – 4 weeks before the event.
+    reminderMinutes: readNumberList(v.reminderMinutes, 0, 40320, 5),
+    attendees: readStringList(v.attendees),
+  };
+}
+
 /** Normalise a raw JSON value into the notification configuration. */
 export function parseOrderNotifications(raw: unknown): OrderNotificationsDTO {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return {
       smtp: { ...DEFAULT_ORDER_NOTIFICATIONS.smtp, recipients: [] },
       telegram: { ...DEFAULT_ORDER_NOTIFICATIONS.telegram, chatIds: [] },
+      googleCalendar: parseGoogleCalendar(null),
     };
   }
   const value = raw as Record<string, unknown>;
   return {
     smtp: parseSmtp(value.smtp),
     telegram: parseTelegram(value.telegram),
+    googleCalendar: parseGoogleCalendar(value.googleCalendar),
   };
 }
 
@@ -183,6 +253,15 @@ export async function saveOrderNotifications(dto: OrderNotificationsDTO): Promis
       botToken: dto.telegram.botToken,
       chatIds: dto.telegram.chatIds,
     },
+    googleCalendar: {
+      enabled: dto.googleCalendar.enabled,
+      refreshToken: dto.googleCalendar.refreshToken,
+      accountEmail: dto.googleCalendar.accountEmail,
+      calendarId: dto.googleCalendar.calendarId,
+      durationMinutes: dto.googleCalendar.durationMinutes,
+      reminderMinutes: dto.googleCalendar.reminderMinutes,
+      attendees: dto.googleCalendar.attendees,
+    },
   };
 
   const existing = await db.orm.public.Setting
@@ -213,6 +292,11 @@ export function isSmtpReady(c: SmtpConfig): boolean {
 /** Is the Telegram channel usable (enabled + token + at least one chat)? */
 export function isTelegramReady(c: TelegramConfig): boolean {
   return c.enabled && c.botToken.trim().length > 0 && c.chatIds.length > 0;
+}
+
+/** Is the Google Calendar channel usable (enabled + connected account)? */
+export function isGoogleCalendarReady(c: GoogleCalendarConfig): boolean {
+  return c.enabled && c.refreshToken.trim().length > 0;
 }
 
 function buildTransport(c: SmtpConfig): Transporter {
@@ -367,7 +451,7 @@ function errorMessage(error: unknown): string {
 // ---------- the order-paid notification ----------
 
 /** The compact order summary handed to both channels. */
-type AdminOrderSummary = {
+export type AdminOrderSummary = {
   code: string;
   serviceLabel: string;
   orderType: "booking" | "evoa";
@@ -376,6 +460,10 @@ type AdminOrderSummary = {
   customerName: string;
   customerPhone: string | null;
   serviceAtLabel: string;
+  /** The raw service time (ISO 8601, UTC) — used by the Google Calendar sync. */
+  serviceAtIso: string;
+  /** Hotel / pickup label for the event location, when available. */
+  location: string | null;
   voucherUrl: string;
 };
 
@@ -402,14 +490,14 @@ function formatServiceDate(iso: string): string {
 }
 
 function e164Phone(countryCode: string, phone: string): string | null {
-  const cc = (countryCode ?? "").replace(/\D/g, "");
+  const cc = dialDigits(countryCode ?? "");
   const num = (phone ?? "").replace(/\D/g, "");
   if (!num) return null;
   const full = cc ? `+${cc}${num}` : `+${num}`;
   return /^\+\d{9,15}$/.test(full) ? full : null;
 }
 
-function appBaseUrl(): string {
+export function appBaseUrl(): string {
   return (
     process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
@@ -417,9 +505,9 @@ function appBaseUrl(): string {
 }
 
 /** Assemble the admin-facing summary of a just-paid booking. */
-async function buildAdminOrderSummary(bookingId: string): Promise<AdminOrderSummary | null> {
+export async function buildAdminOrderSummary(bookingId: string): Promise<AdminOrderSummary | null> {
   const bookings = await db.orm.public.Booking
-    .select("code", "serviceAt", "totalUsdCents", "invoiceNumber")
+    .select("code", "serviceAt", "totalUsdCents", "invoiceNumber", "hotelName", "pickupLabel")
     .where((f) => f.id.eq(bookingId))
     .limit(1)
     .all();
@@ -452,6 +540,7 @@ async function buildAdminOrderSummary(bookingId: string): Promise<AdminOrderSumm
   }
 
   const base = appBaseUrl();
+  const serviceAtIso = new Date(booking.serviceAt).toISOString();
   return {
     code: booking.code,
     serviceLabel: items[0]?.label ?? (orderType === "evoa" ? "e-VOA" : "Pesanan Booking VIP"),
@@ -462,7 +551,9 @@ async function buildAdminOrderSummary(bookingId: string): Promise<AdminOrderSumm
     customerPhone: contact
       ? e164Phone(contact.phoneCountryCode ?? "", contact.phone ?? "")
       : null,
-    serviceAtLabel: formatServiceDate(new Date(booking.serviceAt).toISOString()),
+    serviceAtLabel: formatServiceDate(serviceAtIso),
+    serviceAtIso,
+    location: booking.hotelName?.trim() || booking.pickupLabel?.trim() || null,
     voucherUrl: `${base}/voucher/${encodeURIComponent(booking.code)}`,
   };
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  disconnectGoogleCalendarAction,
   loadOrderNotifications,
   saveOrderNotificationsAction,
   testOrderNotificationAction,
@@ -21,7 +22,8 @@ import { showAdminToast } from "@/components/admin/toast";
 export default function NotificationsSettingsForm() {
   const [values, setValues] = useState<OrderNotificationsDTO | null>(null);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState<"smtp" | "telegram" | null>(null);
+  const [testing, setTesting] = useState<"smtp" | "telegram" | "googleCalendar" | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState("");
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
 
@@ -30,6 +32,22 @@ export default function NotificationsSettingsForm() {
       const settings = await loadOrderNotifications();
       setValues(settings);
     })();
+  }, []);
+
+  // Report the result of the "Hubungkan Google Calendar" OAuth round-trip —
+  // the callback route redirects back here with a status query parameter.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("gc");
+    if (!status) return;
+    if (status === "ok") {
+      showAdminToast(
+        `Akun Google berhasil dihubungkan${params.get("email") ? `: ${params.get("email")}` : ""}.`,
+      );
+    } else {
+      showAdminToast(params.get("msg") ?? "Gagal menghubungkan akun Google.", "error");
+    }
+    window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
   if (!values) {
@@ -42,6 +60,8 @@ export default function NotificationsSettingsForm() {
 
   const smtpOff = !values.smtp.enabled;
   const telegramOff = !values.telegram.enabled;
+  const gcOff = !values.googleCalendar.enabled;
+  const gcConnected = values.googleCalendar.accountEmail.trim().length > 0;
 
   const setSmtp = <K extends keyof OrderNotificationsDTO["smtp"]>(
     key: K,
@@ -59,6 +79,18 @@ export default function NotificationsSettingsForm() {
   ) => {
     setValues((prev) =>
       prev ? { ...prev, telegram: { ...prev.telegram, [key]: value } } : prev,
+    );
+    setFieldError(undefined);
+  };
+
+  const setGc = <K extends keyof OrderNotificationsDTO["googleCalendar"]>(
+    key: K,
+    value: OrderNotificationsDTO["googleCalendar"][K],
+  ) => {
+    setValues((prev) =>
+      prev
+        ? { ...prev, googleCalendar: { ...prev.googleCalendar, [key]: value } }
+        : prev,
     );
     setFieldError(undefined);
   };
@@ -129,9 +161,87 @@ export default function NotificationsSettingsForm() {
     );
   };
 
+  const updateAttendee = (index: number, value: string) => {
+    setValues((prev) => {
+      if (!prev) return prev;
+      const attendees = [...prev.googleCalendar.attendees];
+      attendees[index] = value;
+      return { ...prev, googleCalendar: { ...prev.googleCalendar, attendees } };
+    });
+    setFieldError(undefined);
+  };
+
+  const addAttendee = () => {
+    setValues((prev) =>
+      prev
+        ? {
+            ...prev,
+            googleCalendar: {
+              ...prev.googleCalendar,
+              attendees: [...prev.googleCalendar.attendees, ""],
+            },
+          }
+        : prev,
+    );
+  };
+
+  const removeAttendee = (index: number) => {
+    setValues((prev) =>
+      prev
+        ? {
+            ...prev,
+            googleCalendar: {
+              ...prev.googleCalendar,
+              attendees: prev.googleCalendar.attendees.filter((_, i) => i !== index),
+            },
+          }
+        : prev,
+    );
+  };
+
+  const updateReminder = (index: number, value: number) => {
+    setValues((prev) => {
+      if (!prev) return prev;
+      const reminderMinutes = [...prev.googleCalendar.reminderMinutes];
+      reminderMinutes[index] = value;
+      return { ...prev, googleCalendar: { ...prev.googleCalendar, reminderMinutes } };
+    });
+    setFieldError(undefined);
+  };
+
+  const addReminder = () => {
+    setValues((prev) =>
+      prev && prev.googleCalendar.reminderMinutes.length < 5
+        ? {
+            ...prev,
+            googleCalendar: {
+              ...prev.googleCalendar,
+              reminderMinutes: [...prev.googleCalendar.reminderMinutes, 60],
+            },
+          }
+        : prev,
+    );
+  };
+
+  const removeReminder = (index: number) => {
+    setValues((prev) =>
+      prev
+        ? {
+            ...prev,
+            googleCalendar: {
+              ...prev.googleCalendar,
+              reminderMinutes: prev.googleCalendar.reminderMinutes.filter(
+                (_, i) => i !== index,
+              ),
+            },
+          }
+        : prev,
+    );
+  };
+
   // --- Actions ---
 
-  /** The plain `{ smtp, telegram }` object handed to the server actions. */
+  /** The plain `{ smtp, telegram, googleCalendar }` object handed to the server actions. */
   const buildValues = (current: OrderNotificationsDTO): Record<string, unknown> => ({
     smtp: {
       enabled: current.smtp.enabled,
@@ -149,9 +259,16 @@ export default function NotificationsSettingsForm() {
       botToken: current.telegram.botToken,
       chatIds: current.telegram.chatIds,
     },
+    googleCalendar: {
+      enabled: current.googleCalendar.enabled,
+      calendarId: current.googleCalendar.calendarId,
+      durationMinutes: current.googleCalendar.durationMinutes,
+      reminderMinutes: current.googleCalendar.reminderMinutes,
+      attendees: current.googleCalendar.attendees,
+    },
   });
 
-  const runTest = async (channel: "smtp" | "telegram") => {
+  const runTest = async (channel: "smtp" | "telegram" | "googleCalendar") => {
     if (testing) return;
     setTesting(channel);
     const result = await testOrderNotificationAction(channel, buildValues(values));
@@ -159,12 +276,28 @@ export default function NotificationsSettingsForm() {
       showAdminToast(
         channel === "smtp"
           ? "Email uji berhasil dikirim."
-          : "Pesan uji Telegram berhasil dikirim.",
+          : channel === "telegram"
+            ? "Pesan uji Telegram berhasil dikirim."
+            : "Event uji berhasil dibuat di Google Calendar.",
       );
     } else {
       showAdminToast(result.error ?? "Gagal mengirim pesan uji.", "error");
     }
     setTesting(null);
+  };
+
+  const disconnect = async () => {
+    if (disconnecting) return;
+    setDisconnecting(true);
+    const result = await disconnectGoogleCalendarAction();
+    if (result.ok) {
+      showAdminToast("Koneksi Google Calendar diputus.");
+      const settings = await loadOrderNotifications();
+      setValues(settings);
+    } else {
+      showAdminToast(result.error ?? "Gagal memutuskan koneksi.", "error");
+    }
+    setDisconnecting(false);
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -198,9 +331,9 @@ export default function NotificationsSettingsForm() {
         <h1 className={adminClass.h1}>Notifikasi Order</h1>
         <p className="mt-1 text-[13px] text-[var(--admin-muted)]">
           Notifikasi yang dikirim ke admin setiap kali sebuah order dibayar,
-          lewat email (SMTP) dan/atau Telegram. Kedua kanal dapat diaktifkan
-          sendiri-sendiri. Pengaturan tersimpan di database dan langsung
-          berlaku.
+          lewat email (SMTP), Telegram, dan/atau event Google Calendar. Setiap
+          kanal dapat diaktifkan sendiri-sendiri. Pengaturan tersimpan di
+          database dan langsung berlaku.
         </p>
       </div>
 
@@ -399,7 +532,7 @@ export default function NotificationsSettingsForm() {
       </div>
 
       {/* Telegram */}
-      <div className={`${adminClass.panel} p-5 sm:p-6`}>
+      <div className={`${adminClass.panel} mb-5 p-5 sm:p-6`}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-[15px] font-semibold text-[var(--admin-ink)]">
             Telegram
@@ -489,6 +622,215 @@ export default function NotificationsSettingsForm() {
                       disabled={telegramOff}
                       className={`${adminClass.buttonGhost} shrink-0 text-danger`}
                       title="Hapus chat id"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Google Calendar */}
+      <div className={`${adminClass.panel} p-5 sm:p-6`}>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-semibold text-[var(--admin-ink)]">
+            Google Calendar
+          </h2>
+          <button
+            type="button"
+            onClick={() => void runTest("googleCalendar")}
+            disabled={testing !== null || gcOff || !gcConnected}
+            className={adminClass.buttonSecondary}
+          >
+            {testing === "googleCalendar" ? "Mengirim…" : "Kirim Tes"}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Switch */}
+          <div className="sm:col-span-2">
+            <label className="flex items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={values.googleCalendar.enabled}
+                onChange={(e) => setGc("enabled", e.target.checked)}
+                className="h-4 w-4 rounded border-[var(--admin-line)]"
+              />
+              <span className="text-[13px] font-medium text-[var(--admin-ink)]">
+                Aktifkan sinkronisasi Google Calendar
+              </span>
+            </label>
+            <p className="mt-1 text-[12px] text-[var(--admin-muted)]">
+              Setiap order yang dibayar otomatis dibuatkan event di calendar
+              pada waktu layanan. Penerima di bawah mendapat email undangan
+              dari Google, dan alarm (popup) berbunyi sesuai pengingat yang
+              diatur.
+            </p>
+          </div>
+
+          {/* Connection status */}
+          <div className="sm:col-span-2">
+            <span className={adminClass.label}>Akun Google</span>
+            {gcConnected ? (
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--admin-line)] bg-[var(--admin-hover)] px-3 py-2">
+                <span className="text-[13px] font-medium text-[var(--admin-ink)]">
+                  ✓ Terhubung: {values.googleCalendar.accountEmail}
+                </span>
+                <a
+                  href="/api/google/calendar/start"
+                  className={`${adminClass.buttonSecondary} ml-auto`}
+                >
+                  Hubungkan Ulang
+                </a>
+                <button
+                  type="button"
+                  onClick={() => void disconnect()}
+                  disabled={disconnecting}
+                  className={`${adminClass.buttonGhost} text-danger`}
+                >
+                  {disconnecting ? "Memutus…" : "Putuskan"}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-1.5">
+                <a href="/api/google/calendar/start" className={adminClass.buttonPrimary}>
+                  Hubungkan Google Calendar
+                </a>
+                <p className="mt-1.5 text-[12px] text-[var(--admin-muted)]">
+                  Sekali saja: berikan izin akses Calendar untuk satu akun
+                  Google. Event order akan dibuat di calendar akun ini.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Calendar id */}
+          <label className="block">
+            <span className={adminClass.label}>Calendar ID</span>
+            <input
+              type="text"
+              value={values.googleCalendar.calendarId}
+              onChange={(e) => setGc("calendarId", e.target.value)}
+              disabled={gcOff}
+              placeholder="primary"
+              className={`${adminClass.input} mt-1.5`}
+            />
+            <span className="mt-1 block text-[12px] text-[var(--admin-muted)]">
+              Biarkan <code>primary</code> untuk kalender utama akun yang
+              terhubung.
+            </span>
+          </label>
+
+          {/* Duration */}
+          <label className="block">
+            <span className={adminClass.label}>Durasi event (menit)</span>
+            <input
+              type="number"
+              min={15}
+              max={1440}
+              step={5}
+              value={values.googleCalendar.durationMinutes}
+              onChange={(e) => setGc("durationMinutes", Number(e.target.value))}
+              disabled={gcOff}
+              className={`${adminClass.input} mt-1.5 tabular-nums`}
+            />
+          </label>
+
+          {/* Reminders */}
+          <div className="sm:col-span-2">
+            <div className="mb-2 flex items-center justify-between">
+              <span className={adminClass.label}>
+                Pengingat / alarm (menit sebelum layanan)
+              </span>
+              <button
+                type="button"
+                onClick={addReminder}
+                disabled={gcOff || values.googleCalendar.reminderMinutes.length >= 5}
+                className={adminClass.buttonSecondary}
+              >
+                + Tambah Pengingat
+              </button>
+            </div>
+            {values.googleCalendar.reminderMinutes.length === 0 ? (
+              <p className="text-[13px] text-[var(--admin-muted)]">
+                Tanpa pengingat — alarm tidak akan berbunyi.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {values.googleCalendar.reminderMinutes.map((minutes, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={40320}
+                      step={5}
+                      value={minutes}
+                      onChange={(e) => updateReminder(index, Number(e.target.value))}
+                      disabled={gcOff}
+                      className={`${adminClass.input} tabular-nums`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeReminder(index)}
+                      disabled={gcOff}
+                      className={`${adminClass.buttonGhost} shrink-0 text-danger`}
+                      title="Hapus pengingat"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                ))}
+                <p className="text-[12px] text-[var(--admin-muted)]">
+                  Contoh: 1440 = 1 hari, 60 = 1 jam sebelum waktu layanan.
+                  Maksimal 5 pengingat.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Attendees */}
+          <div className="sm:col-span-2">
+            <div className="mb-2 flex items-center justify-between">
+              <span className={adminClass.label}>
+                Penerima notifikasi (email undangan event)
+              </span>
+              <button
+                type="button"
+                onClick={addAttendee}
+                disabled={gcOff}
+                className={adminClass.buttonSecondary}
+              >
+                + Tambah Penerima
+              </button>
+            </div>
+            {values.googleCalendar.attendees.length === 0 ? (
+              <p className="text-[13px] text-[var(--admin-muted)]">
+                Belum ada penerima. Event tetap dibuat, tetapi tanpa undangan
+                email.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {values.googleCalendar.attendees.map((attendee, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="email"
+                      value={attendee}
+                      onChange={(e) => updateAttendee(index, e.target.value)}
+                      disabled={gcOff}
+                      placeholder="ops@domain.com"
+                      className={`${adminClass.input} ${
+                        fieldError === "googleCalendar.attendees" ? "border-danger" : ""
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeAttendee(index)}
+                      disabled={gcOff}
+                      className={`${adminClass.buttonGhost} shrink-0 text-danger`}
+                      title="Hapus penerima"
                     >
                       Hapus
                     </button>

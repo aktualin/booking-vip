@@ -377,6 +377,164 @@ export async function getCardSession(sessionId: string): Promise<XenditSession> 
   );
 }
 
+/* ------------------------------------------------------------------------- */
+/* Cards — server-side tokenization + token charge (Payments API v3)         */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * The saved-card path: the server tokenizes the stored card together with
+ * the CVV the customer typed (`POST /v3/payment_tokens`) and charges the
+ * token with a PAY payment request. Raw card data therefore transits this
+ * server in memory only — the CVV is never stored, and the PAN rests in the
+ * `SavedCard` row encrypted (AES-256-GCM).
+ *
+ * Both calls can answer REQUIRES_ACTION: the `actions` array then carries
+ * the 3DS redirect URL the customer has to finish in the browser.
+ */
+
+export type XenditAction = {
+  type?: string;
+  descriptor?: string;
+  value?: string;
+};
+
+/** The answer of `POST /v3/payment_tokens`. */
+export type XenditPaymentToken = {
+  payment_token_id?: string;
+  status?: string;
+  actions?: XenditAction[];
+  failure_code?: string;
+  masked_card_number?: string;
+  channel_properties?: unknown;
+};
+
+/** The answer of `POST /v3/payment_requests` / `GET /v3/payment_requests/{id}`. */
+export type XenditPaymentRequest = {
+  payment_request_id?: string;
+  reference_id?: string;
+  status?: string;
+  actions?: XenditAction[];
+  request_amount?: number;
+  currency?: string;
+  failure_code?: string;
+};
+
+/** The redirect URL of a REQUIRES_ACTION answer, when the gateway gives one. */
+export function redirectActionUrl(actions: XenditAction[] | undefined): string | null {
+  const action = (actions ?? []).find(
+    (entry) =>
+      entry.type === "REDIRECT_CUSTOMER" &&
+      entry.descriptor === "WEB_URL" &&
+      typeof entry.value === "string" &&
+      entry.value.startsWith("http"),
+  );
+  return action?.value ?? null;
+}
+
+export type CardTokenInput = {
+  referenceId: string;
+  cardNumber: string;
+  cvv: string;
+  expMonth: number;
+  expYear: number;
+  payerEmail: string;
+  payerFirstName: string;
+  payerLastName: string;
+  payerPhone?: string;
+  customerReferenceId: string;
+  successReturnUrl: string;
+  failureReturnUrl: string;
+};
+
+/** Tokenize a card server-side — the token is single-use for one charge. */
+export async function createCardPaymentToken(
+  input: CardTokenInput,
+): Promise<XenditPaymentToken> {
+  return xenditFetch<XenditPaymentToken>("POST", "/v3/payment_tokens", {
+    reference_id: input.referenceId.slice(0, 255),
+    country: "ID",
+    currency: "IDR",
+    channel_code: "CARDS",
+    channel_properties: {
+      card_details: {
+        card_number: input.cardNumber,
+        cvn: input.cvv,
+        expiry_month: String(input.expMonth).padStart(2, "0"),
+        expiry_year: String(input.expYear),
+        cardholder_first_name: cleanName(input.payerFirstName, "Customer"),
+        cardholder_last_name: cleanName(input.payerLastName, "BookingVIP"),
+        cardholder_email: input.payerEmail,
+        ...(input.payerPhone ? { cardholder_phone_number: input.payerPhone } : {}),
+      },
+      skip_three_ds: false,
+      success_return_url: input.successReturnUrl,
+      failure_return_url: input.failureReturnUrl,
+    },
+    customer: {
+      reference_id: input.customerReferenceId.replace(/[^A-Za-z0-9]/g, "").slice(0, 64),
+      type: "INDIVIDUAL",
+      email: input.payerEmail,
+      ...(input.payerPhone ? { mobile_number: input.payerPhone } : {}),
+      individual_detail: {
+        given_names: cleanName(input.payerFirstName, "Customer"),
+        surname: cleanName(input.payerLastName, "BookingVIP"),
+      },
+    },
+    description: `Saved card tokenization ${input.referenceId}`.slice(0, 1000),
+  });
+}
+
+export type TokenPaymentInput = {
+  referenceId: string;
+  paymentTokenId: string;
+  amountIdr: number;
+  description: string;
+  successReturnUrl: string;
+  failureReturnUrl: string;
+};
+
+/** Charge a saved-card token — a customer-unscheduled card-on-file payment. */
+export async function createTokenPayment(
+  input: TokenPaymentInput,
+): Promise<XenditPaymentRequest> {
+  return xenditFetch<XenditPaymentRequest>("POST", "/v3/payment_requests", {
+    reference_id: input.referenceId.slice(0, 255),
+    payment_token_id: input.paymentTokenId,
+    type: "PAY",
+    country: "ID",
+    currency: "IDR",
+    request_amount: Math.max(1, Math.round(input.amountIdr)),
+    capture_method: "AUTOMATIC",
+    channel_properties: {
+      card_on_file_type: "CUSTOMER_UNSCHEDULED",
+      skip_three_ds: false,
+      success_return_url: input.successReturnUrl,
+      failure_return_url: input.failureReturnUrl,
+    },
+    description: input.description.slice(0, 1000),
+  });
+}
+
+/** Read a payment request back — the status refresh of a token charge. */
+export async function getPaymentRequest(
+  paymentRequestId: string,
+): Promise<XenditPaymentRequest> {
+  return xenditFetch<XenditPaymentRequest>(
+    "GET",
+    `/v3/payment_requests/${encodeURIComponent(paymentRequestId)}`,
+  );
+}
+
+/** Read a payment token back — the status refresh of a tokenization. */
+export async function getPaymentToken(
+  paymentTokenId: string,
+): Promise<XenditPaymentToken> {
+  return xenditFetch<XenditPaymentToken>(
+    "GET",
+    `/v3/payment_tokens/${encodeURIComponent(paymentTokenId)}`,
+  );
+}
+
 /**
  * Verify the `x-callback-token` header of an incoming webhook against the
  * configured verification token. Constant-time comparison; a missing

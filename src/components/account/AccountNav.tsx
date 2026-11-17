@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useAccountOverview } from "@/components/providers/AccountProvider";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import type { DictKey } from "@/i18n";
 
 /**
  * The account sidebar.
@@ -12,6 +14,8 @@ import { useAccountOverview } from "@/components/providers/AccountProvider";
  */
 export default function AccountNav({ active }: { active: string }) {
   const { overview, loading } = useAccountOverview();
+  const { lang, t } = useLocale();
+  const numberLocale = lang === "id" ? "id-ID" : "en-US";
 
   // Below lg the hub at /account is the navigation, so the rail is hidden.
   return (
@@ -31,10 +35,14 @@ export default function AccountNav({ active }: { active: string }) {
 
             <div className="mt-3 rounded-xl bg-gradient-to-br from-slate-500 to-slate-700 p-3 text-white">
               <p className="text-[12px] font-semibold">
-                {overview?.level ? `Tier ${overview.level.name}` : "Tanpa tier"}
+                {overview?.level
+                  ? t("account.nav.tier", { name: overview.level.name })
+                  : t("account.nav.noTier")}
               </p>
               <p className="mt-1 text-[15px] font-bold">
-                {(overview?.points ?? 0).toLocaleString("id-ID")} Poin
+                {t("account.nav.points", {
+                  n: (overview?.points ?? 0).toLocaleString(numberLocale),
+                })}
               </p>
             </div>
           </>
@@ -56,7 +64,7 @@ export default function AccountNav({ active }: { active: string }) {
                   : "text-ink hover:bg-canvas"
               }`}
             >
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}
@@ -76,13 +84,13 @@ function isActiveRoute(href: string, pathname: string): boolean {
   return pathname.startsWith(`${href}/`);
 }
 
-const ITEMS = [
-  { href: "/account", label: "Pusat Akun" },
-  { href: "/account/profile", label: "Profil Saya" },
-  { href: "/account/orders", label: "Pesanan Saya" },
-  { href: "/account/loyalty", label: "Poin & Level" },
-  { href: "/account/payments", label: "Metode Pembayaran" },
-  { href: "/account/reviews", label: "Review Saya" },
-  { href: "/account/help", label: "Bantuan" },
-  { href: "/account/settings", label: "Pengaturan" },
+const ITEMS: { href: string; labelKey: DictKey }[] = [
+  { href: "/account", labelKey: "account.nav.hub" },
+  { href: "/account/profile", labelKey: "account.nav.profile" },
+  { href: "/account/orders", labelKey: "account.nav.orders" },
+  { href: "/account/loyalty", labelKey: "account.nav.loyalty" },
+  { href: "/account/payments", labelKey: "account.nav.payments" },
+  { href: "/account/reviews", labelKey: "account.nav.reviews" },
+  { href: "/account/help", labelKey: "account.nav.help" },
+  { href: "/account/settings", labelKey: "account.nav.settings" },
 ];

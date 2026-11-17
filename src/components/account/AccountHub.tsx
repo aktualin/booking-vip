@@ -12,6 +12,8 @@ import {
   UserIcon,
 } from "@/components/icons";
 import { useAccountOverview } from "@/components/providers/AccountProvider";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import type { DictKey } from "@/i18n";
 import SignOutButton from "@/components/account/SignOutButton";
 
 /**
@@ -24,54 +26,56 @@ import SignOutButton from "@/components/account/SignOutButton";
 
 type MenuItem = {
   href: string;
-  label: string;
-  description: string;
+  labelKey: DictKey;
+  descriptionKey: DictKey;
   icon: React.ReactNode;
 };
 
 const MENUS: MenuItem[] = [
   {
     href: "/account/profile",
-    label: "Profil Saya",
-    description: "Nama, email, nomor telepon dan password",
+    labelKey: "account.menu.profile",
+    descriptionKey: "account.menu.profile.desc",
     icon: <UserIcon width={18} height={18} />,
   },
   {
     href: "/account/loyalty",
-    label: "Poin & Level",
-    description: "Lihat poin yang dikumpulkan dan level kamu",
+    labelKey: "account.menu.loyalty",
+    descriptionKey: "account.menu.loyalty.desc",
     icon: <GiftIcon width={18} height={18} />,
   },
   {
     href: "/account/payments",
-    label: "Metode Pembayaran",
-    description: "Kartu tersimpan dan Xendit",
+    labelKey: "account.menu.payments",
+    descriptionKey: "account.menu.payments.desc",
     icon: <TagIcon width={18} height={18} />,
   },
   {
     href: "/account/reviews",
-    label: "Review Saya",
-    description: "Komentar kamu di setiap tempat yang dikunjungi",
+    labelKey: "account.menu.reviews",
+    descriptionKey: "account.menu.reviews.desc",
     icon: <StarIcon width={18} height={18} />,
   },
   {
     href: "/account/orders",
-    label: "Pesanan",
-    description: "Riwayat pesanan dan unduh invoice",
+    labelKey: "account.menu.orders",
+    descriptionKey: "account.menu.orders.desc",
     icon: <BoxIcon width={18} height={18} />,
   },
   {
     href: "/account/help",
-    label: "Bantuan",
-    description: "Pusat bantuan customer service",
+    labelKey: "account.menu.help",
+    descriptionKey: "account.menu.help.desc",
     icon: <BellIcon width={18} height={18} />,
   },
 ];
 
 export default function AccountHub() {
   const { overview, loading } = useAccountOverview();
+  const { lang, t } = useLocale();
 
-  const firstName = (overview?.name ?? "").split(" ")[0] || "Kamu";
+  const numberLocale = lang === "id" ? "id-ID" : "en-US";
+  const firstName = (overview?.name ?? "").split(" ")[0] || t("account.youFallback");
   const level = overview?.level;
   const next = overview?.nextLevel;
   const progress =
@@ -92,10 +96,10 @@ export default function AccountHub() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted">
-              Halo, {firstName}
+              {t("account.greeting", { name: firstName })}
             </p>
             <h1 className="mt-1 truncate text-[22px] font-bold tracking-[-0.01em] text-ink md:text-[26px]">
-              {overview?.name ?? "Akun Saya"}
+              {overview?.name ?? t("account.myAccount")}
             </h1>
             <p className="mt-0.5 truncate text-[13px] text-muted">{overview?.email}</p>
           </div>
@@ -107,24 +111,24 @@ export default function AccountHub() {
           <div className="rounded-xl border border-line bg-canvas/60 p-4">
             <div className="flex items-center justify-between">
               <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-muted">
-                Poin
+                {t("account.points")}
               </span>
               <GiftIcon width={16} height={16} className="text-brand" />
             </div>
             <p className="mt-1 text-[28px] font-extrabold leading-none tracking-[-0.02em] text-ink">
-              {loading ? "—" : (overview?.points ?? 0).toLocaleString("id-ID")}
+              {loading ? "—" : (overview?.points ?? 0).toLocaleString(numberLocale)}
             </p>
-            <p className="mt-1 text-[12px] text-muted">Poin tersedia</p>
+            <p className="mt-1 text-[12px] text-muted">{t("account.pointsAvailable")}</p>
           </div>
 
           {/* Level */}
           <div className="rounded-xl border border-line bg-canvas/60 p-4">
             <div className="flex items-center justify-between">
               <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-muted">
-                Level
+                {t("account.level")}
               </span>
               <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-brand-dark">
-                {level?.name ?? "Member"}
+                {level?.name ?? t("account.member")}
               </span>
             </div>
             <p className="mt-1 text-[28px] font-extrabold leading-none tracking-[-0.02em] text-ink">
@@ -132,8 +136,11 @@ export default function AccountHub() {
             </p>
             <p className="mt-1 text-[12px] text-muted">
               {next
-                ? `${overview?.pointsToNext ?? 0} poin lagi menuju ${next.name}`
-                : "Level tertinggi"}
+                ? t("account.toNextLevel", {
+                    n: (overview?.pointsToNext ?? 0).toLocaleString(numberLocale),
+                    level: next.name,
+                  })
+                : t("account.maxLevel")}
             </p>
           </div>
         </div>
@@ -154,7 +161,7 @@ export default function AccountHub() {
       {/* Menu grid */}
       <section className="mt-8">
         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-          Menu akun
+          {t("account.menuTitle")}
         </h2>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -168,9 +175,9 @@ export default function AccountHub() {
                 {menu.icon}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-semibold text-ink">{menu.label}</span>
+                <span className="block text-[14px] font-semibold text-ink">{t(menu.labelKey)}</span>
                 <span className="mt-0.5 block text-[12px] leading-relaxed text-muted">
-                  {menu.description}
+                  {t(menu.descriptionKey)}
                 </span>
               </span>
               <ChevronRight

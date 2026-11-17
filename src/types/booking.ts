@@ -108,6 +108,17 @@ export type CreateBookingInput = {
     lat: number;
     lng: number;
   };
+  /**
+   * The signed rental agreement (transport bookings only).
+   *
+   * The wizard's agreement step collects the renter's typed name and the
+   * signature-pad image; the server snapshots the active articles into a
+   * `SignedContract` row when the booking is created.
+   */
+  contract?: {
+    signerName: string;
+    signatureUrl: string;
+  } | null;
   /** The promo code the customer entered (optional). */
   promoCode?: string;
   /**

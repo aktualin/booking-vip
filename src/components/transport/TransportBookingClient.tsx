@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createBooking, previewTaxes } from "@/app/actions/booking";
+import { getActiveContractClauses, type ContractClauseDTO } from "@/app/actions/contract";
+import ContractAgreementFields from "@/components/booking/ContractAgreementFields";
 import PaymentStep from "@/components/payment/PaymentStep";
+import PhoneInput from "@/components/ui/PhoneInput";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { TransportVehicleDTO } from "@/app/actions/catalog";
 import type { TaxPreview } from "@/types";
@@ -92,6 +95,7 @@ export default function TransportBookingClient({ vehicles, initial }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("ID");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -224,6 +228,32 @@ export default function TransportBookingClient({ vehicles, initial }: Props) {
     };
   }, [totalUsdCents]);
   const taxUsdCents = taxPreview?.totalUsdCents ?? 0;
+
+  // The rental agreement — the cart is transport-only, so the order can
+  // only be created with a signed agreement once articles are published.
+  const [clauses, setClauses] = useState<ContractClauseDTO[]>([]);
+  const [agreed, setAgreed] = useState(false);
+  const [signerName, setSignerName] = useState("");
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getActiveContractClauses().then((rows) => {
+      if (!cancelled) setClauses(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Prefill the signer name from the contact once, without clobbering edits.
+  useEffect(() => {
+    setSignerName((current) => {
+      if (current) return current;
+      const full = `${firstName} ${lastName}`.trim();
+      return full || current;
+    });
+  }, [firstName, lastName]);
   const grandTotalUsdCents = totalUsdCents + taxUsdCents;
 
   /** The global days input is the default of every per-car days input. */
@@ -296,6 +326,14 @@ export default function TransportBookingClient({ vehicles, initial }: Props) {
       return;
     }
 
+    if (
+      clauses.length > 0 &&
+      (!agreed || !signatureUrl || signerName.trim().length < 2)
+    ) {
+      setError(t("wizard.agreement.needAgree"));
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -330,13 +368,20 @@ export default function TransportBookingClient({ vehicles, initial }: Props) {
         firstName,
         lastName,
         email,
-        phoneCountryCode: "ID",
+        phoneCountryCode,
         phone,
         isGuestSelf: false,
         notes: notes || undefined,
       },
       flight: {},
       travelers: [],
+      contract:
+        clauses.length > 0
+          ? {
+              signerName: signerName.trim() || `${firstName} ${lastName}`.trim(),
+              signatureUrl: signatureUrl ?? "",
+            }
+          : undefined,
     });
 
     setSubmitting(false);
@@ -933,19 +978,18 @@ export default function TransportBookingClient({ vehicles, initial }: Props) {
               />
             </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                {t("transport.booking.phone")}
-              </span>
-              <input
-                type="tel"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder={t("transport.booking.phonePlaceholder")}
-                className={inputClass}
-              />
-            </label>
+            <PhoneInput
+              label={t("transport.booking.phone")}
+              required
+              countryCode={phoneCountryCode}
+              phone={phone}
+              onChange={({ countryCode, phone }) => {
+                setPhoneCountryCode(countryCode);
+                setPhone(phone);
+              }}
+              placeholder={t("transport.booking.phonePlaceholder")}
+              inputClassName={inputClass}
+            />
 
             <label className="block sm:col-span-2">
               <span className="mb-1.5 block text-[12px] font-medium text-ink">
@@ -961,6 +1005,26 @@ export default function TransportBookingClient({ vehicles, initial }: Props) {
             </label>
           </div>
         </section>
+
+        {clauses.length > 0 ? (
+          <section className="rounded-2xl border border-line bg-white p-5">
+            <h2 className="text-[15px] font-bold tracking-[-0.01em] text-ink">
+              {t("wizard.agreement.title")}
+            </h2>
+            <p className="mt-1 mb-4 text-[12.5px] leading-relaxed text-muted">
+              {t("wizard.agreement.intro")}
+            </p>
+            <ContractAgreementFields
+              clauses={clauses}
+              signerName={signerName}
+              onSignerNameChange={setSignerName}
+              agreed={agreed}
+              onAgreedChange={setAgreed}
+              signatureUrl={signatureUrl}
+              onSignatureChange={setSignatureUrl}
+            />
+          </section>
+        ) : null}
 
         {error ? (
           <p className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-[13px] text-danger">

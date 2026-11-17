@@ -1,328 +1,287 @@
+"use client";
+
+// The printable invoice — an order receipt in the marketplace style:
+// the brand mark centred on top, a grey buyer/seller panel, the order meta
+// row, the itemised table with variations, and the right-aligned total box.
+//
+// Pure presentation over the InvoiceDTO; it reads the active language from
+// the LocaleProvider so the sheet prints in the visitor's language, and the
+// brand from the admin branding setting (fallback: the built-in wordmark).
+
+import { useLocale } from "@/components/providers/LocaleProvider";
+import type { DictKey } from "@/i18n";
 import type { InvoiceDTO } from "@/lib/invoice";
+import type { BrandInfo } from "@/lib/branding";
+import BrandWordmark from "@/components/layout/BrandWordmark";
 
 /** Friendly booking status labels; anything else falls back to title case. */
-const BOOKING_STATUS_LABELS: Record<string, string> = {
-  awaiting_payment: "Menunggu pembayaran",
-  pending: "Menunggu pembayaran",
-  confirmed: "Dikonfirmasi",
-  completed: "Selesai",
-  cancelled: "Dibatalkan",
+const BOOKING_STATUS_KEYS: Record<string, DictKey> = {
+  awaiting_payment: "invoice.status.awaiting",
+  pending: "invoice.status.awaiting",
+  confirmed: "invoice.status.confirmed",
+  completed: "invoice.status.completed",
+  cancelled: "invoice.status.cancelled",
 };
 
-/**
- * The printable invoice sheet.
- *
- * Pure presentation: no hooks and no server-only runtime imports (the DTO
- * type is erased at build time), so both server and client components can
- * render it. The sheet is deliberately plain — a white surface with thin
- * borders — so "Print → Save as PDF" produces a clean document.
- */
-export default function InvoiceSheet({ invoice }: { invoice: InvoiceDTO }) {
-  const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+export default function InvoiceSheet({
+  invoice,
+  brand = null,
+}: {
+  invoice: InvoiceDTO;
+  brand?: BrandInfo | null;
+}) {
+  const { lang, t, formatMoney } = useLocale();
+  const dateLocale = lang === "id" ? "id-ID" : "en-US";
 
+  const statusKey = BOOKING_STATUS_KEYS[invoice.status];
   const statusLabel =
-    BOOKING_STATUS_LABELS[invoice.status] ??
-    invoice.status.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+    statusKey != null
+      ? t(statusKey)
+      : invoice.status.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 
+  const paid = invoice.status === "confirmed" || invoice.status === "completed";
   const payment = invoice.payment;
 
-  // Transport details — only the parts that exist are shown.
-  const rentalDays =
-    invoice.items.find((item) => item.unitKind === "per_day")?.quantity ?? null;
-  const transportDetails = [
-    rentalDays ? `Durasi sewa: ${rentalDays} hari` : null,
-    invoice.driverOption === "with_driver"
-      ? "Dengan supir"
-      : invoice.driverOption === "without_driver"
-        ? "Tanpa supir"
-        : null,
-    invoice.pickupPolicy === "vendor_pickup"
-      ? "Ambil di lokasi vendor"
-      : invoice.pickupPolicy === "delivered"
-        ? "Diantar ke lokasi kamu"
-        : null,
-  ].filter((part): part is string => part !== null);
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(dateLocale, {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+  /** The variation column per item kind. */
+  const variationOf = (item: InvoiceDTO["items"][number]): string => {
+    const parts: string[] = [];
+    if (item.packageLabel) parts.push(item.packageLabel);
+    if (item.unitKind === "per_day") {
+      parts.push(t("invoice.rentalDays", { n: item.quantity }));
+      if (invoice.driverOption === "with_driver") parts.push(t("invoice.withDriver"));
+      if (invoice.driverOption === "without_driver") parts.push(t("invoice.withoutDriver"));
+      if (invoice.pickupPolicy === "vendor_pickup") parts.push(t("invoice.vendorPickup"));
+      if (invoice.pickupPolicy === "delivered") parts.push(t("invoice.delivered"));
+    }
+    if (item.unitKind === "per_pax") {
+      parts.push(
+        t("invoice.paxLine", {
+          adults: item.adultCount,
+          children: item.childCount,
+          infants: item.infantCount,
+        }),
+      );
+    }
+    return parts.join(" · ");
+  };
+
+  const totalQty =
+    invoice.items.reduce((sum, item) => sum + item.quantity, 0) +
+    invoice.addOns.reduce((sum, addOn) => sum + addOn.quantity, 0);
+
+  const buyerName = invoice.contact
+    ? `${invoice.contact.firstName} ${invoice.contact.lastName}`.trim()
+    : "—";
 
   return (
-    <article className="rounded-2xl border border-line bg-white p-8 print:rounded-none print:border-0 print:p-0">
-      {/* Head */}
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-5">
-        <div>
-          <p className="text-[15px] font-extrabold tracking-[-0.01em] text-ink">
-            Booking VIP
-          </p>
-          <p className="mt-0.5 text-[12px] text-muted">
-            Airport Transfer &amp; Travel Services
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
-            Invoice
-          </p>
-          <p className="mt-1 font-mono text-[13px] font-semibold text-ink">
-            {invoice.invoiceNumber ?? invoice.code}
-          </p>
-          <p className="mt-0.5 text-[12px] text-muted">Kode: {invoice.code}</p>
-        </div>
+    <article className="rounded-2xl border border-line bg-white p-6 print:rounded-none print:border-0 print:p-0 md:p-10">
+      {/* Head — brand mark centred, receipt title under it */}
+      <header className="flex flex-col items-center border-b border-line pb-6 text-center">
+        <BrandWordmark brand={brand ?? { appName: null, tagline: null }} dark />
+        <p className="mt-1 text-[12px] text-muted">
+          {brand?.tagline ?? "Airport Transfer & Travel Services"}
+        </p>
+        <h1 className="mt-4 text-[15px] font-bold tracking-[-0.01em] text-ink">
+          {t("invoice.receipt")}
+        </h1>
+        <p className="mt-1 font-mono text-[13px] font-semibold text-ink">
+          {invoice.invoiceNumber ?? invoice.code}
+        </p>
       </header>
 
-      {/* Meta */}
-      <section className="grid gap-5 border-b border-line py-5 sm:grid-cols-3">
+      {/* Buyer / seller panel */}
+      <section className="mt-6 grid gap-6 rounded-xl bg-canvas p-5 sm:grid-cols-2">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
-            Tanggal layanan
+          <p className="text-[12px] text-muted">
+            <span className="font-bold text-ink">{t("invoice.buyer")}:</span>{" "}
+            <span className="font-medium text-ink">{buyerName}</span>
           </p>
-          <p className="mt-1 text-[13px] font-medium text-ink">
-            {new Date(invoice.serviceAt).toLocaleDateString("id-ID", {
-              day: "2-digit",
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
+          {invoice.contact ? (
+            <>
+              <p className="mt-2 text-[12px] leading-relaxed text-muted">
+                {invoice.contact.email}
+                {invoice.contact.phone ? (
+                  <>
+                    <br />
+                    {invoice.contact.phoneCountryCode} {invoice.contact.phone}
+                  </>
+                ) : null}
+              </p>
+            </>
+          ) : null}
         </div>
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
-            Dibuat
+        <div className="sm:text-right">
+          <p className="text-[12px] text-muted">
+            <span className="font-bold text-ink">{t("invoice.seller")}:</span>{" "}
+            <span className="font-medium text-ink">
+              {brand?.appName ?? "OurVacation"}
+            </span>
           </p>
-          <p className="mt-1 text-[13px] font-medium text-ink">
-            {new Date(invoice.createdAt).toLocaleDateString("id-ID", {
-              day: "2-digit",
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-        </div>
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
-            Status
-          </p>
-          <p className="mt-1 text-[13px] font-medium text-ink">
-            {statusLabel}
+          <p className="mt-2 text-[12px] leading-relaxed text-muted">
+            {brand?.tagline ?? "Airport Transfer & Travel Services"}
           </p>
         </div>
       </section>
 
-      {/* Contact */}
-      {invoice.contact ? (
-        <section className="grid gap-5 border-b border-line py-5 sm:grid-cols-2">
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
-              Pemesan
-            </p>
-            <p className="mt-1 text-[13px] font-medium text-ink">
-              {invoice.contact.firstName} {invoice.contact.lastName}
-            </p>
-            <p className="mt-0.5 text-[12px] text-muted">{invoice.contact.email}</p>
-            <p className="mt-0.5 text-[12px] text-muted">
-              {invoice.contact.phoneCountryCode} {invoice.contact.phone}
-            </p>
-          </div>
-          {invoice.travelers.length > 0 ? (
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
-                Penumpang ({invoice.travelers.length})
-              </p>
-              <ul className="mt-1 space-y-0.5">
-                {invoice.travelers.map((traveler, index) => (
-                  <li key={`${traveler.fullName}-${index}`} className="text-[12px] text-ink">
-                    {traveler.fullName}
-                    <span className="ml-1 text-muted">({traveler.kind})</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      {/* Transport route */}
-      {invoice.pickupLabel || invoice.dropoffLabel ? (
-        <section className="border-b border-line py-5">
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
-            Rute perjalanan
+      {/* Meta row */}
+      <section className="mt-6 grid gap-4 border-b border-line pb-5 sm:grid-cols-4">
+        <div>
+          <p className="text-[11px] font-semibold text-ink">{t("invoice.orderNo")}</p>
+          <p className="mt-1 font-mono text-[12.5px] text-muted">{invoice.code}</p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold text-ink">{t("invoice.paidAt")}</p>
+          <p className="mt-1 text-[12.5px] text-muted">
+            {payment?.paidAt ? formatDate(payment.paidAt) : t("invoice.unpaid")}
           </p>
-          <div className="mt-2 space-y-1.5">
-            {invoice.pickupLabel ? (
-              <div className="flex items-start gap-2.5">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">
-                  A
-                </span>
-                <p className="min-w-0 break-words text-[13px] text-ink">
-                  {invoice.pickupLabel}
-                </p>
-              </div>
-            ) : null}
-            {invoice.dropoffLabel ? (
-              <div className="flex items-start gap-2.5">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
-                  B
-                </span>
-                <p className="min-w-0 break-words text-[13px] text-ink">
-                  {invoice.dropoffLabel}
-                </p>
-              </div>
-            ) : null}
-          </div>
-          {transportDetails.length > 0 ? (
-            <p className="mt-2 text-[12px] text-muted">
-              {transportDetails.join(" · ")}
-            </p>
-          ) : null}
-        </section>
-      ) : null}
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold text-ink">{t("invoice.method")}</p>
+          <p className="mt-1 text-[12.5px] text-muted">{payment?.methodLabel ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold text-ink">{t("invoice.service")}</p>
+          <p className="mt-1 text-[12.5px] text-muted">
+            {formatDate(invoice.serviceAt)}
+            {invoice.driverOption === "with_driver" ? ` · ${t("invoice.withDriver")}` : ""}
+          </p>
+        </div>
+      </section>
 
       {/* Items */}
-      <section className="py-5">
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="border-b border-line">
-              <th className="pb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                Item
-              </th>
-              <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                Harga
-              </th>
-              <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
-                Jumlah
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {invoice.items.map((item, index) => (
-              <tr key={`${item.label}-${index}`}>
-                <td className="py-2.5 pr-3 text-[13px] text-ink">
-                  {item.label}
-                  {item.packageLabel ? (
-                    <span className="block text-[11px] text-muted">{item.packageLabel}</span>
-                  ) : null}
-                  <span className="block text-[11px] text-muted">
-                    {item.adultCount} dewasa · {item.childCount} anak · {item.infantCount} bayi
-                  </span>
-                </td>
-                <td className="py-2.5 text-right text-[13px] text-muted">
-                  {money(item.unitUsdCents)}
-                  {item.unitKind === "per_day" ? "/hari" : ""}
-                </td>
-                <td className="py-2.5 text-right text-[13px] font-medium text-ink">
-                  {item.unitKind === "per_day" ? (
-                    <span className="block text-[11px] font-normal text-muted">
-                      {item.quantity} hari
-                    </span>
-                  ) : null}
-                  {money(item.totalUsdCents)}
-                </td>
+      <section className="mt-6">
+        <h2 className="text-[13px] font-bold text-ink">{t("invoice.items")}</h2>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[560px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-line text-[11px] text-muted">
+                <th className="py-2 pr-3 font-medium">{t("invoice.colNo")}</th>
+                <th className="py-2 pr-3 font-medium">{t("invoice.colItem")}</th>
+                <th className="py-2 pr-3 font-medium">{t("invoice.colVariation")}</th>
+                <th className="py-2 pr-3 text-right font-medium">{t("invoice.colPrice")}</th>
+                <th className="py-2 pr-3 text-right font-medium">{t("invoice.colQty")}</th>
+                <th className="py-2 text-right font-medium">{t("invoice.colSubtotal")}</th>
               </tr>
-            ))}
+            </thead>
+            <tbody>
+              {invoice.items.map((item, index) => (
+                <tr key={`item-${index}`} className="border-b border-line/70 align-top">
+                  <td className="py-2.5 pr-3 text-[12px] text-muted">{index + 1}</td>
+                  <td className="py-2.5 pr-3 text-[12.5px] font-medium text-ink">
+                    {item.label}
+                  </td>
+                  <td className="py-2.5 pr-3 text-[12px] leading-relaxed text-muted">
+                    {variationOf(item) || "—"}
+                  </td>
+                  <td className="py-2.5 pr-3 text-right text-[12px] text-muted">
+                    {formatMoney(item.unitUsdCents / 100)}
+                  </td>
+                  <td className="py-2.5 pr-3 text-right text-[12px] text-muted">
+                    {item.quantity}
+                  </td>
+                  <td className="py-2.5 text-right text-[12px] font-medium text-ink">
+                    {formatMoney(item.totalUsdCents / 100)}
+                  </td>
+                </tr>
+              ))}
+              {invoice.addOns.map((addOn, index) => (
+                <tr key={`addon-${index}`} className="border-b border-line/70 align-top">
+                  <td className="py-2.5 pr-3 text-[12px] text-muted">
+                    {invoice.items.length + index + 1}
+                  </td>
+                  <td className="py-2.5 pr-3 text-[12.5px] font-medium text-ink">
+                    {addOn.label}
+                  </td>
+                  <td className="py-2.5 pr-3 text-[12px] text-muted">
+                    {t("invoice.addOnLine", { n: addOn.quantity })}
+                  </td>
+                  <td className="py-2.5 pr-3 text-right text-[12px] text-muted">
+                    {formatMoney(addOn.unitUsdCents / 100)}
+                  </td>
+                  <td className="py-2.5 pr-3 text-right text-[12px] text-muted">
+                    {addOn.quantity}
+                  </td>
+                  <td className="py-2.5 text-right text-[12px] font-medium text-ink">
+                    {formatMoney(addOn.totalUsdCents / 100)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-            {invoice.addOns.map((addOn, index) => (
-              <tr key={`${addOn.label}-add-${index}`}>
-                <td className="py-2.5 pr-3 text-[13px] text-ink">
-                  {addOn.label}
-                  <span className="block text-[11px] text-muted">
-                    Tambahan ×{addOn.quantity}
-                  </span>
-                </td>
-                <td className="py-2.5 text-right text-[13px] text-muted">
-                  {money(addOn.unitUsdCents)}
-                </td>
-                <td className="py-2.5 text-right text-[13px] font-medium text-ink">
-                  {money(addOn.totalUsdCents)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="mt-3 flex justify-end">
+          <dl className="text-right text-[12.5px]">
+            <div className="flex justify-end gap-6">
+              <dt className="font-bold text-ink">{t("invoice.subtotal")}</dt>
+              <dd className="font-bold text-ink">
+                {formatMoney(invoice.subtotalUsdCents / 100)}
+              </dd>
+            </div>
+            <div className="mt-1 flex justify-end gap-6">
+              <dt className="font-bold text-ink">{t("invoice.totalQty")}</dt>
+              <dd className="font-bold text-ink">
+                {t("invoice.itemsCount", { n: totalQty })}
+              </dd>
+            </div>
+          </dl>
+        </div>
       </section>
 
-      {/* Totals */}
-      <section className="border-t border-line pt-4">
-        <dl className="ml-auto w-full max-w-xs space-y-1.5 text-[13px]">
+      {/* Totals box */}
+      <section className="mt-6 flex justify-end">
+        <div className="w-full max-w-[320px] space-y-2 rounded-xl bg-canvas p-5 text-[12.5px]">
           <div className="flex justify-between">
-            <dt className="text-muted">Subtotal</dt>
-            <dd className="text-ink">{money(invoice.subtotalUsdCents)}</dd>
+            <span className="text-muted">{t("invoice.subtotal")}</span>
+            <span className="text-ink">{formatMoney(invoice.subtotalUsdCents / 100)}</span>
           </div>
-
           {invoice.addOnsUsdCents > 0 ? (
             <div className="flex justify-between">
-              <dt className="text-muted">Tambahan</dt>
-              <dd className="text-ink">{money(invoice.addOnsUsdCents)}</dd>
+              <span className="text-muted">{t("invoice.addOns")}</span>
+              <span className="text-ink">{formatMoney(invoice.addOnsUsdCents / 100)}</span>
             </div>
           ) : null}
-
           {invoice.discountUsdCents > 0 ? (
             <div className="flex justify-between">
-              <dt className="text-muted">
-                Diskon{invoice.promoCode ? ` (${invoice.promoCode})` : ""}
-              </dt>
-              <dd className="text-success">-{money(invoice.discountUsdCents)}</dd>
+              <span className="text-muted">{t("invoice.discount")}</span>
+              <span className="text-success">−{formatMoney(invoice.discountUsdCents / 100)}</span>
             </div>
           ) : null}
-
-          {invoice.taxes.map((tax) => (
-            <div key={tax.key} className="flex justify-between">
-              <dt className="text-muted">
-                {tax.label} ({tax.value})
-              </dt>
-              <dd className="text-ink">{money(tax.amountUsdCents)}</dd>
+          {invoice.taxes.map((line) => (
+            <div key={line.key} className="flex justify-between">
+              <span className="text-muted">
+                {t("invoice.tax")} · {line.label}
+              </span>
+              <span className="text-ink">{formatMoney(line.amountUsdCents / 100)}</span>
             </div>
           ))}
-
-          <div className="flex justify-between border-t border-line pt-2 text-[15px] font-bold">
-            <dt className="text-ink">Total</dt>
-            <dd className="text-ink">{money(invoice.totalUsdCents)}</dd>
-          </div>
-        </dl>
-      </section>
-
-      {/* Payment */}
-      <section className="mt-5 border-t border-line pt-4">
-        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
-          Pembayaran
-        </p>
-        {payment?.status === "paid" ? (
-          <div className="mt-2 space-y-1.5 text-[13px]">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-brand-dark">
-                LUNAS
-              </span>
-              {payment.paidAt ? (
-                <span className="text-ink">
-                  Dibayar{" "}
-                  {new Date(payment.paidAt).toLocaleDateString("id-ID", {
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-              ) : null}
-              <span className="text-muted">{payment.methodLabel ?? "Xendit"}</span>
-            </div>
-            {payment.providerRef ? (
-              <p className="font-mono text-[12px] text-muted">
-                Ref Xendit: {payment.providerRef}
-              </p>
-            ) : null}
-            {payment.amountUsdCents != null ? (
-              <p className="text-ink">
-                Ditagih: {money(payment.amountUsdCents)}
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="mt-2 space-y-1.5">
-            <span className="inline-block rounded-full border border-line bg-canvas px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted">
-              Belum dibayar
+          <div className="flex justify-between border-t border-line pt-2 text-[14px]">
+            <span className="font-extrabold text-ink">{t("invoice.total")}</span>
+            <span className="font-extrabold text-ink">
+              {formatMoney(invoice.totalUsdCents / 100)}
             </span>
-            <p className="text-[12px] text-muted">
-              Invoice ini menjadi bukti pembayaran setelah transaksi selesai.
-            </p>
           </div>
-        )}
+        </div>
       </section>
 
-      <footer className="mt-6 border-t border-line pt-4 text-[11px] text-muted">
-        Invoice ini dibuat otomatis oleh sistem Booking VIP. Simpan sebagai PDF lewat
-        tombol cetak di halaman.
+      {/* Footer */}
+      <footer className="mt-8 border-t border-line pt-4 text-center">
+        <p className="text-[12px] text-muted">
+          <span className="font-semibold text-ink">{t("invoice.status")}:</span>{" "}
+          {paid ? statusLabel : t("invoice.unpaid")}
+          {" · "}
+          {invoice.invoiceNumber ?? invoice.code}
+        </p>
+        <p className="mt-1 text-[11px] text-muted">
+          {t("invoice.pageOf", { page: 1, pages: 1 })} · {t("invoice.endReceipt")}
+        </p>
       </footer>
     </article>
   );

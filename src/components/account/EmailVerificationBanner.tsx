@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { showToast } from "@/components/ui/toast";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import {
   getVerificationStatus,
   resendVerificationEmail,
@@ -15,6 +16,7 @@ import {
  * a small, quiet confirmation.
  */
 export default function EmailVerificationBanner() {
+  const { t } = useLocale();
   const [verified, setVerified] = useState<boolean | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -39,7 +41,7 @@ export default function EmailVerificationBanner() {
       showToast(result.error, "error");
       return;
     }
-    showToast("Email verifikasi sudah dikirim ulang. Cek inbox kamu.");
+    showToast(t("verify.resentToast"));
   };
 
   if (verified === null) return null;
@@ -57,10 +59,10 @@ export default function EmailVerificationBanner() {
         </span>
         <div>
           <p className="text-[13px] font-semibold text-ink">
-            Email kamu sudah terverifikasi
+            {t("verify.verifiedTitle")}
           </p>
           <p className="mt-0.5 text-[12px] text-muted">
-            {email ?? "Alamat email kamu"} aktif dan siap dipakai.
+            {t("verify.verifiedBody", { email: email ?? t("verify.emailFallback") })}
           </p>
         </div>
       </div>
@@ -80,13 +82,13 @@ export default function EmailVerificationBanner() {
         </span>
         <div>
           <p className="text-[13px] font-semibold text-ink">
-            Email belum diverifikasi
+            {t("verify.unverifiedTitle")}
           </p>
           <p className="mt-0.5 text-[12px] text-muted">
             {email
-              ? `Tautan verifikasi sudah dikirim ke ${email}.`
-              : "Tautan verifikasi sudah dikirim ke email kamu."}{" "}
-            Belum menerimanya? Kirim ulang.
+              ? t("verify.unverifiedBody", { email })
+              : t("verify.unverifiedBodyNoEmail")}{" "}
+            {t("verify.unverifiedSuffix")}
           </p>
         </div>
       </div>
@@ -97,7 +99,7 @@ export default function EmailVerificationBanner() {
         disabled={sending}
         className="h-9 shrink-0 rounded-lg border border-line bg-white px-3 text-[12px] font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
       >
-        {sending ? "Mengirim…" : "Kirim ulang"}
+        {sending ? t("verify.resending") : t("verify.resend")}
       </button>
     </div>
   );

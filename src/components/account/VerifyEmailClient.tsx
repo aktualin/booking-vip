@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { syncVerificationByEmail, verifyEmailCode } from "@/app/actions/verification";
 
 type Props = {
@@ -29,6 +30,7 @@ type State = "working" | "verified" | "error" | "idle";
  * the visitor only gets an explanation and a link back to the account.
  */
 export default function VerifyEmailClient({ oobCode, email, sent }: Props) {
+  const { t } = useLocale();
   const [state, setState] = useState<State>(oobCode || email ? "working" : "idle");
   const [message, setMessage] = useState("");
   const started = useRef(false);
@@ -46,13 +48,11 @@ export default function VerifyEmailClient({ oobCode, email, sent }: Props) {
       if (result.ok) {
         if (result.verified) {
           setState("verified");
-          setMessage("Email kamu sudah terverifikasi. Terima kasih!");
+          setMessage("");
           return;
         }
         setState("error");
-        setMessage(
-          "Email kamu belum terverifikasi. Silakan buka ulang tautan di dalam email verifikasi.",
-        );
+        setMessage("not-verified");
         return;
       }
 
@@ -60,6 +60,19 @@ export default function VerifyEmailClient({ oobCode, email, sent }: Props) {
       setMessage(result.error);
     })();
   }, [oobCode, email]);
+
+  const body =
+    state === "working"
+      ? t("verifyEmail.working")
+      : state === "verified"
+        ? t("verifyEmail.verifiedMsg")
+        : state === "error"
+          ? message === "not-verified"
+            ? t("verifyEmail.notVerifiedMsg")
+            : message
+          : sent
+            ? t("verifyEmail.sentBody")
+            : t("verifyEmail.idleBody");
 
   return (
     <div className="mx-auto w-full max-w-[460px] rounded-2xl border border-line bg-white p-6 md:p-8">
@@ -74,23 +87,13 @@ export default function VerifyEmailClient({ oobCode, email, sent }: Props) {
 
       <h1 className="mt-4 text-[22px] font-extrabold tracking-[-0.02em] text-ink">
         {state === "verified"
-          ? "Email terverifikasi"
+          ? t("verifyEmail.verifiedTitle")
           : state === "error"
-            ? "Verifikasi gagal"
-            : "Verifikasi email"}
+            ? t("verifyEmail.failedTitle")
+            : t("verifyEmail.title")}
       </h1>
 
-      <p className="mt-2 text-[13px] leading-relaxed text-muted">
-        {state === "working"
-          ? "Sedang memproses tautan verifikasi kamu…"
-          : state === "verified"
-            ? message
-            : state === "error"
-              ? message
-              : sent
-                ? "Email verifikasi sudah dikirim ke alamat kamu. Buka tautan di dalam email tersebut untuk menyelesaikan proses verifikasi."
-                : "Buka tautan verifikasi yang kami kirim ke email kamu. Tautan ini hanya bisa digunakan satu kali."}
-      </p>
+      <p className="mt-2 text-[13px] leading-relaxed text-muted">{body}</p>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         {state === "error" ? (
@@ -98,7 +101,7 @@ export default function VerifyEmailClient({ oobCode, email, sent }: Props) {
             href="/account/profile"
             className="inline-flex h-10 items-center rounded-lg bg-brand px-4 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
           >
-            Kirim ulang email verifikasi
+            {t("verifyEmail.resendCta")}
           </Link>
         ) : null}
 
@@ -107,7 +110,7 @@ export default function VerifyEmailClient({ oobCode, email, sent }: Props) {
             href="/my-booking"
             className="inline-flex h-10 items-center rounded-lg bg-brand px-4 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
           >
-            Lihat pesanan saya
+            {t("verifyEmail.viewOrders")}
           </Link>
         ) : null}
 
@@ -115,7 +118,7 @@ export default function VerifyEmailClient({ oobCode, email, sent }: Props) {
           href="/"
           className="inline-flex h-10 items-center rounded-lg border border-line bg-white px-4 text-[13px] font-semibold text-ink transition-colors hover:bg-canvas"
         >
-          Kembali ke beranda
+          {t("verifyEmail.backHome")}
         </Link>
       </div>
     </div>
