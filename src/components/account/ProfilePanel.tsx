@@ -9,6 +9,7 @@ import {
   updateAccountProfile,
 } from "@/app/actions/account";
 import { useAccountOverview } from "@/components/providers/AccountProvider";
+import { useLocale } from "@/components/providers/LocaleProvider";
 
 /**
  * The profile page.
@@ -19,6 +20,8 @@ import { useAccountOverview } from "@/components/providers/AccountProvider";
  */
 export default function ProfilePanel() {
   const { overview, refresh } = useAccountOverview();
+  const { t, lang } = useLocale();
+  const dateLocale = lang === "id" ? "id-ID" : "en-US";
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -54,7 +57,7 @@ export default function ProfilePanel() {
       setProfileError(result.error);
       setProfileField(result.field);
     } else {
-      showToast("Profil berhasil disimpan.");
+      showToast(t("profile.savedToast"));
       void refresh();
     }
     setSavingProfile(false);
@@ -78,7 +81,7 @@ export default function ProfilePanel() {
       setPasswordError(result.error);
       setPasswordField(result.field);
     } else {
-      showToast("Password berhasil diperbarui.");
+      showToast(t("profile.passwordSavedToast"));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -87,7 +90,7 @@ export default function ProfilePanel() {
   };
 
   const memberSince = overview?.memberSince
-    ? new Date(overview.memberSince).toLocaleDateString("id-ID", {
+    ? new Date(overview.memberSince).toLocaleDateString(dateLocale, {
         day: "2-digit",
         month: "long",
         year: "numeric",
@@ -97,8 +100,8 @@ export default function ProfilePanel() {
   return (
     <div>
       <AccountPageHeader
-        title="Profil Saya"
-        description="Informasi akun dan pengaturan keamanan."
+        title={t("profile.title")}
+        description={t("profile.subtitle")}
       />
 
       <EmailVerificationBanner />
@@ -107,33 +110,33 @@ export default function ProfilePanel() {
         {/* Account information */}
         <section className="rounded-2xl border border-line bg-white p-5 md:p-6">
           <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-            Informasi akun
+            {t("profile.infoTitle")}
           </h2>
 
           <dl className="mt-4 space-y-3.5">
             <div className="flex items-start justify-between gap-4 border-b border-line pb-3.5">
-              <dt className="text-[13px] text-muted">Email</dt>
+              <dt className="text-[13px] text-muted">{t("profile.email")}</dt>
               <dd className="flex items-center gap-2 text-right text-[13px] font-medium text-ink">
                 {overview?.email ?? "—"}
                 {overview?.emailVerified ? (
                   <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-brand-dark">
-                    Terverifikasi
+                    {t("profile.verified")}
                   </span>
                 ) : null}
               </dd>
             </div>
             <div className="flex items-start justify-between gap-4 border-b border-line pb-3.5">
-              <dt className="text-[13px] text-muted">Role</dt>
-              <dd className="text-[13px] font-medium text-ink">Pelanggan</dd>
+              <dt className="text-[13px] text-muted">{t("profile.role")}</dt>
+              <dd className="text-[13px] font-medium text-ink">{t("profile.roleCustomer")}</dd>
             </div>
             <div className="flex items-start justify-between gap-4 border-b border-line pb-3.5">
-              <dt className="text-[13px] text-muted">Poin</dt>
+              <dt className="text-[13px] text-muted">{t("profile.points")}</dt>
               <dd className="text-[13px] font-medium text-ink">
-                {(overview?.points ?? 0).toLocaleString("id-ID")}
+                {(overview?.points ?? 0).toLocaleString(dateLocale)}
               </dd>
             </div>
             <div className="flex items-start justify-between gap-4">
-              <dt className="text-[13px] text-muted">Bergabung sejak</dt>
+              <dt className="text-[13px] text-muted">{t("profile.memberSince")}</dt>
               <dd className="text-right text-[13px] font-medium text-ink">{memberSince}</dd>
             </div>
           </dl>
@@ -142,7 +145,7 @@ export default function ProfilePanel() {
         {/* Update profile */}
         <section className="rounded-2xl border border-line bg-white p-5 md:p-6">
           <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-            Update profil
+            {t("profile.updateTitle")}
           </h2>
 
           <form onSubmit={submitProfile} className="mt-4 space-y-3.5">
@@ -153,19 +156,19 @@ export default function ProfilePanel() {
             ) : null}
 
             <label className="block">
-              <span className="mb-1.5 block text-[12px] font-medium text-ink">Nama</span>
+              <span className="mb-1.5 block text-[12px] font-medium text-ink">{t("profile.nameLabel")}</span>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="h-10 w-full rounded-lg border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand"
-                placeholder="Nama lengkap"
+                placeholder={t("profile.namePlaceholder")}
               />
             </label>
 
             <label className="block">
               <span className="mb-1.5 block text-[12px] font-medium text-ink">
-                Nomor telepon
+                {t("profile.phoneLabel")}
               </span>
               <input
                 type="tel"
@@ -181,7 +184,7 @@ export default function ProfilePanel() {
               disabled={savingProfile}
               className="h-10 rounded-lg bg-brand px-4 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {savingProfile ? "Menyimpan…" : "Simpan perubahan"}
+              {savingProfile ? t("profile.saving") : t("profile.save")}
             </button>
           </form>
         </section>
@@ -190,10 +193,10 @@ export default function ProfilePanel() {
       {/* Password */}
       <section className="mt-6 rounded-2xl border border-line bg-white p-5 md:p-6">
         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-          Update password
+          {t("profile.passwordTitle")}
         </h2>
         <p className="mt-1 text-[13px] text-muted">
-          Minimal 8 karakter. Password lama harus dimasukkan untuk verifikasi.
+          {t("profile.passwordHint")}
         </p>
 
         <form onSubmit={submitPassword} className="mt-4 grid gap-3.5 sm:grid-cols-3">
@@ -205,7 +208,7 @@ export default function ProfilePanel() {
 
           <label className="block">
             <span className="mb-1.5 block text-[12px] font-medium text-ink">
-              Password saat ini
+              {t("profile.currentPassword")}
             </span>
             <input
               type="password"
@@ -218,7 +221,7 @@ export default function ProfilePanel() {
 
           <label className="block">
             <span className="mb-1.5 block text-[12px] font-medium text-ink">
-              Password baru
+              {t("profile.newPassword")}
             </span>
             <input
               type="password"
@@ -231,7 +234,7 @@ export default function ProfilePanel() {
 
           <label className="block">
             <span className="mb-1.5 block text-[12px] font-medium text-ink">
-              Konfirmasi password baru
+              {t("profile.confirmPassword")}
             </span>
             <input
               type="password"
@@ -248,7 +251,7 @@ export default function ProfilePanel() {
               disabled={savingPassword}
               className="h-10 rounded-lg border border-line bg-white px-4 text-[13px] font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
             >
-              {savingPassword ? "Memperbarui…" : "Update password"}
+              {savingPassword ? t("profile.updating") : t("profile.passwordTitle")}
             </button>
           </div>
         </form>

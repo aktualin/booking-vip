@@ -5,8 +5,8 @@ import {
   getTourCancellationPolicy,
   saveTourCancellationPolicy,
 } from "@/app/actions/settings-tour";
-import type { CancellationPolicy, CancellationTier } from "@/lib/cancellation";
-import { DEFAULT_CANCELLATION_POLICY } from "@/lib/cancellation";
+import type { CancellationPolicy, CancellationTier } from "@/lib/cancellation-policy";
+import { DEFAULT_CANCELLATION_POLICY } from "@/lib/cancellation-policy";
 import { adminClass } from "@/components/admin/tokens";
 import { showAdminToast } from "@/components/admin/toast";
 

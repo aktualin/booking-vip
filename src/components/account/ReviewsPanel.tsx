@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import AccountPageHeader from "@/components/account/AccountPageHeader";
 import { listMyReviews, type MyReviewDTO, type ReviewReplyDTO } from "@/app/actions/account";
 import { StarIcon } from "@/components/icons";
+import { useLocale } from "@/components/providers/LocaleProvider";
 
 /**
  * "Review Kamu" — the comments the customer wrote on the places they visited.
@@ -12,6 +13,8 @@ import { StarIcon } from "@/components/icons";
  * inside its parent and its own replies are rendered inside it.
  */
 export default function ReviewsPanel() {
+  const { t, lang } = useLocale();
+  const dateLocale = lang === "id" ? "id-ID" : "en-US";
   const [reviews, setReviews] = useState<MyReviewDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,24 +43,24 @@ export default function ReviewsPanel() {
   return (
     <div>
       <AccountPageHeader
-        title="Review Saya"
-        description="Komentar kamu di setiap tempat yang dikunjungi, lengkap dengan jumlah dilihat, suka dan balasan."
+        title={t("reviews.title")}
+        description={t("reviews.subtitle")}
       />
 
       {/* Totals */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Review", value: totals.reviews },
-          { label: "Dilihat", value: totals.views },
-          { label: "Suka", value: totals.likes },
-          { label: "Balasan", value: totals.replies },
+          { label: t("reviews.stat.reviews"), value: totals.reviews },
+          { label: t("reviews.stat.views"), value: totals.views },
+          { label: t("reviews.stat.likes"), value: totals.likes },
+          { label: t("reviews.stat.replies"), value: totals.replies },
         ].map((item) => (
           <div key={item.label} className="rounded-xl border border-line bg-white p-4">
             <p className="text-[12px] font-medium uppercase tracking-[0.06em] text-muted">
               {item.label}
             </p>
             <p className="mt-1 text-[22px] font-bold leading-none tracking-[-0.02em] text-ink">
-              {loading ? "—" : item.value.toLocaleString("id-ID")}
+              {loading ? "—" : item.value.toLocaleString(dateLocale)}
             </p>
           </div>
         ))}
@@ -66,12 +69,12 @@ export default function ReviewsPanel() {
       {/* Review list */}
       <div className="mt-6 space-y-4">
         {loading ? (
-          <p className="text-[13px] text-muted">Memuat…</p>
+          <p className="text-[13px] text-muted">{t("reviews.loading")}</p>
         ) : reviews.length === 0 ? (
           <div className="rounded-2xl border border-line bg-white p-10 text-center">
-            <p className="text-[14px] font-semibold text-ink">Belum ada review</p>
+            <p className="text-[14px] font-semibold text-ink">{t("reviews.emptyTitle")}</p>
             <p className="mt-1 text-[13px] text-muted">
-              Komentar kamu di setiap tempat yang dikunjungi akan muncul di sini.
+              {t("reviews.emptyBody")}
             </p>
           </div>
         ) : (
@@ -100,7 +103,7 @@ export default function ReviewsPanel() {
                   </div>
                 </div>
                 <time className="text-[12px] text-muted" dateTime={review.createdAt}>
-                  {new Date(review.createdAt).toLocaleDateString("id-ID", {
+                  {new Date(review.createdAt).toLocaleDateString(dateLocale, {
                     day: "2-digit",
                     month: "short",
                     year: "numeric",
@@ -115,9 +118,9 @@ export default function ReviewsPanel() {
 
               {/* Counters */}
               <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-line pt-3 text-[12px] text-muted">
-                <span>{review.views.toLocaleString("id-ID")} dilihat</span>
-                <span>{review.likes.toLocaleString("id-ID")} suka</span>
-                <span>{review.replyCount} balasan</span>
+                <span>{t("reviews.viewsCount", { n: review.views.toLocaleString(dateLocale) })}</span>
+                <span>{t("reviews.likesCount", { n: review.likes.toLocaleString(dateLocale) })}</span>
+                <span>{t("reviews.repliesCount", { n: review.replyCount })}</span>
               </div>
 
               {/* Replies */}
@@ -138,6 +141,8 @@ export default function ReviewsPanel() {
 
 /** A reply — nested one level deeper for its own replies. */
 function ReplyBlock({ reply, depth }: { reply: ReviewReplyDTO; depth: number }) {
+  const { t, lang } = useLocale();
+  const dateLocale = lang === "id" ? "id-ID" : "en-US";
   return (
     <div
       className={
@@ -147,9 +152,9 @@ function ReplyBlock({ reply, depth }: { reply: ReviewReplyDTO; depth: number }) 
       }
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[12px] font-semibold text-ink">Balasan</span>
+        <span className="text-[12px] font-semibold text-ink">{t("reviews.replyLabel")}</span>
         <time className="text-[11px] text-muted" dateTime={reply.createdAt}>
-          {new Date(reply.createdAt).toLocaleDateString("id-ID", {
+          {new Date(reply.createdAt).toLocaleDateString(dateLocale, {
             day: "2-digit",
             month: "short",
             year: "numeric",
@@ -162,8 +167,8 @@ function ReplyBlock({ reply, depth }: { reply: ReviewReplyDTO; depth: number }) 
       </p>
 
       <div className="mt-2 flex items-center gap-4 text-[11px] text-muted">
-        <span>{reply.views.toLocaleString("id-ID")} dilihat</span>
-        <span>{reply.likes.toLocaleString("id-ID")} suka</span>
+        <span>{t("reviews.viewsCount", { n: reply.views.toLocaleString(dateLocale) })}</span>
+        <span>{t("reviews.likesCount", { n: reply.likes.toLocaleString(dateLocale) })}</span>
       </div>
 
       {reply.replies.length > 0 ? (

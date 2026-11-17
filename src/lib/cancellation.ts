@@ -1,45 +1,17 @@
 import "server-only";
 
 import { db } from "@/prisma/db";
+import {
+  DEFAULT_CANCELLATION_POLICY,
+  type CancellationPolicy,
+  type CancellationTier,
+} from "./cancellation-policy";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type CancellationTier = {
-  /** Minimum hours before serviceAt to qualify for this tier's refund. */
-  minHoursBefore: number;
-  /** Refund percentage (0–100). */
-  refundPercent: number;
-};
-
-export type CancellationPolicy = {
-  /** Tiers sorted descending by minHoursBefore (most generous first). */
-  tiers: CancellationTier[];
-  /** Fallback when no tier matches (should not happen with a 0-hour tier). */
-  defaultRefundPercent: number;
-};
-
-// ---------------------------------------------------------------------------
-// Default Bali-standard policy
-// ---------------------------------------------------------------------------
-
-/**
- * Bali operator standard cancellation tiers:
- *   ≥7 days (168 h) → 100% refund
- *   ≥3 days (72 h)  → 50% refund
- *   ≥1 day  (24 h)  → 25% refund
- *   <1 day  (0 h)   → 0% refund
- */
-export const DEFAULT_CANCELLATION_POLICY: CancellationPolicy = {
-  tiers: [
-    { minHoursBefore: 168, refundPercent: 100 },
-    { minHoursBefore: 72, refundPercent: 50 },
-    { minHoursBefore: 24, refundPercent: 25 },
-    { minHoursBefore: 0, refundPercent: 0 },
-  ],
-  defaultRefundPercent: 0,
-};
+// Types + the default policy live in the plain (client-safe) module
+// "./cancellation-policy" and are re-exported here so existing server-side
+// importers keep working unchanged.
+export { DEFAULT_CANCELLATION_POLICY };
+export type { CancellationPolicy, CancellationTier };
 
 // ---------------------------------------------------------------------------
 // Setting key
