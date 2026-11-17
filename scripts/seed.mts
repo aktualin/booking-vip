@@ -1174,6 +1174,15 @@ const paymentMethods: {
     active: true,
   },
   {
+    // Second gateway — PayPal checkout in USD, right after the card method.
+    code: "PAYPAL",
+    label: "PayPal — bayar dengan akun PayPal (USD)",
+    provider: "paypal",
+    providerMethodCode: "PAYPAL",
+    sortOrder: 25,
+    active: true,
+  },
+  {
     code: "EWALLET",
     label: "E-Wallet — DANA, GoPay, ShopeePay, LinkAja, OVO",
     provider: null,

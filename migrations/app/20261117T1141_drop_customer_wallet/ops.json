@@ -1,0 +1,97 @@
+[
+  {
+    "id": "dropColumn.User.walletBalanceUsdCents",
+    "label": "Drop column \"walletBalanceUsdCents\" from \"User\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "walletBalanceUsdCents",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"walletBalanceUsdCents\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "walletBalanceUsdCents"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"walletBalanceUsdCents\" on \"User\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"walletBalanceUsdCents\"",
+        "sql": "ALTER TABLE \"public\".\"User\" DROP COLUMN \"walletBalanceUsdCents\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"walletBalanceUsdCents\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "walletBalanceUsdCents"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"walletBalanceUsdCents\" on \"User\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropTable.WalletTransaction",
+    "label": "Drop table \"WalletTransaction\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WalletTransaction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"WalletTransaction\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WalletTransaction\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"WalletTransaction\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"WalletTransaction\"",
+        "sql": "DROP TABLE \"public\".\"WalletTransaction\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"WalletTransaction\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WalletTransaction\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"WalletTransaction\""
+        }
+      }
+    ]
+  }
+]

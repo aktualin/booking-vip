@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'5cde9037763d17937675a4282ecaaec0863cfaca69f792d7cbddd0baadff88a3'>;
+  StorageHashBase<'9299c5d71e5fec1f5b346e9c181e082ada1eea6d45b029789216886be3ddb890'>;
 export type ExecutionHash =
-  ExecutionHashBase<'e9875bcdf64e8ae2d8e75fa9b7b3453faea21653853abb59b977bff587381c54'>;
+  ExecutionHashBase<'bc9704dab0d00521de93b81408bbe68ea074de4cb79de8162426e37286778e17'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -967,22 +967,14 @@ export namespace Models {
     points: FieldOutputTypes['public']['User']['points'];
     role: FieldOutputTypes['public']['User']['role'];
     updatedAt: FieldOutputTypes['public']['User']['updatedAt'];
-    walletBalanceUsdCents: FieldOutputTypes['public']['User']['walletBalanceUsdCents'];
     bookings: public_Booking[];
     level: public_LoyaltyLevel | null;
     pushSubscriptions: public_PushSubscription[];
     reviews: public_Review[];
     savedCards: public_SavedCard[];
     visaApplications: public_VisaApplication[];
-    walletTransactions: public_WalletTransaction[];
     readonly [RelationKeys]?:
-      | 'bookings'
-      | 'level'
-      | 'pushSubscriptions'
-      | 'reviews'
-      | 'savedCards'
-      | 'visaApplications'
-      | 'walletTransactions';
+      'bookings' | 'level' | 'pushSubscriptions' | 'reviews' | 'savedCards' | 'visaApplications';
   };
   export type public_Vehicle = {
     active: FieldOutputTypes['public']['Vehicle']['active'];
@@ -1090,18 +1082,6 @@ export namespace Models {
     application: public_VisaApplication;
     readonly [RelationKeys]?: 'applicant' | 'application';
   };
-  export type public_WalletTransaction = {
-    amountUsdCents: FieldOutputTypes['public']['WalletTransaction']['amountUsdCents'];
-    balanceAfterUsdCents: FieldOutputTypes['public']['WalletTransaction']['balanceAfterUsdCents'];
-    bookingId: FieldOutputTypes['public']['WalletTransaction']['bookingId'];
-    createdAt: FieldOutputTypes['public']['WalletTransaction']['createdAt'];
-    id: FieldOutputTypes['public']['WalletTransaction']['id'];
-    kind: FieldOutputTypes['public']['WalletTransaction']['kind'];
-    note: FieldOutputTypes['public']['WalletTransaction']['note'];
-    userId: FieldOutputTypes['public']['WalletTransaction']['userId'];
-    user: public_User;
-    readonly [RelationKeys]?: 'user';
-  };
 }
 
 export declare const models: {
@@ -1150,7 +1130,6 @@ export declare const models: {
     VisaApplicant: Models.public_VisaApplicant;
     VisaApplication: Models.public_VisaApplication;
     VisaDocument: Models.public_VisaDocument;
-    WalletTransaction: Models.public_WalletTransaction;
   };
 };
 
@@ -5439,16 +5418,6 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
-                readonly walletBalanceUsdCents: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
-                  };
-                  readonly many: false;
-                };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
@@ -6188,88 +6157,6 @@ type ContractBase = Omit<
                 },
               ];
             };
-            readonly WalletTransaction: {
-              columns: {
-                readonly amountUsdCents: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly balanceAfterUsdCents: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly bookingId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly kind: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly note: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'WalletTransaction_bookingId_kind_key';
-                  readonly columns: readonly ['bookingId', 'kind'];
-                  readonly unique: true;
-                },
-                {
-                  readonly name: 'WalletTransaction_userId_createdAt_idx';
-                  readonly columns: readonly ['userId', 'createdAt'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'WalletTransaction';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
           };
         };
       };
@@ -6384,10 +6271,6 @@ type ContractBase = Omit<
     readonly VisaDocument: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'VisaDocument';
-    };
-    readonly WalletTransaction: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'WalletTransaction';
     };
   };
   readonly domain: {
@@ -9968,10 +9851,6 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
-              readonly walletBalanceUsdCents: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
             };
             readonly relations: {
               readonly bookings: {
@@ -10041,17 +9920,6 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
-              readonly walletTransactions: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'WalletTransaction';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
             };
             readonly storage: {
               readonly table: 'User';
@@ -10067,7 +9935,6 @@ type ContractBase = Omit<
                 readonly points: { readonly column: 'points' };
                 readonly role: { readonly column: 'role' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly walletBalanceUsdCents: { readonly column: 'walletBalanceUsdCents' };
               };
             };
           };
@@ -10724,71 +10591,6 @@ type ContractBase = Omit<
                 readonly slot: { readonly column: 'slot' };
                 readonly sortOrder: { readonly column: 'sortOrder' };
                 readonly url: { readonly column: 'url' };
-              };
-            };
-          };
-          readonly WalletTransaction: {
-            readonly fields: {
-              readonly amountUsdCents: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly balanceAfterUsdCents: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly bookingId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly kind: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly note: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'WalletTransaction';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly amountUsdCents: { readonly column: 'amountUsdCents' };
-                readonly balanceAfterUsdCents: { readonly column: 'balanceAfterUsdCents' };
-                readonly bookingId: { readonly column: 'bookingId' };
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly kind: { readonly column: 'kind' };
-                readonly note: { readonly column: 'note' };
-                readonly userId: { readonly column: 'userId' };
               };
             };
           };
@@ -11558,26 +11360,6 @@ type ContractBase = Omit<
           readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'VisaDocument';
-            readonly field: 'id';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: {
-            readonly id: 'timestampNow';
-            readonly kind: 'generator';
-            readonly params: { readonly precision: 3 };
-          };
-          readonly ref: {
-            readonly entry: 'WalletTransaction';
-            readonly field: 'createdAt';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'WalletTransaction';
             readonly field: 'id';
             readonly namespace: 'public';
           };

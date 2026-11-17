@@ -23,10 +23,6 @@ model User {
   /// Loyalty points — the level is derived from the `LoyaltyLevel` table.
   points        Int      @default(0)
   levelId       String?
-  /// Cached wallet balance (USD cents). The `WalletTransaction` ledger is the
-  /// source of truth — this column is updated in the same transaction as every
-  /// ledger write (src/lib/wallet.ts).
-  walletBalanceUsdCents Int @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -36,7 +32,6 @@ model User {
   level         LoyaltyLevel? @relation(fields: [levelId], references: [id])
   visaApplications VisaApplication[]
   pushSubscriptions PushSubscription[]
-  walletTransactions WalletTransaction[]
 }
 
 /// A loyalty tier — the thresholds live in the database, so they can be changed
@@ -899,32 +894,6 @@ model PaymentWebhookEvent {
   receivedAt   DateTime @default(now())
 
   @@unique([provider, providerEventId])
-}
-
-/// One movement of a customer wallet (USD cents) — the ledger is the source
-/// of truth for the balance; `User.walletBalanceUsdCents` is a cache written
-/// in the same transaction. A completed booking credits the wallet once; a
-/// wallet payment debits it once — the unique (bookingId, kind) pair makes
-/// both operations idempotent and double-spend proof.
-model WalletTransaction {
-  id                   String   @id @default(uuid())
-  userId               String
-  /// The booking this movement belongs to (null for manual adjustments).
-  bookingId            String?
-  /// "credit" | "debit"
-  kind                 String
-  amountUsdCents       Int
-  /// The balance right after this movement — the running total of the ledger.
-  balanceAfterUsdCents Int
-  note                 String?
-  createdAt            DateTime @default(now())
-
-  /// Restrict: financial history must survive — an account with ledger rows
-  /// cannot be deleted outright.
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Restrict)
-
-  @@unique([bookingId, kind])
-  @@index([userId, createdAt])
 }
 
 /// A browser push subscription (Web Push / VAPID).
