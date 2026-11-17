@@ -95,12 +95,43 @@ export type XenditPaymentEvent = {
   updated?: string;
 };
 
-/** The webhook envelope — session-level and payment-level events. */
+/**
+ * Legacy card-event fields (credit_card.authentication / .capture /
+ * .tokenization). The tokenization test delivery (dashboard → Cards
+ * tokenization → test) carries the masked card fields at the top level of
+ * `data` plus `card_info`; we never tokenize or store cards ourselves, so
+ * these are informational only.
+ */
+export type XenditLegacyEvent = {
+  id?: string;
+  external_id?: string;
+  card_data?: {
+    masked_card_number?: string;
+    exp_month?: string;
+    exp_year?: string;
+  };
+  masked_card_number?: string;
+  card_expiration_month?: string;
+  card_expiration_year?: string;
+  card_info?: {
+    bank?: string;
+    country?: string;
+    type?: string;
+    brand?: string;
+    fingerprint?: string;
+  };
+  eci?: string;
+  three_ds_result?: string;
+  three_ds_version?: string;
+};
+
+/** The webhook envelope — session-level, payment-level and legacy events. */
 export type XenditWebhook = {
   event?: string;
   business_id?: string;
   created?: string;
-  data?: XenditSession & XenditPaymentEvent;
+  api_version?: string | null;
+  data?: XenditSession & XenditPaymentEvent & XenditLegacyEvent;
 };
 
 /** Is the Xendit gateway configured? */
@@ -121,6 +152,7 @@ export function mapGatewayStatus(status: string | undefined): GatewayStatus {
     case "SUCCEEDED":
     case "PAID":
     case "SETTLED":
+    case "CAPTURED":
       return "paid";
     case "FAILED":
       return "failed";
@@ -134,6 +166,7 @@ export function mapGatewayStatus(status: string | undefined): GatewayStatus {
     case "ACTIVE":
     case "PENDING":
     case "AUTHORIZED":
+    case "VERIFIED":
     default:
       return "pending";
   }

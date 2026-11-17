@@ -16,6 +16,14 @@ import { verifyWebhookToken, type XenditWebhook } from "@/lib/xendit";
  *   - `payment.capture` / `payment.authorization` / `payment.failure` — the
  *     payment-level detail, correlated by our invoice reference.
  *
+ * Legacy card events (`credit_card.authentication` / `credit_card.capture` /
+ * `credit_card.tokenization`, e.g. the dashboard's test deliveries) carry
+ * `data.id` / `data.external_id` instead — they are accepted too, recorded
+ * in the webhook ledger, and ignored unless they match one of our payments.
+ * We never tokenize or store cards (hosted checkout only), so a tokenization
+ * event is informational: its `VERIFIED` status maps to "pending" and can
+ * never confirm a booking.
+ *
  * The event id used for dedupe is the event name plus the provider object id
  * and status; a replayed delivery is a no-op.
  */
@@ -45,10 +53,12 @@ export async function POST(request: Request) {
 
   const sessionId = data.payment_session_id?.trim();
   const paymentId = data.payment_id?.trim();
+  const legacyId = data.id?.trim();
   const referenceId = data.reference_id?.trim();
+  const externalId = data.external_id?.trim();
   const status = data.status ?? "";
 
-  const objectId = sessionId || paymentId || referenceId;
+  const objectId = sessionId || paymentId || legacyId || referenceId || externalId;
   if (!event || !objectId) {
     return NextResponse.json(
       { ok: false, error: "Missing event id." },
@@ -59,10 +69,11 @@ export async function POST(request: Request) {
   const eventId = `${event}:${objectId}:${status}`;
 
   // Session events correlate by the session id (our providerRef); payment
-  // events fall back to our invoice reference inside applyGatewayEvent.
+  // and legacy events fall back to our invoice reference inside
+  // applyGatewayEvent.
   const providerRef = sessionId || data.payment_request_id || undefined;
 
-  // Xendit amounts are decimal units of the currency (USD here) — normalize
+  // Xendit amounts are decimal units of the currency (IDR here) — normalize
   // to cents like the rest of the payment service expects.
   const amount =
     typeof data.amount === "number"
@@ -78,7 +89,7 @@ export async function POST(request: Request) {
     eventId,
     eventType: event,
     providerRef,
-    externalId: referenceId,
+    externalId: referenceId || externalId,
     status,
     amountCents,
     currency: data.currency ?? "IDR",
