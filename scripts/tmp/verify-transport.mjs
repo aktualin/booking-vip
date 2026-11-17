@@ -17,7 +17,7 @@ function check(name, ok, extra = "") {
 
 const browser = await chromium.launch({ args: ["--start-maximized"] });
 
-async function makeContext(lang, currency, viewport) {
+async function makeContext(lang, viewport) {
   const context = await browser.newContext({
     viewport,
     locale: lang === "id" ? "id-ID" : "en-US",
@@ -25,13 +25,12 @@ async function makeContext(lang, currency, viewport) {
     permissions: ["geolocation"],
   });
   await context.addInitScript(
-    ([l, c]) => {
+    (l) => {
       try {
         localStorage.setItem("booking-vip:locale", JSON.stringify(l));
-        localStorage.setItem("booking-vip:currency", JSON.stringify(c));
       } catch {}
     },
-    [lang, currency],
+    lang,
   );
   const page = await context.newPage();
   page.on("pageerror", (e) => pageErrors.push(String(e)));
@@ -47,7 +46,7 @@ const shot = (page, name) => page.screenshot({ path: `${OUT}${name}.png`, fullPa
 // ID desktop — the full functional flow
 // ---------------------------------------------------------------------------
 {
-  const { context, page } = await makeContext("id", "IDR", { width: 1440, height: 900 });
+  const { context, page } = await makeContext("id", { width: 1440, height: 900 });
 
   await page.goto(`${BASE}/transport`, { waitUntil: "load" });
   await page.waitForTimeout(1800);
@@ -203,7 +202,7 @@ const shot = (page, name) => page.screenshot({ path: `${OUT}${name}.png`, fullPa
   // ID mobile 390
   // -------------------------------------------------------------------------
   {
-    const { context: mctx, page: mpage } = await makeContext("id", "IDR", { width: 390, height: 844 });
+    const { context: mctx, page: mpage } = await makeContext("id", { width: 390, height: 844 });
     await mpage.goto(`${BASE}/transport`, { waitUntil: "load" });
     await mpage.waitForTimeout(1500);
     await mpage.locator('button:has-text("Tentukan titik jemput")').click();
@@ -238,7 +237,7 @@ const shot = (page, name) => page.screenshot({ path: `${OUT}${name}.png`, fullPa
   // EN desktop + mobile screenshots
   // -------------------------------------------------------------------------
   {
-    const { context: ectx, page: epage } = await makeContext("en", "IDR", { width: 1440, height: 900 });
+    const { context: ectx, page: epage } = await makeContext("en", { width: 1440, height: 900 });
     await epage.goto(`${BASE}/transport`, { waitUntil: "load" });
     await epage.waitForTimeout(1500);
     await epage.locator('button:has-text("Pick the pickup point")').click();
@@ -266,7 +265,7 @@ const shot = (page, name) => page.screenshot({ path: `${OUT}${name}.png`, fullPa
     await ectx.close();
   }
   {
-    const { context: mctx, page: mpage } = await makeContext("en", "IDR", { width: 390, height: 844 });
+    const { context: mctx, page: mpage } = await makeContext("en", { width: 390, height: 844 });
     await mpage.goto(`${BASE}/transport/armada?date=2026-11-15&time=05:00&totalDays=1&driverOption=with_driver&from=Bali`, { waitUntil: "load" });
     await mpage.waitForSelector('main a[href^="/transport/"]', { timeout: 15000 });
     await mpage.waitForTimeout(1000);
@@ -283,6 +282,6 @@ await browser.close();
 
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed.`);
-const realErrors = pageErrors.filter((e) => !/favicon|net::|Failed to load resource|404|nominatim|frankfurter/i.test(e));
+const realErrors = pageErrors.filter((e) => !/favicon|net::|Failed to load resource|404|nominatim/i.test(e));
 console.log("page errors:", realErrors.length ? realErrors.slice(0, 8) : "none");
 process.exit(failed.length > 0 ? 1 : 0);

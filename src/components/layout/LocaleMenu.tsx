@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "@/components/icons";
 import { useLocale, type Lang } from "@/components/providers/LocaleProvider";
-import { SUPPORTED, type CurrencyCode } from "@/lib/currency";
 
 // Language labels — these stay in their native form
 const LANGUAGES: { code: Lang; labelKey: "locale.english" | "locale.indonesia" }[] = [
@@ -13,11 +12,11 @@ const LANGUAGES: { code: Lang; labelKey: "locale.english" | "locale.indonesia" }
 ];
 
 /**
- * Locale + currency dropdown.
+ * Language dropdown.
  *
- * Two sections: **Language** (English / Indonesia) and **Currency** (USD / IDR).
- * The trigger shows `{LANG.toUpperCase()} | {currency}` plus the existing
- * ChevronDown glyph, matching the inert button it replaces.
+ * One section: **Language** (English / Indonesia). The trigger shows
+ * `{LANG.toUpperCase()}` plus the existing ChevronDown glyph, matching the
+ * inert button it replaces.
  *
  * `variant` matches the header variant so text colour tracks the background:
  * `overlay` renders white text over the hero (and switches to `ink` once the
@@ -28,7 +27,7 @@ export default function LocaleMenu({
 }: {
   variant?: "overlay" | "solid";
 }) {
-  const { lang, setLang, currency, setCurrency, t } = useLocale();
+  const { lang, setLang, t } = useLocale();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -69,7 +68,7 @@ export default function LocaleMenu({
           solid ? "hover:text-ink" : "hover:text-white"
         }`}
       >
-        {lang.toUpperCase()} | {currency}{" "}
+        {lang.toUpperCase()}{" "}
         <ChevronDown
           width={14}
           height={14}
@@ -102,38 +101,6 @@ export default function LocaleMenu({
             >
               {t(l.labelKey)}
               {lang === l.code && (
-                <span className="text-[10px] text-brand">✓</span>
-              )}
-            </button>
-          ))}
-
-          <div className="my-1 h-px bg-line" />
-
-          <div className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-            {t("locale.currency")}
-          </div>
-          {SUPPORTED.map((s) => (
-            <button
-              key={s.code}
-              role="menuitemradio"
-              aria-checked={currency === s.code}
-              onClick={() => {
-                setCurrency(s.code as CurrencyCode);
-                setOpen(false);
-              }}
-              className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left transition-colors ${
-                currency === s.code
-                  ? "bg-brand-soft font-semibold text-brand"
-                  : "hover:bg-canvas"
-              }`}
-            >
-              <span>
-                <span className="mr-1.5 inline-block w-4 text-center">
-                  {s.symbol}
-                </span>
-                {s.code}
-              </span>
-              {currency === s.code && (
                 <span className="text-[10px] text-brand">✓</span>
               )}
             </button>

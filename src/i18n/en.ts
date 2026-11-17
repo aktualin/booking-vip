@@ -5,7 +5,6 @@ export const en = {
 
   // Locale menu
   "locale.language": "Language",
-  "locale.currency": "Currency",
   "locale.english": "English",
   "locale.indonesia": "Indonesia",
 

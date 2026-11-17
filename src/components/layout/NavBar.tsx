@@ -9,7 +9,6 @@ import { serviceNav } from "@/data/services";
 import { useLocale, type Lang } from "@/components/providers/LocaleProvider";
 import { SERVICE_SLUG_KEYS } from "@/lib/serviceLabels";
 import type { DictKey } from "@/i18n";
-import { SUPPORTED, type CurrencyCode } from "@/lib/currency";
 
 /** The rotating search placeholders, as dictionary keys. */
 const PLACEHOLDER_KEYS: DictKey[] = [
@@ -31,7 +30,7 @@ export default function NavBar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { lang, setLang, currency, setCurrency, t } = useLocale();
+  const { lang, setLang, t } = useLocale();
   const solid = variant === "solid";
 
   const [idx, setIdx] = useState(0);
@@ -269,31 +268,6 @@ export default function NavBar({
                   }`}
                 >
                   {l.label}
-                </button>
-              ))}
-            </div>
-
-            <div
-              className={`mt-3 px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${
-                solid ? "text-muted" : "text-white/50"
-              }`}
-            >
-              {t("locale.currency")}
-            </div>
-            <div className="flex gap-2 px-2">
-              {SUPPORTED.map((s) => (
-                <button
-                  key={s.code}
-                  onClick={() => setCurrency(s.code as CurrencyCode)}
-                  className={`flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold transition-colors ${
-                    currency === s.code
-                      ? "bg-brand-soft text-brand"
-                      : solid
-                        ? "bg-canvas text-ink"
-                        : "bg-white/10 text-white/90"
-                  }`}
-                >
-                  {s.symbol} {s.code}
                 </button>
               ))}
             </div>

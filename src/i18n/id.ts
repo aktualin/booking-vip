@@ -7,7 +7,6 @@ export const id: Record<DictKey, string> = {
 
   // Locale menu
   "locale.language": "Bahasa",
-  "locale.currency": "Mata Uang",
   "locale.english": "English",
   "locale.indonesia": "Indonesia",
 

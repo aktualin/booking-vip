@@ -289,7 +289,7 @@ if (stage === "locale") {
   await page.goto(`${BASE}/account/loyalty`, { waitUntil: "load" });
   await page.waitForTimeout(2000);
   const setLang = async (label) => {
-    await page.locator("header button", { hasText: / \| (USD|IDR)/ }).first().click();
+    await page.locator("header button", { hasText: /^\s*(EN|ID)\s*$/ }).first().click();
     await page.getByRole("menuitemradio", { name: label }).click();
     await page.waitForTimeout(600);
   };
@@ -388,7 +388,7 @@ if (stage === "amount-id") {
   const aside = await page.locator("aside").innerText();
   console.log("ID aside:", aside.replace(/\n/g, " | "));
   if (!/Diskon/.test(aside)) await fail("ID discount label missing in summary");
-  if (!/\$80\.00|Rp/.test(aside)) await fail(`ID discounted total wrong: ${aside}`);
+  if (!/\$80\.00/.test(aside)) await fail(`ID discounted total wrong: ${aside}`);
   await page.screenshot({ path: `${SHOTS}amount-id-checkout.png` });
   await page.getByRole("button", { name: /Pesan Sekarang|Book Now/i }).click();
   await page.waitForTimeout(4000);

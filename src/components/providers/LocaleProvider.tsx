@@ -8,19 +8,15 @@ import {
   useMemo,
   useState,
 } from "react";
-import {
-  ensureRates,
-  formatMoneyWith,
-  type CurrencyCode,
-} from "@/lib/currency";
+import { formatMoneyWith } from "@/lib/currency";
 import { makeTranslator, type DictKey } from "@/i18n";
 
 // ---------------------------------------------------------------------------
-// Locale + currency context.
+// Locale context.
 //
 // `useLocale()` is the single hook components use to read the user's language
-// and currency preferences and to format prices. The shape is a hard contract
-// for Tasks 3-5 — do not rename fields.
+// preference and to format prices (USD-only). The shape is a hard contract —
+// do not rename fields.
 // ---------------------------------------------------------------------------
 
 export type Lang = "en" | "id";
@@ -28,11 +24,7 @@ export type Lang = "en" | "id";
 type LocaleState = {
   lang: Lang;
   setLang: (l: Lang) => void;
-  currency: CurrencyCode;
-  setCurrency: (c: CurrencyCode) => void;
   formatMoney: (usd: number) => string;
-  /** Live FX rates (e.g. `{IDR: 16500}`). USD is always implicit 1. */
-  rates: Record<string, number>;
   /** Translate a dictionary key using the current language. */
   t: (key: DictKey, vars?: Record<string, string | number>) => string;
 };
@@ -40,7 +32,6 @@ type LocaleState = {
 const LocaleContext = createContext<LocaleState | null>(null);
 
 const LANG_KEY = "booking-vip:locale";
-const CURRENCY_KEY = "booking-vip:currency";
 
 function readPref<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -63,17 +54,19 @@ function writePref(key: string, value: unknown) {
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
-  const [currency, setCurrencyState] = useState<CurrencyCode>("USD");
-  const [rates, setRates] = useState<Record<string, number>>({ IDR: 16500 });
 
   // Hydrate preferences from localStorage on mount.
   useEffect(() => {
     const l = readPref<Lang>(LANG_KEY, "en");
-    const c = readPref<CurrencyCode>(CURRENCY_KEY, "USD");
     setLangState(l === "id" ? "id" : "en");
-    setCurrencyState(c === "IDR" ? "IDR" : "USD");
 
-    ensureRates().then((r) => setRates(r));
+    // One-time cleanup of stale conversion keys left by older builds.
+    try {
+      window.localStorage.removeItem("booking-vip:fx");
+      window.localStorage.removeItem("booking-vip:currency");
+    } catch {
+      // Storage unavailable — ignore.
+    }
   }, []);
 
   // Keep <html lang="…"> in sync with the user's choice.
@@ -86,15 +79,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     writePref(LANG_KEY, l);
   }, []);
 
-  const setCurrency = useCallback((c: CurrencyCode) => {
-    setCurrencyState(c);
-    writePref(CURRENCY_KEY, c);
-  }, []);
-
-  const formatMoney = useCallback(
-    (usd: number) => formatMoneyWith(usd, currency, rates),
-    [currency, rates]
-  );
+  const formatMoney = useCallback((usd: number) => formatMoneyWith(usd), []);
 
   // Bound translator for the current language.
   const translate = useCallback(
@@ -104,8 +89,8 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<LocaleState>(
-    () => ({ lang, setLang, currency, setCurrency, formatMoney, rates, t: translate }),
-    [lang, setLang, currency, setCurrency, formatMoney, rates, translate]
+    () => ({ lang, setLang, formatMoney, t: translate }),
+    [lang, setLang, formatMoney, translate]
   );
 
   return (
@@ -114,10 +99,9 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Read the current locale/currency + helpers.
+ * Read the current locale + helpers.
  *
- * Contract shape: `{ lang, setLang, currency, setCurrency, formatMoney,
- * rates, t }` — do not rename fields.
+ * Contract shape: `{ lang, setLang, formatMoney, t }` — do not rename fields.
  */
 export function useLocale(): LocaleState {
   const ctx = useContext(LocaleContext);

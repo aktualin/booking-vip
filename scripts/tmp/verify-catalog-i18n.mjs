@@ -25,7 +25,7 @@ function check(name, ok, detail = "") {
 }
 
 async function setLocale(page, lang) {
-  const trigger = page.locator('button[aria-haspopup="menu"]', { hasText: /\|/ }).first();
+  const trigger = page.locator('button[aria-haspopup="menu"]', { hasText: /^\s*(EN|ID)\s*$/ }).first();
   await trigger.click();
   await page.getByRole("menuitemradio", { name: lang === "id" ? "Indonesia" : "English" }).click();
   await page.waitForTimeout(700);
@@ -33,12 +33,11 @@ async function setLocale(page, lang) {
 
 const browser = await chromium.launch();
 
-// ---------- Desktop, ID-preferring visitor (locale + IDR currency stored) ----------
+// ---------- Desktop, ID-preferring visitor (stored ID locale) ----------
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "id-ID" });
 await ctx.addInitScript(() => {
   try {
     localStorage.setItem("booking-vip:locale", JSON.stringify("id"));
-    localStorage.setItem("booking-vip:currency", JSON.stringify("IDR"));
     localStorage.setItem("booking-vip:last-search", JSON.stringify({
       service: "Airport VIP Service", href: "/vip-service", values: {},
     }));
@@ -59,7 +58,7 @@ check("home ID: tour product title", text.includes("Jelajah Bali"));
 check("home ID: VIP product title", text.includes("Fast Track Imigrasi"));
 check("home ID: duration unit", text.includes("3H2M"));
 check("home ID: resume strip label", text.includes("Layanan VIP Bandara"));
-check("home ID: IDR price", text.includes("Rp"));
+check("home ID: USD price", text.includes("$"));
 check("home ID: no EN section title", !text.includes("Special deals"));
 await page.screenshot({ path: `${SHOTS}/home-id.png` });
 

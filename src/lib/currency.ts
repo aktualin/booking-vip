@@ -1,137 +1,17 @@
-// Currency formatting + FX rate helpers.
+// USD-only price formatting.
 //
-// All prices in the data layer are stored as USD integers. At render time we
-// convert them to the user's chosen currency via `formatMoneyWith`, which uses
-// `Intl.NumberFormat` so the grouping/separators match the locale.
-//
-// FX rates are fetched lazily from the public Frankfurter API and cached in
-// localStorage keyed by date. When the network is unavailable we fall back to
-// the cached rate — or a hard-coded fallback rate — so prices always render.
+// All prices in the app are USD — stored as integer cents in the data layer
+// and passed here as dollars (e.g. cents / 100). This module only formats
+// them for display; no conversion exists anywhere in the app.
 
-export type CurrencyCode = "USD" | "IDR";
+export type CurrencyCode = "USD";
 
-export type CurrencySpec = {
-  code: CurrencyCode;
-  symbol: string;
-  decimals: number;
-  locale: string;
-  fallbackRate: number;
-};
-
-export const SUPPORTED: CurrencySpec[] = [
-  { code: "USD", symbol: "$", decimals: 2, locale: "en-US", fallbackRate: 1 },
-  { code: "IDR", symbol: "Rp", decimals: 0, locale: "id-ID", fallbackRate: 16500 },
-];
-
-export const CURRENCY_BY_CODE: Record<CurrencyCode, CurrencySpec> = Object.fromEntries(
-  SUPPORTED.map((s) => [s.code, s])
-) as Record<CurrencyCode, CurrencySpec>;
-
-const FX_KEY = "booking-vip:fx";
-
-type FxCache = {
-  date: string; // YYYY-MM-DD
-  rates: Record<string, number>;
-};
-
-function today(): string {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
-
-function readCache(): FxCache | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(FX_KEY);
-    return raw ? (JSON.parse(raw) as FxCache) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCache(cache: FxCache) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(FX_KEY, JSON.stringify(cache));
-  } catch {
-    // Storage unavailable (private mode / quota) — ignore.
-  }
-}
-
-/** USD base fallback rates for the currencies we support. */
-const FALLBACK_RATES: Record<string, number> = {
-  IDR: 16500,
-};
-
-/**
- * Ensure FX rates are available. Returns `{IDR: n}` (USD is always 1).
- *
- * - If the cache is dated today, reuse it (no network).
- * - Otherwise fetch `frankfurter.dev` with a 5s timeout.
- * - On any failure (network / CORS / timeout / bad JSON) return cache-or-
- *   fallback — never throws.
- */
-export async function ensureRates(): Promise<Record<string, number>> {
-  const cached = readCache();
-  if (cached && cached.date === today()) {
-    return { ...FALLBACK_RATES, ...cached.rates };
-  }
-
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 5000);
-    const res = await fetch(
-      "https://api.frankfurter.dev/v1/latest?base=USD&symbols=IDR",
-      { signal: ctrl.signal }
-    );
-    clearTimeout(timer);
-    if (!res.ok) throw new Error(`fx ${res.status}`);
-    const json = (await res.json()) as {
-      date?: string;
-      rates?: Record<string, number>;
-    };
-    if (!json.rates) throw new Error("fx no rates");
-    const cache: FxCache = { date: json.date ?? today(), rates: json.rates };
-    writeCache(cache);
-    return { ...FALLBACK_RATES, ...json.rates };
-  } catch {
-    // Network failure — use cached (even stale) or fallback.
-    return { ...FALLBACK_RATES, ...(cached?.rates ?? {}) };
-  }
-}
-
-/**
- * Format a USD amount in the given currency. `rates` maps currency code →
- * USD multiplier (e.g. `{IDR: 16500}`). Unknown codes fall back to USD.
- */
-export function formatMoneyWith(
-  usd: number,
-  code: string,
-  rates: Record<string, number>
-): string {
-  const spec = CURRENCY_BY_CODE[code as CurrencyCode] ?? SUPPORTED[0];
-  const rate = rates[spec.code] ?? spec.fallbackRate;
-  const converted = usd * rate;
-  return new Intl.NumberFormat(spec.locale, {
+/** Format a USD amount (in dollars) for display, e.g. `$85.00`. */
+export function formatMoneyWith(usd: number): string {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: spec.code,
-    minimumFractionDigits: spec.decimals,
-    maximumFractionDigits: spec.decimals,
-  }).format(converted);
-}
-
-/**
- * Format a USD amount using a *fixed* currency snapshot (the values recorded
- * at booking time). Unlike `formatMoneyWith(usd, liveCurrency, liveRates)`,
- * this always renders in the currency/rate the customer originally saw —
- * even if they later switch locale in the UI.
- */
-export function formatSnapshot(
-  usd: number,
-  currencyCode: string,
-  fxRate: number
-): string {
-  return formatMoneyWith(usd, currencyCode, { [currencyCode]: fxRate });
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(usd);
 }

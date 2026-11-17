@@ -16,10 +16,6 @@
       "origin": "http://localhost:3000",
       "localStorage": [
         {
-          "name": "booking-vip:fx",
-          "value": "{\"date\":\"2026-11-13\",\"rates\":{\"IDR\":18245}}"
-        },
-        {
           "name": "booking-vip:last-booking",
           "value": "{\"code\":\"BV-V7KFF6\",\"email\":\"bv.loyalty.v8wsky@example.com\"}"
         },

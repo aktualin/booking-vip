@@ -12,8 +12,8 @@ import { timingSafeEqual } from "node:crypto";
  *
  * Every amount is USD. The session is created with `currency: "USD"` and the
  * booking total in USD cents / 100 — there is no FX conversion anywhere.
- * (For Indonesian merchants Xendit settles to the balance in IDR internally;
- * that is Xendit's side of the integration, never ours.)
+ * (For Indonesian merchants Xendit settles to the balance in the local
+ * currency internally; that is Xendit's side of the integration, never ours.)
  *
  * Authentication is HTTP Basic with the secret API key. Incoming webhooks
  * are verified with the `x-callback-token` header against the webhook
