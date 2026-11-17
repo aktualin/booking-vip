@@ -44,9 +44,16 @@ export default function GoogleButton({
         return;
       }
       const code = (err as { code?: string })?.code;
-      if (code !== "auth/popup-closed-by-user") {
-        setError("Gagal masuk dengan Google. Coba lagi.");
+      // Closing the popup (or starting a second one) is a user choice, not
+      // an error worth reporting.
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        setPending(false);
+        return;
       }
+      // Keep the real error in the console — the generic banner alone makes
+      // production failures impossible to diagnose.
+      console.error("[google-sign-in]", err);
+      setError(googleErrorMessage(err));
       setPending(false);
     }
   }
@@ -71,6 +78,39 @@ export default function GoogleButton({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Turn a sign-in failure into something the visitor can act on. The codes
+ * come from the Firebase Web SDK; anything unknown collapses into the
+ * generic banner (the console keeps the full error).
+ */
+function googleErrorMessage(err: unknown): string {
+  const code = (err as { code?: string })?.code;
+  switch (code) {
+    case "auth/unauthorized-domain":
+      return "Domain situs ini belum terdaftar di Firebase. Tambahkan domain produksi di Authentication → Settings → Authorized domains.";
+    case "auth/popup-blocked":
+      return "Popup Google diblokir browser. Izinkan popup untuk situs ini, lalu coba lagi.";
+    case "auth/operation-not-allowed":
+      return "Login Google belum diaktifkan. Aktifkan provider Google di Firebase Authentication → Sign-in method.";
+    case "auth/network-request-failed":
+      return "Gagal terhubung ke Firebase. Periksa koneksi internet, lalu coba lagi.";
+    case "auth/invalid-api-key":
+    case "auth/invalid-app-id":
+    case "auth/auth-domain-config-required":
+      return "Konfigurasi Firebase situs ini tidak valid. Hubungi pengelola situs.";
+    case "auth/account-exists-with-different-credential":
+      return "Email ini sudah terdaftar dengan metode lain. Silakan masuk dengan email & password.";
+  }
+  // getClientAuth() throws this when the NEXT_PUBLIC_* variables were not
+  // present at build time — they are inlined into the bundle, so setting
+  // them on the server alone does not help.
+  const message = err instanceof Error ? err.message : "";
+  if (message.includes("NEXT_PUBLIC_FIREBASE")) {
+    return "Konfigurasi Firebase belum terpasang di build produksi. Hubungi pengelola situs.";
+  }
+  return "Gagal masuk dengan Google. Coba lagi.";
 }
 
 /** Inline Google "G" mark — avoids pulling in a brand asset. */

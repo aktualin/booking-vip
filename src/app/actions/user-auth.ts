@@ -299,7 +299,10 @@ export async function signInUserWithGoogle(idToken: string): Promise<void> {
   let decoded;
   try {
     decoded = await getAdminAuth().verifyIdToken(idToken);
-  } catch {
+  } catch (err) {
+    // Log the real cause (missing admin credentials, key-fetch failure,
+    // expired token, …) — the redirect alone hides it from the server logs.
+    console.error("[auth] Google id token verification failed:", err);
     redirect("/login?error=google");
   }
 
@@ -307,33 +310,46 @@ export async function signInUserWithGoogle(idToken: string): Promise<void> {
     redirect("/login?error=google");
   }
 
-  const account = await syncAccount({
-    uid: decoded.uid,
-    email: decoded.email,
-    name: decoded.name ?? null,
-    emailVerified: decoded.email_verified ?? false,
-  });
+  try {
+    const account = await syncAccount({
+      uid: decoded.uid,
+      email: decoded.email,
+      name: decoded.name ?? null,
+      emailVerified: decoded.email_verified ?? false,
+    });
 
-  if (account.role === ADMIN_ROLE) {
-    redirect("/login?error=admin");
+    if (account.role === ADMIN_ROLE) {
+      redirect("/login?error=admin");
+    }
+
+    // Google supplies the name and the email but never the phone number. Read
+    // the stored phone so an incomplete profile (missing phone, or a name
+    // Google did not provide) is completed on the profile page instead of being
+    // silently skipped. The session is issued first so the account area lets
+    // the customer in.
+    const row = await db.orm.public.User
+      .select("phone")
+      .where({ id: decoded.uid })
+      .first();
+
+    await issueUserSession(idToken);
+
+    if (!account.name || !row?.phone) {
+      redirect("/account/profile?lengkapi=1");
+    }
+    redirect("/");
+  } catch (err) {
+    // redirect() throws a NEXT_REDIRECT control-flow error — that is the
+    // happy path above, let it through untouched.
+    const digest = (err as { digest?: string })?.digest;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+      throw err;
+    }
+    // A database or session-cookie failure must not surface as an opaque
+    // 500 — log it and send the visitor back to the login notice.
+    console.error("[auth] Google sign-in failed after token verification:", err);
+    redirect("/login?error=google");
   }
-
-  // Google supplies the name and the email but never the phone number. Read
-  // the stored phone so an incomplete profile (missing phone, or a name
-  // Google did not provide) is completed on the profile page instead of being
-  // silently skipped. The session is issued first so the account area lets
-  // the customer in.
-  const row = await db.orm.public.User
-    .select("phone")
-    .where({ id: decoded.uid })
-    .first();
-
-  await issueUserSession(idToken);
-
-  if (!account.name || !row?.phone) {
-    redirect("/account/profile?lengkapi=1");
-  }
-  redirect("/");
 }
 
 /**
