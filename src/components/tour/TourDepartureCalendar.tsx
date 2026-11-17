@@ -37,14 +37,6 @@ function parseYearMonth(ym: string): Date {
   return new Date(y, m - 1, 1);
 }
 
-/** Format a Date as "YYYY-MM-DD" for URL params. */
-function toISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 /** Month names in Indonesian and English. */
 const MONTH_NAMES_ID = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",

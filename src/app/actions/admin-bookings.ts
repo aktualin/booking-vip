@@ -12,6 +12,7 @@ import {
   listTourDepartures,
 } from "@/lib/tour";
 import { computeRefund, getCancellationPolicy } from "@/lib/cancellation";
+import { creditForCompletedBooking } from "@/lib/wallet";
 import type {
   AdminBookingDetail,
   AdminBookingListResult,
@@ -599,11 +600,23 @@ export async function setBookingStatus(
   }
 
   if (next === "completed") {
-    // WALLET_CREDIT_HOOK — S4 (wallet): credit the customer's wallet for this
-    // booking here, inside the completed transition, after the status flip
-    // succeeded. Keep it idempotent per booking id. No stock write is needed:
-    // a completed booking reserves nothing, so its units are already back in
-    // the available pool (src/lib/stock.ts).
+    // WALLET_CREDIT_HOOK — credit the customer's wallet for this booking.
+    // Idempotent per booking id (unique bookingId + "credit" ledger row), so
+    // a replayed transition never credits twice. Best-effort: a wallet
+    // failure is logged but never fails the handover. No stock write is
+    // needed: a completed booking reserves nothing, so its units are already
+    // back in the available pool (src/lib/stock.ts).
+    try {
+      const credit = await creditForCompletedBooking(id);
+      if (!credit.ok) {
+        console.error("[admin-bookings] wallet credit failed", {
+          bookingId: id,
+          error: credit.error,
+        });
+      }
+    } catch (error) {
+      console.error("[admin-bookings] wallet credit failed", { bookingId: id, error });
+    }
   }
 
   return { ok: true };
