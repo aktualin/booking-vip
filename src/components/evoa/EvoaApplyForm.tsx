@@ -11,6 +11,7 @@ import { startBookingPayment } from "@/app/actions/payments";
 import { showToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import DynamicFields from "@/components/evoa/DynamicFields";
+import PayPalPayButton from "@/components/payment/PayPalPayButton";
 import WizardSteps from "./wizard/WizardSteps";
 import TravelStep from "./wizard/TravelStep";
 import ApplicantCard from "./wizard/ApplicantCard";
@@ -208,18 +209,22 @@ export default function EvoaApplyForm({ steps }: Props) {
 
   /* ---------------- submit + payment hand-off ---------------- */
 
-  const beginPayment = async (bookingCode: string, email: string) => {
+  const beginPayment = async (
+    bookingCode: string,
+    email: string,
+    methodCode = "CREDIT_CARD",
+  ) => {
     setPaying(true);
     setPaymentError(null);
     try {
       const payment = await startBookingPayment({
         bookingCode,
         email,
-        methodCode: "CREDIT_CARD",
+        methodCode,
       });
       if (payment.ok) {
-        // Full navigation — Xendit hosts the checkout; the return page polls
-        // the payment status afterwards.
+        // Full navigation — the chosen gateway (Xendit or PayPal) hosts the
+        // checkout; the return page polls the payment status afterwards.
         window.location.href = payment.checkoutUrl;
         return;
       }
@@ -237,7 +242,7 @@ export default function EvoaApplyForm({ steps }: Props) {
     setSubmitting(false);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (methodCode = "CREDIT_CARD") => {
     if (!data || submitting || paying) return;
     if (!confirmed) {
       fail({
@@ -323,7 +328,7 @@ export default function EvoaApplyForm({ steps }: Props) {
         t("Application created. Preparing payment…", "Pengajuan dibuat. Menyiapkan pembayaran…"),
         "success",
       );
-      await beginPayment(submit.data.bookingCode, travel.email);
+      await beginPayment(submit.data.bookingCode, travel.email, methodCode);
     } catch {
       setSubmitting(false);
       const message = t(
@@ -621,16 +626,25 @@ export default function EvoaApplyForm({ steps }: Props) {
               {t("Continue", "Lanjut")}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => void handleSubmit()}
-              disabled={submitting || paying || !confirmed}
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-brand px-6 text-[14px] font-semibold text-white transition-opacity hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {submitting
-                ? t("Submitting…", "Mengirim…")
-                : t("Submit & pay", "Kirim & bayar")}
-            </button>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => void handleSubmit()}
+                disabled={submitting || paying || !confirmed}
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-brand px-6 text-[14px] font-semibold text-white transition-opacity hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting
+                  ? t("Submitting…", "Mengirim…")
+                  : t("Submit & pay", "Kirim & bayar")}
+              </button>
+              <PayPalPayButton
+                onPay={() => handleSubmit("PAYPAL")}
+                busy={submitting || paying}
+                disabled={submitting || paying || !confirmed}
+                label={t("Pay with PayPal", "Bayar dengan PayPal")}
+                processingLabel={t("Preparing…", "Menyiapkan…")}
+              />
+            </div>
           )}
         </div>
       </div>

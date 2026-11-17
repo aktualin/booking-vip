@@ -1,20 +1,35 @@
 "use client";
 
 import { useCallback } from "react";
-import { listPackages, reorderCatalog, setCatalogActive } from "@/app/actions/admin";
+import { listPackagesPaged, reorderCatalog, setCatalogActive } from "@/app/actions/admin";
 import { deleteAdminEntity } from "@/app/actions/admin-crud";
 import type { AdminPackageRow } from "@/types/admin";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import StatusToggle from "@/components/admin/StatusToggle";
 import { formatCents } from "@/components/admin/MoneyField";
 import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { adminClass } from "@/components/admin/tokens";
-import { useAdminList } from "@/components/admin/useAdminList";
+import { useAdminPagedList } from "@/components/admin/useAdminList";
 
 /** Package catalog table — one row per purchasable variant of a product. */
 export default function PackagesManager() {
-  const load = useCallback(() => listPackages(), []);
-  const { rows, loading, error, reload } = useAdminList<AdminPackageRow>(load);
+  const load = useCallback((params: AdminListParams) => listPackagesPaged(params), []);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<AdminPackageRow>(load);
 
   const priceOf = (row: AdminPackageRow) => {
     const cents =
@@ -26,6 +41,7 @@ export default function PackagesManager() {
     {
       key: "label",
       header: "Paket",
+      sortable: true,
       render: (row: AdminPackageRow) => (
         <div className="min-w-0">
           <div className="truncate font-medium">{row.label}</div>
@@ -36,6 +52,7 @@ export default function PackagesManager() {
     {
       key: "unitKind",
       header: "Unit",
+      sortable: true,
       render: (row: AdminPackageRow) => (
         <span className="text-[12px] text-[var(--admin-muted)]">
           {row.unitKind === "per_pax" ? "Per pax" : "Per unit"}
@@ -43,9 +60,10 @@ export default function PackagesManager() {
       ),
     },
     {
-      key: "price",
+      key: "unitUsdCents",
       header: "Harga",
       className: "text-right",
+      sortable: true,
       render: (row: AdminPackageRow) => <span className="tabular-nums">{priceOf(row)}</span>,
     },
     {
@@ -83,6 +101,7 @@ export default function PackagesManager() {
       key: "active",
       header: "Status",
       className: "w-[70px]",
+      sortable: true,
       render: (row: AdminPackageRow) => (
         <StatusToggle
           active={row.active}
@@ -122,6 +141,19 @@ export default function PackagesManager() {
         emptyTitle="Belum ada paket"
         emptyDescription="Tambahkan paket (varian pembelian) untuk sebuah produk."
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari paket…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "paket",
+        }}
       />
     </div>
   );

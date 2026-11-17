@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { PencilIcon, PlusIcon, TrashIcon } from "@/components/icons";
-import DataTable, { type Column } from "./DataTable";
+import DataTable, { type Column, type TablePagination, type TableSort } from "./DataTable";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 import { adminClass } from "./tokens";
 import { showAdminToast } from "./toast";
@@ -35,6 +35,12 @@ export default function EntityManager<T>({
   emptyDescription,
   headerExtra,
   loading,
+  search,
+  onSearchChange,
+  searchPlaceholder,
+  sort,
+  onSortToggle,
+  pagination,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -55,6 +61,15 @@ export default function EntityManager<T>({
   emptyDescription?: string;
   headerExtra?: ReactNode;
   loading?: boolean;
+  /** Global search box state — passing `onSearchChange` renders the box. */
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
+  /** Active column sort + the header click handler. */
+  sort?: TableSort | null;
+  onSortToggle?: (key: string) => void;
+  /** Pagination footer state. */
+  pagination?: TablePagination;
 }) {
   const [pending, setPending] = useState<T | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -131,7 +146,7 @@ export default function EntityManager<T>({
       </div>
 
       <div className={adminClass.panel}>
-        {loading ? (
+        {loading && rows.length === 0 ? (
           <p className="px-6 py-10 text-center text-[13px] text-[var(--admin-muted)]">Memuat…</p>
         ) : (
           <DataTable
@@ -145,6 +160,13 @@ export default function EntityManager<T>({
                 {createLabel}
               </Link>
             }
+            search={search}
+            onSearchChange={onSearchChange}
+            searchPlaceholder={searchPlaceholder}
+            sort={sort}
+            onSortToggle={onSortToggle}
+            pagination={pagination}
+            loading={loading}
           />
         )}
       </div>

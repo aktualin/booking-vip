@@ -1,23 +1,39 @@
 "use client";
 
 import { useCallback } from "react";
-import { listAdminVehicles, upsertVehicle } from "@/app/actions/admin-tour";
+import { listAdminVehiclesPaged, upsertVehicle } from "@/app/actions/admin-tour";
 import { deleteAdminEntity } from "@/app/actions/admin-crud";
 import type { AdminVehicleRow } from "@/types/admin";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import StatusToggle from "@/components/admin/StatusToggle";
 import { adminClass } from "@/components/admin/tokens";
-import { useAdminList } from "@/components/admin/useAdminList";
+import { useAdminPagedList } from "@/components/admin/useAdminList";
 
 /** Vehicle roster table — the cars / vans assigned to tour bookings. */
 export default function VehiclesManager() {
-  const load = useCallback(() => listAdminVehicles(), []);
-  const { rows, loading, error, reload } = useAdminList<AdminVehicleRow>(load);
+  const load = useCallback((params: AdminListParams) => listAdminVehiclesPaged(params), []);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<AdminVehicleRow>(load);
 
   const columns = [
     {
       key: "name",
       header: "Kendaraan",
+      sortable: true,
       render: (row: AdminVehicleRow) => (
         <div className="min-w-0">
           <div className="truncate font-medium">{row.name}</div>
@@ -31,14 +47,16 @@ export default function VehiclesManager() {
       key: "seats",
       header: "Kursi",
       className: "text-right",
+      sortable: true,
       render: (row: AdminVehicleRow) => (
         <span className="tabular-nums text-[var(--admin-muted)]">{row.seats}</span>
       ),
     },
     {
-      key: "order",
+      key: "sortOrder",
       header: "Urutan",
       className: "text-right",
+      sortable: true,
       render: (row: AdminVehicleRow) => (
         <span className="tabular-nums text-[var(--admin-muted)]">{row.sortOrder}</span>
       ),
@@ -47,6 +65,7 @@ export default function VehiclesManager() {
       key: "active",
       header: "Status",
       className: "w-[70px]",
+      sortable: true,
       render: (row: AdminVehicleRow) => (
         <StatusToggle
           active={row.active}
@@ -86,6 +105,19 @@ export default function VehiclesManager() {
         emptyTitle="Belum ada kendaraan"
         emptyDescription="Tambahkan mobil / van yang bisa ditugaskan ke booking tour."
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari kendaraan atau plat…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "kendaraan",
+        }}
       />
     </div>
   );

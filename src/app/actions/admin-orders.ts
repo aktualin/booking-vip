@@ -3,6 +3,7 @@
 import { db } from "@/prisma/db";
 import { getAdminSession } from "@/lib/admin/session";
 import { signedDocumentUrl } from "@/lib/storage";
+import { fieldOrder } from "@/lib/admin/paging";
 import {
   all,
   and,
@@ -273,6 +274,19 @@ const DIRECTION_LABELS: Record<string, string> = {
   departure: "Keberangkatan",
 };
 
+/** Direct Booking columns the airport-VIP order table may sort by. */
+const ORDER_SORT_KEYS = [
+  "code",
+  "createdAt",
+  "serviceAt",
+  "status",
+  "opsStatus",
+  "totalUsdCents",
+  "adultCount",
+  "childCount",
+  "infantCount",
+] as const;
+
 // ---------------------------------------------------------------------------
 // listOrders
 // ---------------------------------------------------------------------------
@@ -288,6 +302,8 @@ export async function listOrders(input?: {
   opsStatus?: string;
   limit?: number;
   offset?: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }): Promise<AdminOrderListResult> {
   await assertAdmin();
 
@@ -299,7 +315,7 @@ export async function listOrders(input?: {
   const limit =
     typeof input?.limit === "number" && Number.isInteger(input.limit)
       ? Math.min(Math.max(input.limit, 1), 100)
-      : 20;
+      : 5;
   const offset =
     typeof input?.offset === "number" && Number.isInteger(input.offset)
       ? Math.max(input.offset, 0)
@@ -308,6 +324,13 @@ export async function listOrders(input?: {
   // Unknown filter values are ignored rather than failing the whole list.
   const statusFilter = PAYMENT_STATUSES.includes(status) ? status : "";
   const opsFilter = OPS_STATUSES.includes(opsStatus) ? opsStatus : "";
+
+  // Unknown sort keys fall back to the default newest-first order.
+  const sortBy =
+    input?.sortBy && (ORDER_SORT_KEYS as readonly string[]).includes(input.sortBy)
+      ? input.sortBy
+      : null;
+  const sortDir = input?.sortDir === "asc" ? "asc" : "desc";
 
   // One row fragment shared by the page query and the count query. Codes are
   // stored uppercase and contact emails lowercase, so those two match on the
@@ -354,7 +377,11 @@ export async function listOrders(input?: {
         )
         .include("travelers", (t) => t.select("docStatus"))
         .where(filter)
-        .orderBy((f) => f.createdAt.desc())
+        .orderBy(
+          sortBy
+            ? ([fieldOrder(sortBy, sortDir), fieldOrder("id", "desc")] as never)
+            : ([fieldOrder("createdAt", "desc"), fieldOrder("id", "desc")] as never),
+        )
         .limit(limit)
         .offset(offset)
         .all(),

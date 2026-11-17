@@ -3,7 +3,8 @@
 import { useCallback, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { listOrders, type AdminOrderRow } from "@/app/actions/admin-orders";
-import DataTable, { type Column } from "@/components/admin/DataTable";
+import { ADMIN_PAGE_SIZES, type AdminSortDir } from "@/types/admin-pagination";
+import DataTable, { type Column, type TableSort } from "@/components/admin/DataTable";
 import { adminClass } from "@/components/admin/tokens";
 import { useAdminValue } from "@/components/admin/useAdminList";
 import { formatCents } from "@/components/admin/MoneyField";
@@ -18,7 +19,7 @@ import {
   paymentStatusBadge,
 } from "@/components/admin/orderStatus";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
 
 /** "2 dewasa · 1 anak" — the pax summary of a row. */
 function paxSummary(row: AdminOrderRow): string {
@@ -34,7 +35,8 @@ function paxSummary(row: AdminOrderRow): string {
  *
  * Rows come from `listOrders()` (a server action) so the page shell stays
  * static. Filters and the search box re-query from page 0; pagination is
- * prev/next over the total the action returns.
+ * prev/next over the total the action returns, with a 5/10/20/50 page-size
+ * selector and sortable column headers.
  */
 export default function OrdersManager() {
   const [searchDraft, setSearchDraft] = useState("");
@@ -42,6 +44,8 @@ export default function OrdersManager() {
   const [status, setStatus] = useState("");
   const [opsStatus, setOpsStatus] = useState("");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSizeState] = useState(PAGE_SIZE);
+  const [sort, setSort] = useState<TableSort | null>(null);
 
   const load = useCallback(
     () =>
@@ -49,18 +53,20 @@ export default function OrdersManager() {
         q: q || undefined,
         status: status || undefined,
         opsStatus: opsStatus || undefined,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE,
+        limit: pageSize,
+        offset: page * pageSize,
+        sortBy: sort?.key,
+        sortDir: sort?.dir,
       }),
-    [q, status, opsStatus, page],
+    [q, status, opsStatus, page, pageSize, sort],
   );
   const { data, loading, error } = useAdminValue(load);
 
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
-  const to = Math.min(total, (page + 1) * PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : page * pageSize + 1;
+  const to = Math.min(total, (page + 1) * pageSize);
   const filtered = q !== "" || status !== "" || opsStatus !== "";
 
   const submitSearch = (event: FormEvent) => {
@@ -69,10 +75,25 @@ export default function OrdersManager() {
     setPage(0);
   };
 
+  const setPageSize = (next: number) => {
+    setPageSizeState(next);
+    setPage(0);
+  };
+
+  const toggleSort = (key: string) => {
+    setSort((prev) =>
+      prev && prev.key === key
+        ? { key, dir: (prev.dir === "asc" ? "desc" : "asc") as AdminSortDir }
+        : { key, dir: "asc" },
+    );
+    setPage(0);
+  };
+
   const columns: Column<AdminOrderRow>[] = [
     {
       key: "code",
       header: "Kode",
+      sortable: true,
       render: (row) => (
         <div className="min-w-0">
           <Link
@@ -101,8 +122,9 @@ export default function OrdersManager() {
       ),
     },
     {
-      key: "schedule",
+      key: "serviceAt",
       header: "Jadwal",
+      sortable: true,
       render: (row) => (
         <span className="whitespace-nowrap text-[12px]">{formatDateTime(row.serviceAt)}</span>
       ),
@@ -129,16 +151,18 @@ export default function OrdersManager() {
       ),
     },
     {
-      key: "total",
+      key: "totalUsdCents",
       header: "Total",
       className: "text-right",
+      sortable: true,
       render: (row) => (
         <span className="tabular-nums">{formatCents(row.totalUsdCents)}</span>
       ),
     },
     {
-      key: "payment",
+      key: "status",
       header: "Pembayaran",
+      sortable: true,
       render: (row) => (
         <span className={paymentStatusBadge(row.status)}>
           {PAYMENT_STATUS_LABELS[row.status] ?? row.status}
@@ -146,8 +170,9 @@ export default function OrdersManager() {
       ),
     },
     {
-      key: "ops",
+      key: "opsStatus",
       header: "Operasional",
+      sortable: true,
       render: (row) => (
         <span className={opsStatusBadge(row.opsStatus)}>
           {OPS_STATUS_LABELS[row.opsStatus] ?? row.opsStatus}
@@ -288,6 +313,9 @@ export default function OrdersManager() {
                 ? "Coba ubah kata kunci atau filter status."
                 : "Pesanan dari halaman Airport VIP akan muncul di sini."
             }
+            sort={sort}
+            onSortToggle={toggleSort}
+            loading={loading}
           />
         )}
       </div>
@@ -297,6 +325,21 @@ export default function OrdersManager() {
           {total === 0 ? "0 order" : `Menampilkan ${from}–${to} dari ${total} order`}
         </p>
         <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-[12px] text-[var(--admin-muted)]">
+            <span className="text-[11px]">Baris</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              aria-label="Jumlah baris per halaman"
+              className="h-8 rounded-lg border border-[var(--admin-line)] bg-white px-1.5 text-[12px] text-[var(--admin-ink)] outline-none focus:border-[var(--admin-ink)]"
+            >
+              {ADMIN_PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             className={adminClass.buttonSecondary}

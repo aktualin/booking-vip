@@ -7,6 +7,8 @@ import {
   netPriceFromPackages,
   productDiscountPercent,
 } from "@/lib/discount";
+import { paginateList } from "@/lib/admin/paging";
+import type { AdminListParams, AdminPaged } from "@/types/admin-pagination";
 import type { AdminDeleteResult, AdminSaveResult } from "./admin-crud";
 
 /**
@@ -225,6 +227,55 @@ export async function listCampaigns(): Promise<CampaignRow[]> {
     percent: campaignPercent(campaign, prices),
     active: campaign.active,
   }));
+}
+
+const CAMPAIGN_SORT_KEYS = [
+  "name",
+  "key",
+  "lineLabel",
+  "lineSlug",
+  "memberCount",
+  "percent",
+  "active",
+] as const;
+
+/**
+ * One page of campaigns — the list is assembled in memory (the percent is
+ * recomputed from the current prices), so search / sort / slice run through
+ * `paginateList`.
+ */
+export async function listCampaignsPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<CampaignRow>> {
+  await assertAdmin();
+
+  const rows = await listCampaigns();
+
+  return paginateList(rows, params, {
+    allowedSortKeys: CAMPAIGN_SORT_KEYS,
+    searchOf: (row) => [row.name, row.key, row.lineLabel, row.lineSlug].join(" "),
+    sortValueOf: (row, key) => {
+      switch (key) {
+        case "name":
+          return row.name;
+        case "key":
+          return row.key;
+        case "lineLabel":
+          return row.lineLabel;
+        case "lineSlug":
+          return row.lineSlug;
+        case "memberCount":
+          return row.memberCount;
+        case "percent":
+          return row.percent;
+        case "active":
+          return row.active;
+        default:
+          return null;
+      }
+    },
+    defaultCompare: (a, b) => a.name.localeCompare(b.name),
+  });
 }
 
 /**

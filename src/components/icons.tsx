@@ -219,53 +219,67 @@ export const TrashIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+/* ── Payment brand icons ─────────────────────────────────────────────
+   Official brand SVGs served from the jsDelivr CDN (the open-source
+   muffinresearch/payment-icons set) — crisp, up-to-date marks instead of
+   hand-drawn approximations. */
+
+const PAYMENT_ICON_CDN =
+  "https://cdn.jsdelivr.net/gh/muffinresearch/payment-icons@latest/svg/flat";
+
+/** The card / wallet brands with a hosted icon. */
+export type PaymentBrand =
+  | "visa"
+  | "mastercard"
+  | "amex"
+  | "jcb"
+  | "discover"
+  | "paypal"
+  | "qris";
+
+/** Icon source per brand — the payment-icons CDN, plus QRIS from Wikimedia
+ *  Commons (CC0 official wordmark, not part of the payment-icons set). */
+const PAYMENT_ICON_SOURCES: Record<PaymentBrand, string> = {
+  visa: `${PAYMENT_ICON_CDN}/visa.svg`,
+  mastercard: `${PAYMENT_ICON_CDN}/mastercard.svg`,
+  amex: `${PAYMENT_ICON_CDN}/amex.svg`,
+  jcb: `${PAYMENT_ICON_CDN}/jcb.svg`,
+  discover: `${PAYMENT_ICON_CDN}/discover.svg`,
+  paypal: `${PAYMENT_ICON_CDN}/paypal.svg`,
+  qris: "https://upload.wikimedia.org/wikipedia/commons/e/e0/QRIS_Logo.svg",
+};
+
+/**
+ * A payment brand icon (Visa, Mastercard, JCB, Amex, QRIS, …) loaded from
+ * the web. `height` sets the rendered size and the width follows the
+ * intrinsic aspect ratio.
+ */
+export function PaymentBrandIcon({
+  brand,
+  height = 20,
+  className,
+}: {
+  brand: PaymentBrand;
+  /** Rendered height in px — width scales automatically. */
+  height?: number;
+  className?: string;
+}) {
+  return (
+    <img
+      src={PAYMENT_ICON_SOURCES[brand]}
+      alt={brand.toUpperCase()}
+      loading="lazy"
+      decoding="async"
+      height={height}
+      className={className}
+      style={{ height, width: "auto" }}
+    />
+  );
+}
+
 /* ── Payment brand marks ─────────────────────────────────────────────
    Filled brand logos (not currentColor strokes), drawn as paths/shapes
    so they render identically everywhere — no fonts, no external assets. */
-
-/** Visa — italic bold blue wordmark. */
-export const VisaLogo = (p: SVGProps<SVGSVGElement>) => (
-  <svg
-    width={42}
-    height={16}
-    viewBox="0 -1 42 16"
-    fill="none"
-    aria-hidden="true"
-    {...p}
-  >
-    <g
-      transform="translate(3.5 0) skewX(-12)"
-      stroke="#1A1F71"
-      strokeWidth={3}
-      strokeLinecap="butt"
-      strokeLinejoin="round"
-    >
-      <path d="M1.5 1.5 6 12.5 10.5 1.5" />
-      <path d="M15 1.5v11" />
-      <path d="M27 2.4c-1.1-1.1-2.6-1.7-4.1-1.7-2.2 0-3.8 1.2-3.8 3 0 3.4 7.6 2.8 7.6 6.2 0 1.9-1.8 3.1-4.1 3.1-1.8 0-3.4-.7-4.5-1.9" />
-      <path d="M29 13 33.5 1 38 13M30.8 9h5.4" />
-    </g>
-  </svg>
-);
-
-/** Mastercard — overlapping red / yellow circles, orange intersection. */
-export const MastercardLogo = (p: SVGProps<SVGSVGElement>) => (
-  <svg
-    width={27}
-    height={20}
-    viewBox="0 0 30 22"
-    fill="none"
-    aria-hidden="true"
-    {...p}
-  >
-    <circle cx="9.5" cy="11" r="9" fill="#EB001B" />
-    <circle cx="20.5" cy="11" r="9" fill="#F79E1B" />
-    <path
-      d="M15 3.88A9 9 0 0 1 15 18.12A9 9 0 0 1 15 3.88Z"
-      fill="#FF5F00"
-    />
-  </svg>
-);
 
 /** PayPal — double-P monogram (dark blue back, light blue front). */
 const payPalP =

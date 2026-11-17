@@ -210,11 +210,12 @@ export default function BookingWizard() {
   }, [selectedAddOns, product]);
 
   /**
-   * Pay: create the booking (once) and start the Xendit payment. The browser
-   * is redirected to Xendit's hosted checkout (credit card); the customer
-   * comes back via /payment/return, which polls the payment status.
+   * Pay: create the booking (once) and start the payment for the method the
+   * customer picked in the payment step. The browser is redirected to the
+   * gateway's hosted checkout (Xendit for card/QRIS/VA, PayPal for PAYPAL);
+   * the customer comes back via /payment/return, which polls the status.
    */
-  const handlePay = async () => {
+  const handlePay = async (methodCode = "CREDIT_CARD") => {
     if (!product || !selectedPackage) return;
 
     // Guard against missing/invalid date/time BEFORE constructing the ISO
@@ -298,15 +299,16 @@ export default function BookingWizard() {
       }
     }
 
-    // 2. Start the payment — credit card via the Xendit hosted checkout.
+    // 2. Start the payment — the method picked in the payment step (card,
+    //    QRIS, Virtual Account via Xendit; PAYPAL via PayPal).
     const result = await startBookingPayment({
       bookingCode: booking.code,
       email: contact.email,
-      methodCode: "CREDIT_CARD",
+      methodCode,
     });
     if (result.ok) {
-      // Off to Xendit's checkout — no result step, the return page takes
-      // over after the charge.
+      // Off to the gateway's hosted checkout — no result step, the return
+      // page takes over after the charge.
       window.location.assign(result.checkoutUrl);
       return;
     }

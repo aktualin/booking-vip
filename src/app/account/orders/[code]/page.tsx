@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { getUserSession } from "@/lib/user/session";
@@ -16,8 +17,40 @@ export const metadata: Metadata = {
  * Ownership is proven by the session (see `getMyOrderTracking`). The page
  * shows a compact summary plus the VIP document-handling timeline; for
  * non-VIP orders the timeline renders nothing and the summary stands alone.
+ *
+ * The dynamic part (the session read plus the order lookup) is isolated
+ * behind its own Suspense boundary with `await connection()` — the
+ * cacheComponents pattern used across the app (see the e-VOA tracking page).
  */
-export default async function OrderTrackingPage({
+export default function OrderTrackingPage({
+  params,
+}: {
+  params: Promise<{ code: string }>;
+}) {
+  return (
+    <div className="mx-auto max-w-2xl">
+      <div className="mb-4">
+        <Link
+          href="/account/orders"
+          className="text-[12px] font-medium text-muted transition-colors hover:text-ink"
+        >
+          ← Kembali ke pesanan
+        </Link>
+      </div>
+
+      <Suspense
+        fallback={
+          <p className="px-5 py-10 text-center text-[13px] text-muted">Memuat…</p>
+        }
+      >
+        <TrackingSection params={params} />
+      </Suspense>
+    </div>
+  );
+}
+
+/** The session check and the order lookup — dynamic, streamed in. */
+async function TrackingSection({
   params,
 }: {
   params: Promise<{ code: string }>;
@@ -29,7 +62,7 @@ export default async function OrderTrackingPage({
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-lg rounded-2xl border border-line bg-white p-10 text-center">
+      <div className="rounded-2xl border border-line bg-white p-10 text-center">
         <h1 className="text-[18px] font-bold text-ink">Sesi tidak valid</h1>
         <p className="mt-2 text-[13px] text-muted">
           Silakan masuk kembali untuk melacak pesanan.
@@ -48,7 +81,7 @@ export default async function OrderTrackingPage({
 
   if (!result.found) {
     return (
-      <div className="mx-auto max-w-lg rounded-2xl border border-line bg-white p-10 text-center">
+      <div className="rounded-2xl border border-line bg-white p-10 text-center">
         <h1 className="text-[18px] font-bold text-ink">Pesanan tidak ditemukan</h1>
         <p className="mt-2 text-[13px] text-muted">
           Pesanan ini tidak ada atau bukan milik akun kamu.
@@ -66,16 +99,7 @@ export default async function OrderTrackingPage({
   const booking = result.booking;
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="mb-4">
-        <Link
-          href="/account/orders"
-          className="text-[12px] font-medium text-muted transition-colors hover:text-ink"
-        >
-          ← Kembali ke pesanan
-        </Link>
-      </div>
-
+    <>
       <div className="mb-6 rounded-2xl border border-line bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between border-b border-line pb-4">
           <div>
@@ -111,6 +135,6 @@ export default async function OrderTrackingPage({
       </div>
 
       <VipTracking booking={booking} />
-    </div>
+    </>
   );
 }

@@ -1,24 +1,40 @@
 "use client";
 
 import { useCallback } from "react";
-import { listServiceTypes, reorderCatalog, setCatalogActive } from "@/app/actions/admin";
+import { listServiceTypesPaged, reorderCatalog, setCatalogActive } from "@/app/actions/admin";
 import { deleteAdminEntity } from "@/app/actions/admin-crud";
 import type { AdminServiceTypeRow } from "@/types/admin";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import StatusToggle from "@/components/admin/StatusToggle";
 import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { adminClass } from "@/components/admin/tokens";
-import { useAdminList } from "@/components/admin/useAdminList";
+import { useAdminPagedList } from "@/components/admin/useAdminList";
 
 /** Service type catalog table — sub-categories inside a service line. */
 export default function ServiceTypesManager() {
-  const load = useCallback(() => listServiceTypes(), []);
-  const { rows, loading, error, reload } = useAdminList<AdminServiceTypeRow>(load);
+  const load = useCallback((params: AdminListParams) => listServiceTypesPaged(params), []);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<AdminServiceTypeRow>(load);
 
   const columns = [
     {
       key: "name",
       header: "Tipe",
+      sortable: true,
       render: (row: AdminServiceTypeRow) => (
         <div className="min-w-0">
           <div className="truncate font-medium">{row.name}</div>
@@ -76,6 +92,7 @@ export default function ServiceTypesManager() {
       key: "active",
       header: "Status",
       className: "w-[70px]",
+      sortable: true,
       render: (row: AdminServiceTypeRow) => (
         <StatusToggle
           active={row.active}
@@ -115,6 +132,19 @@ export default function ServiceTypesManager() {
         emptyTitle="Belum ada tipe layanan"
         emptyDescription="Tambahkan sub-kategori di dalam service line."
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari tipe layanan atau slug…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "tipe layanan",
+        }}
       />
     </div>
   );

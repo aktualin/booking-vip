@@ -8,6 +8,7 @@ import {
 import { startBookingPayment } from "@/app/actions/payments";
 import { showToast } from "@/components/ui/toast";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import PayPalPayButton from "@/components/payment/PayPalPayButton";
 import type { EvoaTrackingDTO } from "@/app/actions/evoa-tracking";
 import EvoaApplicantCard from "./EvoaApplicantCard";
 import EvoaRevisionUpload from "./EvoaRevisionUpload";
@@ -62,13 +63,13 @@ export default function EvoaTrackingPanel({
   const showOrderRevision =
     tracking.status === "revision" && !anyApplicantNeedsRevision;
 
-  const handlePay = async () => {
+  const handlePay = async (methodCode = "CREDIT_CARD") => {
     if (paying || !tracking.booking) return;
     setPaying(true);
     const result = await startBookingPayment({
       bookingCode: tracking.booking.code,
       email: tracking.email,
-      methodCode: "CREDIT_CARD",
+      methodCode,
     });
     if (result.ok) {
       // Hosted gateway checkout — a full navigation, not a router push.
@@ -161,6 +162,14 @@ export default function EvoaTrackingPanel({
                 ? pick(lang, "Menyiapkan…", "Preparing…")
                 : pick(lang, "Selesaikan pembayaran", "Complete payment")}
             </button>
+            <PayPalPayButton
+              onPay={() => handlePay("PAYPAL")}
+              busy={paying}
+              disabled={!tracking.booking}
+              label={pick(lang, "Bayar dengan PayPal", "Pay with PayPal")}
+              processingLabel={pick(lang, "Menyiapkan…", "Preparing…")}
+              className="h-10! px-5! text-[13px]!"
+            />
             {tracking.payment?.checkoutUrl ? (
               <a
                 href={tracking.payment.checkoutUrl}

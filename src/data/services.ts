@@ -1,9 +1,6 @@
 // Service navigation + sub-page content.
-// The product is single-service: only Airport VIP Service appears in the
-// navigation, and its entry points straight at the /airport-vip booking
-// tool. The other lines (Transport, Tour Package, eVOA) are hidden from
-// nav/home but their pages keep working — their rail/search/page metadata
-// below is deliberately kept intact for those routes.
+// All four lines appear in the navigation: Airport VIP Service (pointing at
+// the /airport-vip booking tool), Transport, Tour Package, and eVOA.
 
 import type {
   ServiceNavItem,
@@ -17,6 +14,24 @@ export const serviceNav: ServiceNavItem[] = [
     href: "/airport-vip",
     short: "VIP",
     tone: "from-sky-400 to-blue-600",
+  },
+  {
+    label: "Transport",
+    href: "/transport",
+    short: "Car",
+    tone: "from-emerald-400 to-teal-600",
+  },
+  {
+    label: "Tour Package",
+    href: "/tour-package",
+    short: "Tour",
+    tone: "from-amber-300 to-orange-500",
+  },
+  {
+    label: "eVOA",
+    href: "/evoa",
+    short: "Visa",
+    tone: "from-violet-400 to-purple-600",
   },
 ];
 

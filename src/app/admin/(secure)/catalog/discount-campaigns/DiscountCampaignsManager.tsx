@@ -3,12 +3,13 @@
 import { useCallback } from "react";
 import {
   deleteCampaign,
-  listCampaigns,
+  listCampaignsPaged,
   type CampaignRow,
 } from "@/app/actions/promo";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import { adminClass } from "@/components/admin/tokens";
-import { useAdminList } from "@/components/admin/useAdminList";
+import { useAdminPagedList } from "@/components/admin/useAdminList";
 import { useLocale } from "@/components/providers/LocaleProvider";
 
 /**
@@ -19,24 +20,41 @@ import { useLocale } from "@/components/providers/LocaleProvider";
  */
 export default function DiscountCampaignsManager() {
   const { t } = useLocale();
-  const load = useCallback(() => listCampaigns(), []);
-  const { rows, loading, error, reload } = useAdminList<CampaignRow>(load);
+  const load = useCallback((params: AdminListParams) => listCampaignsPaged(params), []);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<CampaignRow>(load);
 
   const columns = [
     {
       key: "name",
       header: t("admin.campaigns.name"),
+      sortable: true,
       render: (row: CampaignRow) => <span className="font-medium">{row.name}</span>,
     },
     {
-      key: "line",
+      key: "lineLabel",
       header: t("admin.campaigns.line"),
+      sortable: true,
       render: (row: CampaignRow) => <span>{row.lineLabel}</span>,
     },
     {
-      key: "members",
+      key: "memberCount",
       header: t("admin.campaigns.memberCount"),
       className: "text-right",
+      sortable: true,
       render: (row: CampaignRow) => (
         <span className="tabular-nums text-[var(--admin-muted)]">{row.memberCount}</span>
       ),
@@ -45,6 +63,7 @@ export default function DiscountCampaignsManager() {
       key: "percent",
       header: t("admin.campaigns.percent"),
       className: "text-right",
+      sortable: true,
       render: (row: CampaignRow) => (
         <span className="tabular-nums font-medium">{row.percent}%</span>
       ),
@@ -53,6 +72,7 @@ export default function DiscountCampaignsManager() {
       key: "active",
       header: t("admin.campaigns.status"),
       className: "text-right",
+      sortable: true,
       render: (row: CampaignRow) => (
         <span className={`${adminClass.pill} ${row.active ? adminClass.pillOn : adminClass.pillOff}`}>
           {row.active ? t("admin.campaigns.on") : t("admin.campaigns.off")}
@@ -87,6 +107,19 @@ export default function DiscountCampaignsManager() {
         emptyTitle={t("admin.campaigns.emptyTitle")}
         emptyDescription={t("admin.campaigns.emptyDescription")}
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari kampanye…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "kampanye",
+        }}
       />
     </div>
   );

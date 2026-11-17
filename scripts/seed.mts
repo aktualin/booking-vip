@@ -1145,10 +1145,10 @@ async function seedLoyaltyLevels() {
 }
 
 // ---------- Payment methods ----------
-// The methods the customer can pick on the payment page. The gateway is
-// Xendit: Credit Card, QRIS and Virtual Account (BANK_TRANSFER) are active
-// hosted-checkout channels. The remaining channels are kept as inactive
-// rows — historical payments still reference them — but cannot be started.
+// The methods the customer can pick on the payment page: Credit Card
+// (Xendit hosted checkout) and PayPal only. Every other channel — VA
+// (BANK_TRANSFER), QRIS, e-wallet, … — is kept as an inactive row so
+// historical payments still resolve, but none of them can be started.
 const paymentMethods: {
   code: string;
   label: string;
@@ -1163,7 +1163,7 @@ const paymentMethods: {
     provider: "xendit",
     providerMethodCode: "VIRTUAL_ACCOUNT",
     sortOrder: 10,
-    active: true,
+    active: false,
   },
   {
     code: "CREDIT_CARD",
@@ -1196,7 +1196,7 @@ const paymentMethods: {
     provider: "xendit",
     providerMethodCode: "QRIS",
     sortOrder: 40,
-    active: true,
+    active: false,
   },
   {
     code: "DIRECT_DEBIT",

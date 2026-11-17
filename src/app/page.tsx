@@ -114,13 +114,13 @@ async function HomeBody() {
       ? seoTabsOf(content.seoLinks, "services")
       : staticServiceSeoTabs;
 
-  // Banners are positional: [fast track, eVOA (hidden), corporate].
+  // Banners are positional: [fast track, eVOA (not rendered), corporate].
   const [fastTrackBanner, , corporateBanner] = banners;
 
-  // Promos are scoped to a service line, but the home is single-service now:
-  // only the visible line gets a tab. The nav entry points at the booking
-  // tool (/airport-vip) while its DB line slug stays `vip-service` — the
-  // same alias HeroSearch and BookingPanel use.
+  // Promos are scoped to a service line: only lines reachable from the nav
+  // get a tab. The VIP nav entry points at the booking tool (/airport-vip)
+  // while its DB line slug stays `vip-service` — the same alias HeroSearch
+  // and BookingPanel use.
   const navSlugs = new Set(serviceNav.map((s) => s.href.replace(/^\//, "")));
   const visibleLines = (content?.lines ?? []).filter(
     (l) =>
@@ -142,7 +142,7 @@ async function HomeBody() {
         </SectionBand>
       ) : null}
 
-      {/* Airport VIP Service — the single featured service */}
+      {/* Airport VIP Service — the featured service */}
       <SectionBand
         eyebrow="Airport VIP Service ✈️"
         title="Breeze through the airport"

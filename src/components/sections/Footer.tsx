@@ -8,7 +8,7 @@ import { serviceNav } from "@/data/services";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { SERVICE_LABEL_KEYS } from "@/lib/serviceLabels";
 import type { DictKey } from "@/i18n";
-import { VisaLogo, MastercardLogo, PayPalLogo } from "@/components/icons";
+import { PaymentBrandIcon } from "@/components/icons";
 
 /** Label → route, so the Services column links to the service sub-pages. */
 const serviceRoutes = Object.fromEntries(
@@ -63,9 +63,8 @@ export default function Footer() {
           </div>
 
           {Object.entries(footerColumns).map(([heading, items]) => {
-            // Single-service pivot: the Services column only lists lines
-            // that are still navigable (serviceNav → /airport-vip). The
-            // hidden lines keep their pages but are not linked from here.
+            // The Services column only lists lines that are navigable
+            // (present in serviceNav); anything else is dropped.
             const visibleItems =
               heading === "Services"
                 ? items.filter((i) => serviceRoutes[i])
@@ -106,18 +105,13 @@ export default function Footer() {
             </h3>
             <div className="flex flex-wrap gap-2">
               {(
-                [
-                  ["Visa", VisaLogo],
-                  ["Mastercard", MastercardLogo],
-                  ["PayPal", PayPalLogo],
-                ] as const
-              ).map(([label, LogoMark]) => (
+                ["visa", "mastercard", "jcb", "amex", "paypal"] as const
+              ).map((brand) => (
                 <span
-                  key={label}
-                  aria-label={label}
+                  key={brand}
                   className="inline-flex h-8 items-center rounded-md bg-white px-2"
                 >
-                  <LogoMark aria-hidden="true" />
+                  <PaymentBrandIcon brand={brand} height={18} />
                 </span>
               ))}
             </div>

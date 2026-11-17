@@ -1,22 +1,38 @@
 "use client";
 
 import { useCallback } from "react";
-import { listAmenities } from "@/app/actions/admin";
+import { listAmenitiesPaged } from "@/app/actions/admin";
 import { deleteAdminEntity } from "@/app/actions/admin-crud";
 import type { AdminAmenityRow } from "@/types/admin";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import { adminClass } from "@/components/admin/tokens";
-import { useAdminList } from "@/components/admin/useAdminList";
+import { useAdminPagedList } from "@/components/admin/useAdminList";
 
 /** Amenity table — the shared feature list attached to products. */
 export default function AmenitiesManager() {
-  const load = useCallback(() => listAmenities(), []);
-  const { rows, loading, error, reload } = useAdminList<AdminAmenityRow>(load);
+  const load = useCallback((params: AdminListParams) => listAmenitiesPaged(params), []);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<AdminAmenityRow>(load);
 
   const columns = [
     {
       key: "label",
       header: "Amenity",
+      sortable: true,
       render: (row: AdminAmenityRow) => <span className="font-medium">{row.label}</span>,
     },
     {
@@ -56,6 +72,19 @@ export default function AmenitiesManager() {
         emptyTitle="Belum ada amenity"
         emptyDescription="Tambahkan fitur yang bisa dipilih produk."
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari amenity…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "amenity",
+        }}
       />
     </div>
   );

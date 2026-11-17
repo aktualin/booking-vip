@@ -10,13 +10,12 @@ import {
 import type { AdminBookingStatus, AdminTransactionStats } from "@/types/admin";
 import type { AdminBookingRowFull } from "@/types/admin-bookings";
 import { ADMIN_BOOKING_LINES } from "@/types/admin-bookings";
-import DataTable, { type Column } from "@/components/admin/DataTable";
+import { ADMIN_PAGE_SIZES, type AdminSortDir } from "@/types/admin-pagination";
+import DataTable, { type Column, type TableSort } from "@/components/admin/DataTable";
 import { adminClass } from "@/components/admin/tokens";
 import { showAdminToast } from "@/components/admin/toast";
 import { useAdminValue } from "@/components/admin/useAdminList";
 import { usd } from "@/lib/format";
-
-const PAGE_SIZE = 20;
 
 const STATUS_LABELS: Record<AdminBookingStatus, string> = {
   awaiting_payment: "Menunggu Pembayaran",
@@ -70,6 +69,8 @@ export default function BookingsManager() {
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSizeState] = useState(5);
+  const [sort, setSort] = useState<TableSort | null>(null);
   const [exporting, setExporting] = useState(false);
 
   const filters = {
@@ -78,10 +79,31 @@ export default function BookingsManager() {
     query: query || undefined,
   };
 
+  const setPageSize = (next: number) => {
+    setPageSizeState(next);
+    setPage(1);
+  };
+
+  const toggleSort = (key: string) => {
+    setSort((prev) =>
+      prev && prev.key === key
+        ? { key, dir: (prev.dir === "asc" ? "desc" : "asc") as AdminSortDir }
+        : { key, dir: "asc" },
+    );
+    setPage(1);
+  };
+
   const loadList = useCallback(
-    () => listAdminBookings({ ...filters, page, pageSize: PAGE_SIZE }),
+    () =>
+      listAdminBookings({
+        ...filters,
+        page,
+        pageSize,
+        sortBy: sort?.key,
+        sortDir: sort?.dir,
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lineSlug, status, query, page],
+    [lineSlug, status, query, page, pageSize, sort],
   );
   const { data: list, loading, error, reload } = useAdminValue(loadList);
 
@@ -124,6 +146,7 @@ export default function BookingsManager() {
     {
       key: "code",
       header: "Kode",
+      sortable: true,
       render: (row) => (
         <Link
           href={`/admin/bookings/${row.id}`}
@@ -136,6 +159,7 @@ export default function BookingsManager() {
     {
       key: "serviceAt",
       header: "Tanggal Layanan",
+      sortable: true,
       render: (row) => <span className="tabular-nums">{serviceAtLabel(row.serviceAt)}</span>,
     },
     {
@@ -182,9 +206,10 @@ export default function BookingsManager() {
       ),
     },
     {
-      key: "total",
+      key: "totalUsdCents",
       header: "Total",
       className: "text-right",
+      sortable: true,
       render: (row) => <span className="tabular-nums font-medium">{usd(row.totalUsdCents / 100)}</span>,
     },
     {
@@ -202,6 +227,7 @@ export default function BookingsManager() {
     {
       key: "status",
       header: "Status",
+      sortable: true,
       render: (row) => <BookingStatusBadge status={row.status} />,
     },
     {
@@ -215,9 +241,9 @@ export default function BookingsManager() {
 
   const total = list?.total ?? 0;
   const rows = list?.rows ?? [];
-  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const to = Math.min(page * PAGE_SIZE, total);
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const statChips: { key: AdminBookingStatus | "all"; label: string; value: number }[] = [
     { key: "all", label: "Semua", value: stats?.total ?? 0 },
@@ -343,6 +369,9 @@ export default function BookingsManager() {
             getKey={(row) => row.id}
             emptyTitle="Belum ada booking"
             emptyDescription="Booking yang masuk dari semua layanan akan tampil di sini."
+            sort={sort}
+            onSortToggle={toggleSort}
+            loading={loading}
           />
         )}
       </div>
@@ -353,6 +382,21 @@ export default function BookingsManager() {
           {total === 0 ? "0 booking" : `${from}–${to} dari ${total} booking`}
         </span>
         <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5">
+            <span className="text-[11px]">Baris</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              aria-label="Jumlah baris per halaman"
+              className="h-8 rounded-lg border border-[var(--admin-line)] bg-white px-1.5 text-[12px] text-[var(--admin-ink)] outline-none focus:border-[var(--admin-ink)]"
+            >
+              {ADMIN_PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             className={adminClass.buttonSecondary}

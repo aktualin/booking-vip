@@ -3,6 +3,8 @@
 import { db } from "@/prisma/db";
 import { getAdminSession } from "@/lib/admin/session";
 import { getDepartureReservedSeats, listTourDepartures } from "@/lib/tour";
+import { fieldOrder, ilikeAny, paginateList, resolvePaging } from "@/lib/admin/paging";
+import type { AdminListParams, AdminPaged } from "@/types/admin-pagination";
 import type {
   AdminDepartureRow,
   AdminDriverRow,
@@ -131,6 +133,48 @@ export async function listAdminDrivers(): Promise<AdminDriverRow[]> {
   return rows.map((r) => ({ ...r }));
 }
 
+const DRIVER_SORT_KEYS = ["name", "phone", "languages", "sortOrder", "active"] as const;
+const DRIVER_SEARCH_FIELDS = ["name", "phone", "languages", "notes"] as const;
+
+/** One page of drivers — search + sortable columns for the roster table. */
+export async function listAdminDriversPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminDriverRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, DRIVER_SORT_KEYS);
+  const where = paging.search ? ilikeAny(DRIVER_SEARCH_FIELDS, paging.search) : null;
+
+  let query = db.orm.public.Driver.select(
+    "id",
+    "name",
+    "phone",
+    "languages",
+    "photoUrl",
+    "notes",
+    "active",
+    "sortOrder",
+  );
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.sortOrder.asc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.name.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.Driver
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  return {
+    rows: rows.map((r) => ({ ...r })),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Roster — vehicles
 // ---------------------------------------------------------------------------
@@ -208,6 +252,48 @@ export async function listAdminVehicles(): Promise<AdminVehicleRow[]> {
     .orderBy((f) => f.name.asc())
     .all();
   return rows.map((r) => ({ ...r }));
+}
+
+const VEHICLE_SORT_KEYS = ["name", "plateNumber", "seats", "sortOrder", "active"] as const;
+const VEHICLE_SEARCH_FIELDS = ["name", "plateNumber", "notes"] as const;
+
+/** One page of vehicles — search + sortable columns for the roster table. */
+export async function listAdminVehiclesPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminVehicleRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, VEHICLE_SORT_KEYS);
+  const where = paging.search ? ilikeAny(VEHICLE_SEARCH_FIELDS, paging.search) : null;
+
+  let query = db.orm.public.Vehicle.select(
+    "id",
+    "name",
+    "plateNumber",
+    "seats",
+    "photoUrl",
+    "notes",
+    "active",
+    "sortOrder",
+  );
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.sortOrder.asc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.name.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.Vehicle
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  return {
+    rows: rows.map((r) => ({ ...r })),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -369,6 +455,58 @@ export async function listAdminDepartures(
         a.startTime.localeCompare(b.startTime) ||
         a.productTitle.localeCompare(b.productTitle),
     );
+}
+
+const DEPARTURE_SORT_KEYS = [
+  "date",
+  "startTime",
+  "productTitle",
+  "status",
+  "quota",
+  "reserved",
+  "available",
+] as const;
+
+/**
+ * One page of departures — the schedule is assembled in memory (per-product
+ * seat availability), so search / sort / slice run through `paginateList`.
+ */
+export async function listAdminDeparturesPaged(
+  params?: AdminListParams & { productId?: string },
+): Promise<AdminPaged<AdminDepartureRow>> {
+  await assertAdmin();
+
+  const rows = await listAdminDepartures(params?.productId);
+
+  return paginateList(rows, params, {
+    allowedSortKeys: DEPARTURE_SORT_KEYS,
+    searchOf: (row) =>
+      [row.productTitle, row.date, row.startTime, row.status, row.notes ?? ""].join(" "),
+    sortValueOf: (row, key) => {
+      switch (key) {
+        case "date":
+          return row.date;
+        case "startTime":
+          return row.startTime;
+        case "productTitle":
+          return row.productTitle;
+        case "status":
+          return row.status;
+        case "quota":
+          return row.quota;
+        case "reserved":
+          return row.reserved;
+        case "available":
+          return row.available;
+        default:
+          return null;
+      }
+    },
+    defaultCompare: (a, b) =>
+      a.date.localeCompare(b.date) ||
+      a.startTime.localeCompare(b.startTime) ||
+      a.productTitle.localeCompare(b.productTitle),
+  });
 }
 
 /** Open / close / cancel a departure without touching its other fields. */

@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { listPlaces, setCatalogActive } from "@/app/actions/admin";
+import { listPlacesPaged, setCatalogActive } from "@/app/actions/admin";
 import { deleteAdminEntity } from "@/app/actions/admin-crud";
 import type { AdminPlaceRow } from "@/types/admin";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import StatusToggle from "@/components/admin/StatusToggle";
 import { adminClass } from "@/components/admin/tokens";
-import { useAdminList } from "@/components/admin/useAdminList";
+import { useAdminPagedList } from "@/components/admin/useAdminList";
 import { buildPlaceTree, flattenPlaceTree, placeKindLabel } from "@/lib/places";
 
 /**
@@ -17,10 +18,29 @@ import { buildPlaceTree, flattenPlaceTree, placeKindLabel } from "@/lib/places";
  * parents the airports below it). The table renders that hierarchy indented,
  * and the create/edit page lets the operator pick a parent and the order
  * inside the group — which is exactly what the grouped dropdowns use.
+ *
+ * Rows arrive one page at a time; a place whose parent is on another page is
+ * rendered as a root of the current page (`buildPlaceTree` treats unknown
+ * parents as roots), and the Parent column still shows its name because the
+ * server resolves parent names across pages.
  */
 export default function PlacesManager() {
-  const load = useCallback(() => listPlaces(), []);
-  const { rows, loading, error, reload } = useAdminList<AdminPlaceRow>(load);
+  const load = useCallback((params: AdminListParams) => listPlacesPaged(params), []);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<AdminPlaceRow>(load);
 
   /**
    * The rows ordered as a tree (parents before their children), with the
@@ -44,6 +64,7 @@ export default function PlacesManager() {
     {
       key: "name",
       header: "Place",
+      sortable: true,
       render: (row: AdminPlaceRow) => {
         const depth = depthById.get(row.id) ?? 0;
         return (
@@ -67,6 +88,7 @@ export default function PlacesManager() {
     {
       key: "kind",
       header: "Jenis",
+      sortable: true,
       render: (row: AdminPlaceRow) => (
         <span className="text-[12px] text-[var(--admin-muted)]">
           {placeKindLabel(row.kind)}
@@ -83,9 +105,10 @@ export default function PlacesManager() {
       ),
     },
     {
-      key: "order",
+      key: "sortOrder",
       header: "Urutan",
       className: "text-right",
+      sortable: true,
       render: (row: AdminPlaceRow) => (
         <span className="tabular-nums text-[12px] text-[var(--admin-muted)]">
           {row.sortOrder}
@@ -93,8 +116,9 @@ export default function PlacesManager() {
       ),
     },
     {
-      key: "iata",
+      key: "iataCode",
       header: "IATA",
+      sortable: true,
       render: (row: AdminPlaceRow) => (
         <span className="tabular-nums text-[12px]">{row.iataCode ?? "—"}</span>
       ),
@@ -111,6 +135,7 @@ export default function PlacesManager() {
       key: "active",
       header: "Status",
       className: "w-[70px]",
+      sortable: true,
       render: (row: AdminPlaceRow) => (
         <StatusToggle
           active={row.active}
@@ -150,6 +175,19 @@ export default function PlacesManager() {
         emptyTitle="Belum ada place"
         emptyDescription="Tambahkan airport atau kota yang dipakai produk."
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari place, IATA, kota…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "place",
+        }}
       />
     </div>
   );

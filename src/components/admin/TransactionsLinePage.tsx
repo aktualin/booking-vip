@@ -25,7 +25,7 @@ export default async function TransactionsLinePage({
 
   const [stats, list] = await Promise.all([
     getAdminTransactionStats(lineSlug),
-    listAdminBookings({ lineSlug, page: 1, pageSize: 20 }),
+    listAdminBookings({ lineSlug, page: 1, pageSize: 5 }),
   ]);
 
   return (

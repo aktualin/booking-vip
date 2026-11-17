@@ -1,24 +1,40 @@
 "use client";
 
 import { useCallback } from "react";
-import { listServiceLines, reorderCatalog, setCatalogActive } from "@/app/actions/admin";
+import { listServiceLinesPaged, reorderCatalog, setCatalogActive } from "@/app/actions/admin";
 import { deleteAdminEntity } from "@/app/actions/admin-crud";
 import type { AdminServiceLineRow } from "@/types/admin";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import StatusToggle from "@/components/admin/StatusToggle";
 import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { adminClass } from "@/components/admin/tokens";
-import { useAdminList } from "@/components/admin/useAdminList";
+import { useAdminPagedList } from "@/components/admin/useAdminList";
 
 /** Service line table — the four top-level service menus. */
 export default function ServiceLinesManager() {
-  const load = useCallback(() => listServiceLines(), []);
-  const { rows, loading, error, reload } = useAdminList<AdminServiceLineRow>(load);
+  const load = useCallback((params: AdminListParams) => listServiceLinesPaged(params), []);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<AdminServiceLineRow>(load);
 
   const columns = [
     {
       key: "label",
       header: "Service Line",
+      sortable: true,
       render: (row: AdminServiceLineRow) => (
         <div className="min-w-0">
           <div className="truncate font-medium">{row.label}</div>
@@ -29,6 +45,7 @@ export default function ServiceLinesManager() {
     {
       key: "short",
       header: "Short",
+      sortable: true,
       render: (row: AdminServiceLineRow) => (
         <span className="tabular-nums text-[12px] text-[var(--admin-muted)]">{row.short}</span>
       ),
@@ -76,6 +93,7 @@ export default function ServiceLinesManager() {
       key: "active",
       header: "Status",
       className: "w-[70px]",
+      sortable: true,
       render: (row: AdminServiceLineRow) => (
         <StatusToggle
           active={row.active}
@@ -115,6 +133,19 @@ export default function ServiceLinesManager() {
         emptyTitle="Belum ada service line"
         emptyDescription="Tambahkan menu layanan tingkat atas."
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari service line…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "service line",
+        }}
       />
     </div>
   );

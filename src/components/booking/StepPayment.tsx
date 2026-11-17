@@ -1,9 +1,10 @@
 "use client";
 
 // The wizard's PAYMENT step — everything payment happens here (per the
-// product decision): promo/voucher and the payment method. One "Bayar"
-// button creates the booking (once) and starts the Xendit payment; the card
-// form lives on Xendit's hosted checkout page.
+// product decision): promo/voucher and the payment method. "Bayar Sekarang"
+// creates the booking (once) and starts the payment for the SELECTED method.
+// The card form / PayPal approval all live on the gateway's hosted checkout
+// page.
 
 import { useEffect, useState } from "react";
 import { getPaymentMethods } from "@/app/actions/catalog";
@@ -24,10 +25,10 @@ export type AppliedPromo = {
 
 type Props = {
   /**
-   * Pay: the wizard creates the booking (once) and starts the Xendit
-   * payment (credit card via the hosted checkout).
+   * Pay: the wizard creates the booking (once) and starts the payment for
+   * the given method code via its gateway's hosted checkout.
    */
-  onSubmit: () => void;
+  onSubmit: (methodCode: string) => void;
   onBack: () => void;
   isSubmitting: boolean;
   error: string | null;
@@ -121,8 +122,9 @@ export default function StepPayment({
 
   const pay = () => {
     if (!selected || isSubmitting) return;
-    onSubmit();
+    onSubmit(selected);
   };
+
 
   // Points this booking will earn once paid (1 point per whole dollar of
   // the discounted total — the same rule the server applies).
@@ -269,7 +271,7 @@ export default function StepPayment({
         ) : null}
       </div>
 
-      <div className="mt-8 flex justify-between">
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={onBack}
           disabled={isSubmitting}

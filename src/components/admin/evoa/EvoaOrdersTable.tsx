@@ -11,6 +11,7 @@ import {
   EVOA_LEGACY_STATUSES,
   EVOA_ORDER_STATUSES,
 } from "@/lib/evoa-shared";
+import { ADMIN_PAGE_SIZES, type AdminSortDir } from "@/types/admin-pagination";
 import { StatusBadge, fmtDate, fmtUsd, statusLabel } from "./EvoaOrderShared";
 
 /**
@@ -18,14 +19,28 @@ import { StatusBadge, fmtDate, fmtUsd, statusLabel } from "./EvoaOrderShared";
  *
  * Rows are pulled through the `listEvoaOrders` server action (the admin
  * convention: the page shell stays static, the client fetches). Sorted by
- * arrival date — the nearest arrival is the most urgent, and arrivals within
- * three days are highlighted.
+ * arrival date by default — the nearest arrival is the most urgent, and
+ * arrivals within three days are highlighted — with clickable headers for
+ * any other column and a 5/10/20/50 page-size selector.
  */
 
 const STATUS_OPTIONS: string[] = [...EVOA_ORDER_STATUSES, ...EVOA_LEGACY_STATUSES];
 
 const FIELD_CLASS =
   "h-10 rounded-xl border border-line bg-white px-3 text-[13px] text-ink outline-none transition-colors focus:border-brand";
+
+/** Header label → the sort key the server accepts (null = not sortable). */
+const HEADINGS: { label: string; sortKey: string | null }[] = [
+  { label: "Kode", sortKey: "code" },
+  { label: "Pemesan", sortKey: "contactName" },
+  { label: "Pemohon", sortKey: null },
+  { label: "Kedatangan", sortKey: "arrivalDate" },
+  { label: "Status", sortKey: "status" },
+  { label: "Total", sortKey: "totalUsdCents" },
+  { label: "Dibuat", sortKey: "createdAt" },
+];
+
+type EvoaSort = { key: string; dir: AdminSortDir };
 
 export default function EvoaOrdersTable() {
   const router = useRouter();
@@ -34,6 +49,8 @@ export default function EvoaOrdersTable() {
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSizeState] = useState(5);
+  const [sort, setSort] = useState<EvoaSort | null>(null);
   const [nonce, setNonce] = useState(0);
 
   const [data, setData] = useState<EvoaOrderListResult | null>(null);
@@ -49,6 +66,9 @@ export default function EvoaOrdersTable() {
       status: status || undefined,
       q: q || undefined,
       page,
+      pageSize,
+      sortBy: sort?.key,
+      sortDir: sort?.dir,
     })
       .then((result) => {
         if (!cancelled) setData(result);
@@ -64,7 +84,7 @@ export default function EvoaOrdersTable() {
     return () => {
       cancelled = true;
     };
-  }, [status, q, page, nonce]);
+  }, [status, q, page, pageSize, sort, nonce]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
@@ -72,6 +92,33 @@ export default function EvoaOrdersTable() {
     event.preventDefault();
     setPage(1);
     setQ(qInput.trim());
+  };
+
+  const setPageSize = (next: number) => {
+    setPageSizeState(next);
+    setPage(1);
+  };
+
+  const toggleSort = (key: string) => {
+    setSort((prev) =>
+      prev && prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" },
+    );
+    setPage(1);
+  };
+
+  const sortIndicator = (key: string | null) => {
+    if (!key) return null;
+    if (!sort || sort.key !== key) {
+      return (
+        <span className="ml-1 inline-flex flex-col text-[7px] leading-[0.6] text-line">
+          <span>▲</span>
+          <span>▼</span>
+        </span>
+      );
+    }
+    return <span className="ml-1 text-[9px]">{sort.dir === "asc" ? "▲" : "▼"}</span>;
   };
 
   return (
@@ -140,16 +187,35 @@ export default function EvoaOrdersTable() {
         <table className="w-full min-w-[820px] border-collapse text-left">
           <thead>
             <tr className="border-b border-line">
-              {["Kode", "Pemesan", "Pemohon", "Kedatangan", "Status", "Total", "Dibuat"].map(
-                (heading) => (
-                  <th
-                    key={heading}
-                    className="px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.06em] text-muted"
-                  >
-                    {heading}
-                  </th>
-                ),
-              )}
+              {HEADINGS.map((heading) => (
+                <th
+                  key={heading.label}
+                  className="px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.06em] text-muted"
+                  aria-sort={
+                    heading.sortKey && sort?.key === heading.sortKey
+                      ? sort.dir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                >
+                  {heading.sortKey ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(heading.sortKey!)}
+                      className={`inline-flex items-center uppercase tracking-[0.06em] transition-colors hover:text-ink ${
+                        sort?.key === heading.sortKey ? "text-ink" : ""
+                      }`}
+                      title={`Urutkan berdasarkan ${heading.label}`}
+                    >
+                      {heading.label}
+                      {sortIndicator(heading.sortKey)}
+                    </button>
+                  ) : (
+                    heading.label
+                  )}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -224,10 +290,25 @@ export default function EvoaOrdersTable() {
       {/* Pagination */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[12px] text-muted">
-          {data ? `${data.total} pengajuan` : "…"} · Halaman {data?.page ?? page} dari{" "}
-          {totalPages}
+          {data ? `${data.total} pengajuan` : "…"} · Halaman {Math.min(data?.page ?? page, totalPages)}{" "}
+          dari {totalPages}
         </p>
         <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-[12px] text-muted">
+            <span className="text-[11px]">Baris</span>
+            <select
+              value={pageSize}
+              onChange={(event) => setPageSize(Number(event.target.value))}
+              aria-label="Jumlah baris per halaman"
+              className="h-9 rounded-xl border border-line bg-white px-1.5 text-[12px] text-ink outline-none transition-colors focus:border-brand"
+            >
+              {ADMIN_PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             disabled={loading || page <= 1}

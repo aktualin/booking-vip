@@ -3,15 +3,16 @@
 import { useCallback, useState } from "react";
 import {
   getTourAdminReferenceData,
-  listAdminDepartures,
+  listAdminDeparturesPaged,
   setDepartureStatus,
 } from "@/app/actions/admin-tour";
 import { deleteAdminEntity } from "@/app/actions/admin-crud";
 import type { AdminDepartureRow } from "@/types/admin";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import { adminClass } from "@/components/admin/tokens";
 import { showAdminToast } from "@/components/admin/toast";
-import { useAdminList, useAdminValue } from "@/components/admin/useAdminList";
+import { useAdminPagedList, useAdminValue } from "@/components/admin/useAdminList";
 import { formatDateLabel } from "@/lib/format";
 
 const STATUS_OPTIONS = [
@@ -34,10 +35,25 @@ export default function DeparturesManager() {
   const { data: reference } = useAdminValue(loadReference);
 
   const load = useCallback(
-    () => listAdminDepartures(productFilter || undefined),
+    (params: AdminListParams) =>
+      listAdminDeparturesPaged({ ...params, productId: productFilter || undefined }),
     [productFilter],
   );
-  const { rows, loading, error, reload } = useAdminList<AdminDepartureRow>(load);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<AdminDepartureRow>(load);
 
   const changeStatus = async (row: AdminDepartureRow, status: string) => {
     const result = await setDepartureStatus({ id: row.id, status });
@@ -53,6 +69,7 @@ export default function DeparturesManager() {
     {
       key: "date",
       header: "Tanggal",
+      sortable: true,
       render: (row: AdminDepartureRow) => (
         <span className="tabular-nums font-medium">{formatDateLabel(row.date.slice(0, 10))}</span>
       ),
@@ -60,19 +77,22 @@ export default function DeparturesManager() {
     {
       key: "startTime",
       header: "Jam",
+      sortable: true,
       render: (row: AdminDepartureRow) => (
         <span className="tabular-nums text-[var(--admin-muted)]">{row.startTime}</span>
       ),
     },
     {
-      key: "product",
+      key: "productTitle",
       header: "Produk Tour",
+      sortable: true,
       render: (row: AdminDepartureRow) => <span>{row.productTitle}</span>,
     },
     {
       key: "quota",
       header: "Kuota",
       className: "text-right",
+      sortable: true,
       render: (row: AdminDepartureRow) => (
         <span className="tabular-nums text-[var(--admin-muted)]">{row.quota}</span>
       ),
@@ -81,6 +101,7 @@ export default function DeparturesManager() {
       key: "reserved",
       header: "Terisi",
       className: "text-right",
+      sortable: true,
       render: (row: AdminDepartureRow) => (
         <span className="tabular-nums">{row.reserved}</span>
       ),
@@ -89,6 +110,7 @@ export default function DeparturesManager() {
       key: "available",
       header: "Sisa",
       className: "text-right",
+      sortable: true,
       render: (row: AdminDepartureRow) =>
         row.available <= 0 ? (
           <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">
@@ -102,6 +124,7 @@ export default function DeparturesManager() {
       key: "status",
       header: "Status",
       className: "w-[130px]",
+      sortable: true,
       render: (row: AdminDepartureRow) => (
         <select
           value={row.status}
@@ -157,11 +180,27 @@ export default function DeparturesManager() {
         emptyTitle="Belum ada jadwal keberangkatan"
         emptyDescription="Tambahkan jadwal join-in untuk produk tour agar bisa dipesan per tanggal."
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari jadwal, produk, status…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "jadwal",
+        }}
         headerExtra={
           <select
             className={`${adminClass.input} w-auto min-w-[220px]`}
             value={productFilter}
-            onChange={(e) => setProductFilter(e.target.value)}
+            onChange={(e) => {
+              setProductFilter(e.target.value);
+              setPage(1);
+            }}
             aria-label="Filter produk tour"
           >
             <option value="">Semua produk tour</option>

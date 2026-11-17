@@ -19,8 +19,8 @@ const PLACEHOLDER_KEYS: DictKey[] = [
 ];
 
 /**
- * Primary navigation bar: the search field plus the single service menu
- * (Airport VIP Service → the /airport-vip booking tool) and My Booking.
+ * Primary navigation bar: the search field plus the service menu
+ * (Airport VIP Service, Transport, Tour Package, eVOA) and My Booking.
  * Rendered on every page — over the hero on the home page (`overlay`),
  * on a solid white bar on the service sub-pages (`solid`).
  */
@@ -88,7 +88,7 @@ export default function NavBar({
           />
         </form>
 
-        {/* Service menu — the single Airport VIP Service entry */}
+        {/* Service menu */}
         <ul className="no-scrollbar hidden items-center gap-1 lg:ml-auto lg:flex lg:gap-2">
           {serviceNav.map((s) => {
             const active =

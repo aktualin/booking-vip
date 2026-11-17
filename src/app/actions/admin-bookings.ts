@@ -12,6 +12,7 @@ import {
   listTourDepartures,
 } from "@/lib/tour";
 import { computeRefund, getCancellationPolicy } from "@/lib/cancellation";
+import { fieldOrder } from "@/lib/admin/paging";
 import type {
   AdminBookingDetail,
   AdminBookingListResult,
@@ -62,8 +63,20 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 5;
 const MAX_PAGE_SIZE = 100;
+
+/** Direct Booking columns the transaction table may sort by. */
+const BOOKING_SORT_KEYS = [
+  "code",
+  "status",
+  "serviceAt",
+  "createdAt",
+  "totalUsdCents",
+  "adultCount",
+  "childCount",
+  "infantCount",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Line scope resolution
@@ -171,6 +184,8 @@ export async function listAdminBookings(input: {
   query?: string;
   page?: number;
   pageSize?: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }): Promise<{ rows: AdminBookingRowFull[]; total: number; page: number; pageSize: number }> {
   await assertAdmin();
 
@@ -186,6 +201,13 @@ export async function listAdminBookings(input: {
     throw new Error("Status booking tidak valid.");
   }
 
+  // Unknown sort keys are ignored — the list falls back to newest first.
+  const sortBy =
+    input.sortBy && (BOOKING_SORT_KEYS as readonly string[]).includes(input.sortBy)
+      ? input.sortBy
+      : null;
+  const sortDir = input.sortDir === "asc" ? "asc" : "desc";
+
   const productIds = input.lineSlug ? await lineProductIds(input.lineSlug) : null;
   const query = input.query?.trim() ? input.query.trim() : null;
   const scope: BookingScope = {
@@ -200,6 +222,11 @@ export async function listAdminBookings(input: {
   }
 
   const where = bookingPredicate(scope);
+
+  // Column sort when requested (allowlisted above), newest-first otherwise.
+  const orderClauses = sortBy
+    ? [fieldOrder(sortBy, sortDir), fieldOrder("id", "desc")]
+    : [(b: BookingAccessor) => b.createdAt.desc(), (b: BookingAccessor) => b.id.desc()];
 
   const [rows, count] = await Promise.all([
     db.orm.public.Booking
@@ -234,7 +261,7 @@ export async function listAdminBookings(input: {
         p.select("status").orderBy((x) => x.createdAt.desc()).limit(1),
       )
       .include("driver", (d) => d.select("name"))
-      .orderBy([(b) => b.createdAt.desc(), (b) => b.id.desc()])
+      .orderBy(orderClauses as never)
       .limit(pageSize)
       .offset((page - 1) * pageSize)
       .all(),

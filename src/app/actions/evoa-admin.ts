@@ -159,7 +159,19 @@ const APPLICANT_NOT_FOUND = "Pemohon tidak ditemukan.";
 const DOCUMENT_NOT_FOUND = "Dokumen tidak ditemukan.";
 const NOTE_REQUIRED = "Catatan wajib diisi.";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
+const MAX_PAGE_SIZE = 100;
+
+/** Columns of the eVOA order table the admin UI may sort by. */
+const EVOA_SORT_KEYS = [
+  "code",
+  "contactName",
+  "email",
+  "arrivalDate",
+  "status",
+  "totalUsdCents",
+  "createdAt",
+] as const;
 
 /** Order states from which ops may still ask the customer for fixes.
  * Legacy statuses are included so old rows stay operable. */
@@ -242,10 +254,19 @@ async function addEvent(
  * widened with the matching order ids).
  */
 export async function listEvoaOrders(
-  input: { status?: string; q?: string; page?: number } = {},
+  input: {
+    status?: string;
+    q?: string;
+    page?: number;
+    pageSize?: number;
+    sortBy?: string;
+    sortDir?: "asc" | "desc";
+  } = {},
 ): Promise<EvoaOrderListResult> {
   const page = Math.max(1, Math.floor(input.page ?? 1) || 1);
-  const empty: EvoaOrderListResult = { rows: [], total: 0, page, pageSize: PAGE_SIZE };
+  const pageSizeRaw = Math.floor(input.pageSize ?? PAGE_SIZE) || PAGE_SIZE;
+  const pageSize = Math.min(Math.max(pageSizeRaw, 1), MAX_PAGE_SIZE);
+  const empty: EvoaOrderListResult = { rows: [], total: 0, page, pageSize };
 
   const session = await getAdminSession();
   if (!session) return empty;
@@ -298,7 +319,48 @@ export async function listEvoaOrders(
     .all();
 
   const total = orders.length;
-  const pageRows = orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Column sort (allowlisted) in memory — the filtered set is already loaded.
+  const sortBy =
+    input.sortBy && (EVOA_SORT_KEYS as readonly string[]).includes(input.sortBy)
+      ? (input.sortBy as (typeof EVOA_SORT_KEYS)[number])
+      : null;
+  const sortDir = input.sortDir === "desc" ? -1 : 1;
+
+  const sortValueOf = (row: (typeof orders)[number], key: string) => {
+    switch (key) {
+      case "code":
+        return row.code;
+      case "contactName":
+        return row.contactName ?? row.fullName ?? "";
+      case "email":
+        return row.email;
+      case "arrivalDate":
+        return toIso(row.arrivalDate) ?? "";
+      case "status":
+        return row.status;
+      case "totalUsdCents":
+        return row.totalUsdCents;
+      case "createdAt":
+        return toIso(row.createdAt) ?? "";
+      default:
+        return null;
+    }
+  };
+
+  const sorted = sortBy
+    ? [...orders].sort((a, b) => {
+        const va = sortValueOf(a, sortBy);
+        const vb = sortValueOf(b, sortBy);
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        if (typeof va === "number" && typeof vb === "number") return (va - vb) * sortDir;
+        return String(va).localeCompare(String(vb)) * sortDir;
+      })
+    : orders;
+
+  const pageRows = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   // Applicant counts for the visible page only (one extra query).
   const pageIds = pageRows.map((row) => row.id);
@@ -332,7 +394,7 @@ export async function listEvoaOrders(
     })),
     total,
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
   };
 }
 

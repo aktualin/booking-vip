@@ -1,11 +1,11 @@
 "use client";
 
-// The payment method picker — one radio card per active Xendit method
-// (Kartu Kredit/Debit, QRIS, Virtual Account). Shared by the booking
-// wizard's payment step and the transport flow's payment screen. Every
-// method redirects to the Xendit hosted checkout page.
+// The payment method picker — one radio card per active method: Kartu
+// Kredit/Debit (Xendit) and PayPal. Shared by the booking wizard's payment
+// step and the transport flow's payment screen. Every method redirects to
+// its gateway's hosted checkout page.
 
-import { MastercardLogo, VisaLogo } from "@/components/icons";
+import { PaymentBrandIcon } from "@/components/icons";
 
 export type PaymentMethodOption = {
   code: string;
@@ -16,15 +16,11 @@ export type PaymentMethodOption = {
 const METHOD_META: Record<string, { title: string; hint: string }> = {
   CREDIT_CARD: {
     title: "Kartu Kredit / Debit",
-    hint: "Visa, Mastercard & JCB — bayar aman lewat halaman checkout Xendit.",
+    hint: "Visa, Mastercard, JCB & Amex — bayar aman lewat halaman checkout Xendit.",
   },
-  QRIS: {
-    title: "QRIS",
-    hint: "Scan pakai aplikasi apa pun — e-wallet & mobile banking, langsung di halaman checkout.",
-  },
-  BANK_TRANSFER: {
-    title: "Virtual Account",
-    hint: "BCA, Mandiri, BNI, BRI, BSI, Permata — bayar lewat mobile banking, internet banking, atau ATM.",
+  PAYPAL: {
+    title: "PayPal",
+    hint: "Bayar pakai akun PayPal — saldo atau kartu yang tersimpan di sana, dalam USD.",
   },
 };
 
@@ -58,20 +54,16 @@ export default function PaymentMethodPicker({
                 : "border-line bg-white hover:bg-canvas"
             }`}
           >
-            <span className="flex h-10 w-16 shrink-0 items-center justify-center gap-1 rounded-lg border border-line bg-white">
+            <span className="flex h-10 min-w-16 shrink-0 items-center justify-center gap-1 rounded-lg border border-line bg-white px-1.5">
               {method.code === "CREDIT_CARD" ? (
                 <>
-                  <VisaLogo width={30} height={12} />
-                  <MastercardLogo width={19} height={14} />
+                  <PaymentBrandIcon brand="visa" height={16} />
+                  <PaymentBrandIcon brand="mastercard" height={16} />
+                  <PaymentBrandIcon brand="jcb" height={16} />
+                  <PaymentBrandIcon brand="amex" height={16} />
                 </>
-              ) : method.code === "QRIS" ? (
-                <span className="text-[11px] font-extrabold tracking-wide text-ink">
-                  QRIS
-                </span>
-              ) : method.code === "BANK_TRANSFER" ? (
-                <span className="text-[11px] font-extrabold tracking-wide text-ink">
-                  VA
-                </span>
+              ) : method.code === "PAYPAL" ? (
+                <PaymentBrandIcon brand="paypal" height={16} />
               ) : null}
             </span>
             <span className="min-w-0 flex-1">

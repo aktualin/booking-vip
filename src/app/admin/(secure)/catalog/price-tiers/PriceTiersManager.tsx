@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback } from "react";
-import { listPriceTiers, reorderCatalog, setCatalogActive } from "@/app/actions/admin";
+import { listPriceTiersPaged, reorderCatalog, setCatalogActive } from "@/app/actions/admin";
 import { deleteAdminEntity } from "@/app/actions/admin-crud";
 import type { AdminPriceTierRow } from "@/types/admin";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import StatusToggle from "@/components/admin/StatusToggle";
 import { formatCents } from "@/components/admin/MoneyField";
 import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import { adminClass } from "@/components/admin/tokens";
-import { useAdminList } from "@/components/admin/useAdminList";
+import { useAdminPagedList } from "@/components/admin/useAdminList";
 
 /**
  * Price tier table.
@@ -19,13 +20,28 @@ import { useAdminList } from "@/components/admin/useAdminList";
  * would edit the wrong row.
  */
 export default function PriceTiersManager() {
-  const load = useCallback(() => listPriceTiers(), []);
-  const { rows, loading, error, reload } = useAdminList<AdminPriceTierRow>(load);
+  const load = useCallback((params: AdminListParams) => listPriceTiersPaged(params), []);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<AdminPriceTierRow>(load);
 
   const columns = [
     {
       key: "label",
       header: "Label",
+      sortable: true,
       render: (row: AdminPriceTierRow) => (
         <span className="font-medium">{row.label}</span>
       ),
@@ -40,9 +56,10 @@ export default function PriceTiersManager() {
       ),
     },
     {
-      key: "max",
+      key: "maxUsdCents",
       header: "Maksimum",
       className: "text-right",
+      sortable: true,
       render: (row: AdminPriceTierRow) => (
         <span className="tabular-nums">{formatCents(row.maxUsdCents)}</span>
       ),
@@ -82,6 +99,7 @@ export default function PriceTiersManager() {
       key: "active",
       header: "Status",
       className: "w-[70px]",
+      sortable: true,
       render: (row: AdminPriceTierRow) => (
         <StatusToggle
           active={row.active}
@@ -121,6 +139,19 @@ export default function PriceTiersManager() {
         emptyTitle="Belum ada price tier"
         emptyDescription="Tambahkan rentang harga untuk filter katalog."
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari label…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "price tier",
+        }}
       />
     </div>
   );

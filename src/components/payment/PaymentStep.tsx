@@ -2,9 +2,9 @@
 
 // The payment screen of the transport booking flow (/transport/booking):
 // the booking already exists, so picking a method and paying is all that is
-// left. Every active Xendit method (card, QRIS, Virtual Account) redirects
-// to the Xendit hosted checkout page — the card form, QR code or VA number
-// lives there, never here.
+// left. Every active method redirects to its gateway's hosted checkout page
+// — Xendit for card (the card form lives there), PayPal for PAYPAL. The
+// yellow PayPal button is the express path that skips the method selection.
 
 import { useEffect, useState } from "react";
 import { getPaymentMethods } from "@/app/actions/catalog";
@@ -13,6 +13,7 @@ import { useLocale } from "@/components/providers/LocaleProvider";
 import PaymentMethodPicker, {
   type PaymentMethodOption,
 } from "./PaymentMethodPicker";
+import PayPalPayButton from "./PayPalPayButton";
 
 export default function PaymentStep({
   bookingCode,
@@ -42,6 +43,9 @@ export default function PaymentStep({
     });
   }, []);
 
+  // The yellow express button only shows while PayPal is an active method.
+  const paypalAvailable = methods.some((m) => m.code === "PAYPAL");
+
   /** Remember the booking so the return page can find the email again. */
   const rememberBooking = () => {
     try {
@@ -54,17 +58,18 @@ export default function PaymentStep({
     }
   };
 
-  const pay = async () => {
-    if (!selected || submitting) return;
+  const pay = async (methodCode?: string) => {
+    const code = methodCode ?? selected;
+    if (!code || submitting) return;
 
-    // Credit card → the Xendit hosted checkout; the customer comes back via
-    // /payment/return, which polls the payment status.
+    // The gateway's hosted checkout (Xendit or PayPal); the customer comes
+    // back via /payment/return, which polls the payment status.
     setSubmitting(true);
     setError(null);
     const result = await startBookingPayment({
       bookingCode,
       email,
-      methodCode: selected,
+      methodCode: code,
     });
     if (result.ok) {
       rememberBooking();
@@ -124,9 +129,16 @@ export default function PaymentStep({
             Kembali
           </button>
         ) : null}
+        {paypalAvailable ? (
+          <PayPalPayButton
+            onPay={() => pay("PAYPAL")}
+            busy={submitting}
+            disabled={!loaded}
+          />
+        ) : null}
         <button
           type="button"
-          onClick={pay}
+          onClick={() => void pay()}
           disabled={!selected || submitting || !loaded}
           className="inline-flex h-11 items-center justify-center rounded-xl bg-brand px-8 text-[13px] font-semibold text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40"
         >

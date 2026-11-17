@@ -25,9 +25,9 @@ const serviceRoutes = Object.fromEntries(
 );
 
 /**
- * Original routes of the lines hidden from the nav. Their pages still work,
- * so SEO links fall back to them instead of dying at "#" when the service
- * is no longer in `serviceNav` and the link carries no DB href.
+ * Route fallback per canonical service label, so SEO links never die at "#"
+ * when a label is missing from `serviceNav` and carries no DB href. All four
+ * lines are in the nav today; this stays as a safety net.
  */
 const hiddenServiceRoutes: Record<string, string> = {
   "Airport VIP Service": "/vip-service",

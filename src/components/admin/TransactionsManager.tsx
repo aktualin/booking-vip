@@ -13,8 +13,9 @@ import type {
   AdminBookingStatus,
   AdminTransactionStats,
 } from "@/types/admin";
+import { ADMIN_PAGE_SIZES, type AdminSortDir } from "@/types/admin-pagination";
 import { ChevronLeft, ChevronRight, CloseIcon, SearchIcon } from "@/components/icons";
-import DataTable, { type Column } from "./DataTable";
+import DataTable, { type Column, type TableSort } from "./DataTable";
 import { adminClass } from "./tokens";
 import { showAdminToast } from "./toast";
 
@@ -28,7 +29,7 @@ import { showAdminToast } from "./toast";
  * a confirm dialog — the server re-checks the transition rules.
  */
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
 
 const STATUS_ORDER: AdminBookingStatus[] = [
   "awaiting_payment",
@@ -128,6 +129,8 @@ export default function TransactionsManager({
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSizeState] = useState(PAGE_SIZE);
+  const [sort, setSort] = useState<TableSort | null>(null);
   const [rows, setRows] = useState<AdminBookingRow[]>(initialRows);
   const [total, setTotal] = useState(initialTotal);
   const [stats, setStats] = useState<AdminTransactionStats>(initialStats);
@@ -154,7 +157,9 @@ export default function TransactionsManager({
   useEffect(() => {
     if (listInitialized.current) {
       listInitialized.current = false;
-      if (status === "all" && query === "" && page === 1) return;
+      if (status === "all" && query === "" && page === 1 && !sort && pageSize === PAGE_SIZE) {
+        return;
+      }
     }
     let cancelled = false;
     setLoading(true);
@@ -164,7 +169,9 @@ export default function TransactionsManager({
       status: status === "all" ? undefined : status,
       query: query === "" ? undefined : query,
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
+      sortBy: sort?.key,
+      sortDir: sort?.dir,
     })
       .then((result) => {
         if (cancelled) return;
@@ -180,7 +187,7 @@ export default function TransactionsManager({
     return () => {
       cancelled = true;
     };
-  }, [lineSlug, status, query, page, nonce]);
+  }, [lineSlug, status, query, page, pageSize, sort, nonce]);
 
   useEffect(() => {
     if (statsInitialized.current) {
@@ -255,6 +262,20 @@ export default function TransactionsManager({
     setPage(1);
   };
 
+  const setPageSize = (next: number) => {
+    setPageSizeState(next);
+    setPage(1);
+  };
+
+  const toggleSort = (key: string) => {
+    setSort((prev) =>
+      prev && prev.key === key
+        ? { key, dir: (prev.dir === "asc" ? "desc" : "asc") as AdminSortDir }
+        : { key, dir: "asc" },
+    );
+    setPage(1);
+  };
+
   const runStatusAction = async () => {
     if (!detail || !confirm || acting) return;
     setActing(true);
@@ -282,12 +303,13 @@ export default function TransactionsManager({
     }
   };
 
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   const columns: Column<AdminBookingRow>[] = [
     {
       key: "code",
       header: "Kode",
+      sortable: true,
       render: (row) => (
         <div className="min-w-0">
           <div className="font-medium tabular-nums">{row.code}</div>
@@ -329,6 +351,7 @@ export default function TransactionsManager({
     {
       key: "serviceAt",
       header: "Layanan",
+      sortable: true,
       render: (row) => (
         <span className="whitespace-nowrap tabular-nums">{formatDateTime(row.serviceAt)}</span>
       ),
@@ -340,9 +363,10 @@ export default function TransactionsManager({
       render: (row) => <span className="tabular-nums">{row.vehicleCount}</span>,
     },
     {
-      key: "total",
+      key: "totalUsdCents",
       header: "Total",
       className: "text-right",
+      sortable: true,
       render: (row) => (
         <span className="whitespace-nowrap tabular-nums">{formatUsd(row.totalUsdCents)}</span>
       ),
@@ -350,6 +374,7 @@ export default function TransactionsManager({
     {
       key: "status",
       header: "Status",
+      sortable: true,
       render: (row) => <StatusBadge status={row.status} />,
     },
     {
@@ -484,14 +509,32 @@ export default function TransactionsManager({
             getKey={(row) => row.id}
             emptyTitle="Belum ada booking"
             emptyDescription={`Belum ada booking untuk ${lineName} pada filter ini.`}
+            sort={sort}
+            onSortToggle={toggleSort}
+            loading={loading}
           />
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--admin-line)] px-3 py-2.5">
           <p className="text-[12px] tabular-nums text-[var(--admin-muted)]">
-            {total} booking · Halaman {page} dari {pageCount}
+            {total} booking · Halaman {Math.min(page, pageCount)} dari {pageCount}
           </p>
           <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-[12px] text-[var(--admin-muted)]">
+              <span className="text-[11px]">Baris</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                aria-label="Jumlah baris per halaman"
+                className="h-8 rounded-lg border border-[var(--admin-line)] bg-white px-1.5 text-[12px] text-[var(--admin-ink)] outline-none focus:border-[var(--admin-ink)]"
+              >
+                {ADMIN_PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button
               type="button"
               disabled={page <= 1 || loading}

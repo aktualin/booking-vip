@@ -1,29 +1,46 @@
 "use client";
 
 import { useCallback } from "react";
-import { listProducts, setCatalogActive } from "@/app/actions/admin";
+import { listProductsPaged, setCatalogActive } from "@/app/actions/admin";
 import { deleteAdminEntity } from "@/app/actions/admin-crud";
 import type { AdminProductRow } from "@/types/admin";
+import type { AdminListParams } from "@/types/admin-pagination";
 import EntityManager from "@/components/admin/EntityManager";
 import StatusToggle from "@/components/admin/StatusToggle";
 import { formatCents } from "@/components/admin/MoneyField";
 import { adminClass } from "@/components/admin/tokens";
-import { useAdminList } from "@/components/admin/useAdminList";
+import { useAdminPagedList } from "@/components/admin/useAdminList";
 
 /**
  * Product catalog table.
  *
- * Rows come from `listProducts()` (a server action) so the page shell stays
- * static; every write goes back through the admin actions.
+ * Rows come from `listProductsPaged()` (a server action) so the page shell
+ * stays static; the table paginates 5 rows per page with a global search and
+ * sortable columns, and every write goes back through the admin actions.
  */
 export default function ProductsManager() {
-  const load = useCallback(() => listProducts(), []);
-  const { rows, loading, error, reload } = useAdminList<AdminProductRow>(load);
+  const load = useCallback((params: AdminListParams) => listProductsPaged(params), []);
+  const {
+    rows,
+    total,
+    page,
+    pageSize,
+    searchInput,
+    sort,
+    loading,
+    error,
+    reload,
+    setPage,
+    setPageSize,
+    setSearchInput,
+    toggleSort,
+  } = useAdminPagedList<AdminProductRow>(load);
 
   const columns = [
     {
       key: "title",
       header: "Produk",
+      sortable: true,
       render: (row: AdminProductRow) => (
         <div className="min-w-0">
           <div className="truncate font-medium">{row.title}</div>
@@ -48,9 +65,10 @@ export default function ProductsManager() {
       ),
     },
     {
-      key: "price",
+      key: "fromPriceUsdCents",
       header: "Harga",
       className: "text-right",
+      sortable: true,
       render: (row: AdminProductRow) => (
         <span className="tabular-nums">
           {row.fromPriceUsdCents == null ? "—" : formatCents(row.fromPriceUsdCents)}
@@ -58,9 +76,10 @@ export default function ProductsManager() {
       ),
     },
     {
-      key: "stock",
+      key: "stockTotal",
       header: "Stok",
       className: "text-right",
+      sortable: true,
       render: (row: AdminProductRow) => (
         <span className="tabular-nums">{row.stockTotal}</span>
       ),
@@ -91,6 +110,7 @@ export default function ProductsManager() {
       key: "active",
       header: "Status",
       className: "w-[70px]",
+      sortable: true,
       render: (row: AdminProductRow) => (
         <StatusToggle
           active={row.active}
@@ -130,6 +150,19 @@ export default function ProductsManager() {
         emptyTitle="Belum ada produk"
         emptyDescription="Tambahkan produk pertama untuk service line ini."
         loading={loading}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="Cari produk atau slug…"
+        sort={sort}
+        onSortToggle={toggleSort}
+        pagination={{
+          page,
+          pageSize,
+          total,
+          onPageChange: setPage,
+          onPageSizeChange: setPageSize,
+          itemLabel: "produk",
+        }}
       />
     </div>
   );

@@ -22,6 +22,8 @@ import type {
   AdminServiceTypeRow,
   AdminStats,
 } from "@/types/admin";
+import type { AdminListParams, AdminPaged } from "@/types/admin-pagination";
+import { fieldOrder, ilikeAny, resolvePaging } from "@/lib/admin/paging";
 import type { TourItineraryDay, TourItineraryItem } from "@/types/tour";
 
 /**
@@ -830,11 +832,29 @@ export async function upsertCountry(input: {
 // Read actions — the admin tables
 // ---------------------------------------------------------------------------
 
-/** All products with their line / type / place labels. */
-export async function listProducts(): Promise<AdminProductRow[]> {
-  await assertAdmin();
+/**
+ * Read actions.
+ *
+ * Each table has two readers sharing one query builder and one row mapper:
+ * `listX()` returns everything (the forms and `useAdminRow` still need the
+ * full list) and `listXPaged()` answers one page with search + sorting for
+ * the table UI. Sorting is only accepted on the allowlisted direct columns.
+ */
 
-  const rows = await db.orm.public.Product
+/**
+ * The row type of one of the `*RowsQuery()` builders below.
+ *
+ * The nesting matters: `ReturnType<typeof q>` is the query *builder*, `["all"]`
+ * picks the method off it, and only then can `ReturnType` + `Awaited` reach the
+ * array the method resolves to. Writing `Awaited<ReturnType<typeof q>["all"]>`
+ * instead awaits the method itself (not a thenable), which leaves a call
+ * signature behind that cannot be indexed with `[number]`.
+ */
+type RowsOf<Builder extends { all: (...args: never[]) => unknown }> =
+  Awaited<ReturnType<Builder["all"]>> extends readonly (infer Row)[] ? Row : never;
+
+function productRowsQuery() {
+  return db.orm.public.Product
     .select(
       "id",
       "slug",
@@ -878,14 +898,13 @@ export async function listProducts(): Promise<AdminProductRow[]> {
     .include("serviceType", (t) => t.select("name"))
     .include("airport", (a) => a.select("name"))
     .include("destination", (d) => d.select("name"))
-    .include("packages", (p) => p.count())
-    .orderBy((f) => f.title.asc())
-    .all();
+    .include("packages", (p) => p.count());
+}
 
-  // Derived availability — one batched query for the whole table.
-  const available = await getAvailableStock(rows.map((r) => r.id));
+type ProductQueryRow = RowsOf<ReturnType<typeof productRowsQuery>>;
 
-  return rows.map((r) => ({
+function mapProductRow(r: ProductQueryRow, available: Map<string, number>): AdminProductRow {
+  return {
     id: r.id,
     slug: r.slug,
     title: r.title,
@@ -929,14 +948,74 @@ export async function listProducts(): Promise<AdminProductRow[]> {
     packageCount: r.packages,
     stockTotal: r.stockTotal,
     availableStock: available.get(r.id) ?? r.stockTotal,
-  }));
+  };
 }
 
-/** All packages with the parent product title. */
-export async function listPackages(): Promise<AdminPackageRow[]> {
+const PRODUCT_SORT_KEYS = [
+  "title",
+  "slug",
+  "active",
+  "isAddOn",
+  "fromPriceUsdCents",
+  "stockTotal",
+  "rating",
+  "reviews",
+  "tourKind",
+  "durationDays",
+  "minPax",
+  "maxPax",
+  "leadTimeHours",
+  "leadTimeDays",
+] as const;
+
+const PRODUCT_SEARCH_FIELDS = ["title", "slug"] as const;
+
+/** All products with their line / type / place labels. */
+export async function listProducts(): Promise<AdminProductRow[]> {
   await assertAdmin();
 
-  const rows = await db.orm.public.ProductPackage
+  const rows = await productRowsQuery().orderBy((f) => f.title.asc()).all();
+
+  // Derived availability — one batched query for the whole table.
+  const available = await getAvailableStock(rows.map((r) => r.id));
+
+  return rows.map((r) => mapProductRow(r, available));
+}
+
+/** One page of products — search over title / slug, sortable columns. */
+export async function listProductsPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminProductRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, PRODUCT_SORT_KEYS);
+  const where = paging.search ? ilikeAny(PRODUCT_SEARCH_FIELDS, paging.search) : null;
+
+  let query = productRowsQuery();
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.title.asc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.id.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.Product
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  const available = await getAvailableStock(rows.map((r) => r.id));
+
+  return {
+    rows: rows.map((r) => mapProductRow(r, available)),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
+}
+
+function packageRowsQuery() {
+  return db.orm.public.ProductPackage
     .select(
       "id",
       "productId",
@@ -955,11 +1034,13 @@ export async function listPackages(): Promise<AdminPackageRow[]> {
       "sortOrder",
       "active",
     )
-    .include("product", (p) => p.select("title"))
-    .orderBy((f) => f.sortOrder.asc())
-    .all();
+    .include("product", (p) => p.select("title"));
+}
 
-  return rows.map((r) => ({
+type PackageQueryRow = RowsOf<ReturnType<typeof packageRowsQuery>>;
+
+function mapPackageRow(r: PackageQueryRow): AdminPackageRow {
+  return {
     id: r.id,
     productId: r.productId,
     productTitle: r.product?.title ?? "—",
@@ -977,21 +1058,74 @@ export async function listPackages(): Promise<AdminPackageRow[]> {
     info: (r.info as { key: string; name: string; excluded?: boolean }[]) ?? [],
     sortOrder: r.sortOrder,
     active: r.active,
-  }));
+  };
 }
 
-/** All service types with their line label and product count. */
-export async function listServiceTypes(): Promise<AdminServiceTypeRow[]> {
+const PACKAGE_SORT_KEYS = [
+  "label",
+  "sortOrder",
+  "active",
+  "unitKind",
+  "unitUsdCents",
+  "adultUsdCents",
+  "childUsdCents",
+  "infantUsdCents",
+  "fromUsdCents",
+  "durationHours",
+  "extraHourUsdCents",
+] as const;
+
+const PACKAGE_SEARCH_FIELDS = ["label", "description"] as const;
+
+/** All packages with the parent product title. */
+export async function listPackages(): Promise<AdminPackageRow[]> {
   await assertAdmin();
 
-  const rows = await db.orm.public.ServiceType
+  const rows = await packageRowsQuery().orderBy((f) => f.sortOrder.asc()).all();
+  return rows.map(mapPackageRow);
+}
+
+/** One page of packages — search over label / description, sortable columns. */
+export async function listPackagesPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminPackageRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, PACKAGE_SORT_KEYS);
+  const where = paging.search ? ilikeAny(PACKAGE_SEARCH_FIELDS, paging.search) : null;
+
+  let query = packageRowsQuery();
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.sortOrder.asc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.id.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.ProductPackage
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  return {
+    rows: rows.map(mapPackageRow),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
+}
+
+function serviceTypeRowsQuery() {
+  return db.orm.public.ServiceType
     .select("id", "lineId", "slug", "name", "sortOrder", "active")
     .include("line", (l) => l.select("label"))
-    .include("products", (p) => p.count())
-    .orderBy((f) => f.sortOrder.asc())
-    .all();
+    .include("products", (p) => p.count());
+}
 
-  return rows.map((r) => ({
+type ServiceTypeQueryRow = RowsOf<ReturnType<typeof serviceTypeRowsQuery>>;
+
+function mapServiceTypeRow(r: ServiceTypeQueryRow): AdminServiceTypeRow {
+  return {
     id: r.id,
     lineId: r.lineId,
     lineLabel: r.line?.label ?? "—",
@@ -1000,20 +1134,60 @@ export async function listServiceTypes(): Promise<AdminServiceTypeRow[]> {
     sortOrder: r.sortOrder,
     active: r.active,
     productCount: r.products,
-  }));
+  };
 }
 
-/** All price tiers with the scope line — labels repeat per line, so the scope matters. */
-export async function listPriceTiers(): Promise<AdminPriceTierRow[]> {
+const SERVICE_TYPE_SORT_KEYS = ["name", "slug", "sortOrder", "active"] as const;
+const SERVICE_TYPE_SEARCH_FIELDS = ["name", "slug"] as const;
+
+/** All service types with their line label and product count. */
+export async function listServiceTypes(): Promise<AdminServiceTypeRow[]> {
   await assertAdmin();
 
-  const rows = await db.orm.public.PriceTier
-    .select("id", "lineId", "label", "maxUsdCents", "sortOrder", "active")
-    .include("line", (l) => l.select("label"))
-    .orderBy((f) => f.sortOrder.asc())
-    .all();
+  const rows = await serviceTypeRowsQuery().orderBy((f) => f.sortOrder.asc()).all();
+  return rows.map(mapServiceTypeRow);
+}
 
-  return rows.map((r) => ({
+/** One page of service types — search over name / slug, sortable columns. */
+export async function listServiceTypesPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminServiceTypeRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, SERVICE_TYPE_SORT_KEYS);
+  const where = paging.search ? ilikeAny(SERVICE_TYPE_SEARCH_FIELDS, paging.search) : null;
+
+  let query = serviceTypeRowsQuery();
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.sortOrder.asc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.id.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.ServiceType
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  return {
+    rows: rows.map(mapServiceTypeRow),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
+}
+
+function priceTierRowsQuery() {
+  return db.orm.public.PriceTier
+    .select("id", "lineId", "label", "maxUsdCents", "sortOrder", "active")
+    .include("line", (l) => l.select("label"));
+}
+
+type PriceTierQueryRow = RowsOf<ReturnType<typeof priceTierRowsQuery>>;
+
+function mapPriceTierRow(r: PriceTierQueryRow): AdminPriceTierRow {
+  return {
     id: r.id,
     lineId: r.lineId,
     lineLabel: r.line?.label ?? null,
@@ -1021,14 +1195,52 @@ export async function listPriceTiers(): Promise<AdminPriceTierRow[]> {
     maxUsdCents: r.maxUsdCents,
     sortOrder: r.sortOrder,
     active: r.active,
-  }));
+  };
 }
 
-/** All places (airports and cities). */
-export async function listPlaces(): Promise<AdminPlaceRow[]> {
+const PRICE_TIER_SORT_KEYS = ["label", "maxUsdCents", "sortOrder", "active"] as const;
+const PRICE_TIER_SEARCH_FIELDS = ["label"] as const;
+
+/** All price tiers with the scope line — labels repeat per line, so the scope matters. */
+export async function listPriceTiers(): Promise<AdminPriceTierRow[]> {
   await assertAdmin();
 
-  const rows = await db.orm.public.Airport
+  const rows = await priceTierRowsQuery().orderBy((f) => f.sortOrder.asc()).all();
+  return rows.map(mapPriceTierRow);
+}
+
+/** One page of price tiers — search over label, sortable columns. */
+export async function listPriceTiersPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminPriceTierRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, PRICE_TIER_SORT_KEYS);
+  const where = paging.search ? ilikeAny(PRICE_TIER_SEARCH_FIELDS, paging.search) : null;
+
+  let query = priceTierRowsQuery();
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.sortOrder.asc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.id.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.PriceTier
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  return {
+    rows: rows.map(mapPriceTierRow),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
+}
+
+function placeRowsQuery() {
+  return db.orm.public.Airport
     .select(
       "id",
       "kind",
@@ -1042,13 +1254,16 @@ export async function listPlaces(): Promise<AdminPlaceRow[]> {
       "parentId",
       "sortOrder"
     )
-    .include("products", (p) => p.count())
-    .orderBy((f) => f.sortOrder.asc())
-    .all();
+    .include("products", (p) => p.count());
+}
 
-  const names = new Map(rows.map((r) => [r.id, r.name]));
+type PlaceQueryRow = RowsOf<ReturnType<typeof placeRowsQuery>>;
 
-  return rows.map((r) => ({
+function mapPlaceRow(
+  r: PlaceQueryRow,
+  names: Map<string, string>,
+): AdminPlaceRow {
+  return {
     id: r.id,
     kind: r.kind,
     level: r.level,
@@ -1062,20 +1277,85 @@ export async function listPlaces(): Promise<AdminPlaceRow[]> {
     parentName: r.parentId ? (names.get(r.parentId) ?? null) : null,
     sortOrder: r.sortOrder,
     productCount: r.products,
-  }));
+  };
 }
 
-/** All service lines. */
-export async function listServiceLines(): Promise<AdminServiceLineRow[]> {
+const PLACE_SORT_KEYS = [
+  "name",
+  "iataCode",
+  "city",
+  "country",
+  "kind",
+  "level",
+  "sortOrder",
+  "active",
+] as const;
+const PLACE_SEARCH_FIELDS = ["name", "iataCode", "city", "country"] as const;
+
+/** All places (airports and cities). */
+export async function listPlaces(): Promise<AdminPlaceRow[]> {
   await assertAdmin();
 
-  const rows = await db.orm.public.ServiceLine
-    .select("id", "slug", "label", "short", "badge", "tone", "imageUrl", "sortOrder", "active")
-    .include("products", (p) => p.count())
-    .orderBy((f) => f.sortOrder.asc())
-    .all();
+  const rows = await placeRowsQuery().orderBy((f) => f.sortOrder.asc()).all();
 
-  return rows.map((r) => ({
+  const names = new Map(rows.map((r) => [r.id, r.name]));
+  return rows.map((r) => mapPlaceRow(r, names));
+}
+
+/** One page of places — search over name / IATA / city / country, sortable columns. */
+export async function listPlacesPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminPlaceRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, PLACE_SORT_KEYS);
+  const where = paging.search ? ilikeAny(PLACE_SEARCH_FIELDS, paging.search) : null;
+
+  let query = placeRowsQuery();
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.sortOrder.asc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.id.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.Airport
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  // The parent of a page row may live on another page — resolve the missing
+  // parent names with one extra batched query.
+  const names = new Map(rows.map((r) => [r.id, r.name]));
+  const missingParentIds = rows
+    .map((r) => r.parentId)
+    .filter((id): id is string => Boolean(id) && !names.has(id!));
+  if (missingParentIds.length > 0) {
+    const parents = await db.orm.public.Airport
+      .select("id", "name")
+      .where((f) => f.id.in([...new Set(missingParentIds)]))
+      .all();
+    for (const parent of parents) names.set(parent.id, parent.name);
+  }
+
+  return {
+    rows: rows.map((r) => mapPlaceRow(r, names)),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
+}
+
+function serviceLineRowsQuery() {
+  return db.orm.public.ServiceLine
+    .select("id", "slug", "label", "short", "badge", "tone", "imageUrl", "sortOrder", "active")
+    .include("products", (p) => p.count());
+}
+
+type ServiceLineQueryRow = RowsOf<ReturnType<typeof serviceLineRowsQuery>>;
+
+function mapServiceLineRow(r: ServiceLineQueryRow): AdminServiceLineRow {
+  return {
     id: r.id,
     slug: r.slug,
     label: r.label,
@@ -1086,24 +1366,105 @@ export async function listServiceLines(): Promise<AdminServiceLineRow[]> {
     sortOrder: r.sortOrder,
     active: r.active,
     productCount: r.products,
-  }));
+  };
 }
+
+const SERVICE_LINE_SORT_KEYS = ["label", "slug", "short", "sortOrder", "active"] as const;
+const SERVICE_LINE_SEARCH_FIELDS = ["label", "slug", "short", "badge"] as const;
+
+/** All service lines. */
+export async function listServiceLines(): Promise<AdminServiceLineRow[]> {
+  await assertAdmin();
+
+  const rows = await serviceLineRowsQuery().orderBy((f) => f.sortOrder.asc()).all();
+  return rows.map(mapServiceLineRow);
+}
+
+/** One page of service lines — search over label / slug, sortable columns. */
+export async function listServiceLinesPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminServiceLineRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, SERVICE_LINE_SORT_KEYS);
+  const where = paging.search ? ilikeAny(SERVICE_LINE_SEARCH_FIELDS, paging.search) : null;
+
+  let query = serviceLineRowsQuery();
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.sortOrder.asc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.id.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.ServiceLine
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  return {
+    rows: rows.map(mapServiceLineRow),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
+}
+
+function amenityRowsQuery() {
+  return db.orm.public.Amenity
+    .select("id", "label")
+    .include("products", (p) => p.count());
+}
+
+type AmenityQueryRow = RowsOf<ReturnType<typeof amenityRowsQuery>>;
+
+function mapAmenityRow(r: AmenityQueryRow): AdminAmenityRow {
+  return {
+    id: r.id,
+    label: r.label,
+    productCount: r.products,
+  };
+}
+
+const AMENITY_SORT_KEYS = ["label"] as const;
+const AMENITY_SEARCH_FIELDS = ["label"] as const;
 
 /** All amenities with the number of products using them. */
 export async function listAmenities(): Promise<AdminAmenityRow[]> {
   await assertAdmin();
 
-  const rows = await db.orm.public.Amenity
-    .select("id", "label")
-    .include("products", (p) => p.count())
-    .orderBy((f) => f.label.asc())
-    .all();
+  const rows = await amenityRowsQuery().orderBy((f) => f.label.asc()).all();
+  return rows.map(mapAmenityRow);
+}
 
-  return rows.map((r) => ({
-    id: r.id,
-    label: r.label,
-    productCount: r.products,
-  }));
+/** One page of amenities — search over label, sortable by label. */
+export async function listAmenitiesPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminAmenityRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, AMENITY_SORT_KEYS);
+  const where = paging.search ? ilikeAny(AMENITY_SEARCH_FIELDS, paging.search) : null;
+
+  let query = amenityRowsQuery();
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.label.asc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.id.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.Amenity
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  return {
+    rows: rows.map(mapAmenityRow),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
 }
 
 /** Reference lists used to populate the relation pickers in the edit drawer. */
@@ -1507,28 +1868,26 @@ export async function getProductRelations(input: {
 // Promo codes
 // ---------------------------------------------------------------------------
 
-/** All promo codes, newest first. */
-export async function listPromoCodes(): Promise<AdminPromoCodeRow[]> {
-  await assertAdmin();
+function promoCodeRowsQuery() {
+  return db.orm.public.PromoCode.select(
+    "id",
+    "code",
+    "title",
+    "type",
+    "value",
+    "minTotalUsdCents",
+    "usageLimit",
+    "usedCount",
+    "startsAt",
+    "endsAt",
+    "active"
+  );
+}
 
-  const rows = await db.orm.public.PromoCode
-    .select(
-      "id",
-      "code",
-      "title",
-      "type",
-      "value",
-      "minTotalUsdCents",
-      "usageLimit",
-      "usedCount",
-      "startsAt",
-      "endsAt",
-      "active"
-    )
-    .orderBy((f) => f.createdAt.desc())
-    .all();
+type PromoCodeQueryRow = RowsOf<ReturnType<typeof promoCodeRowsQuery>>;
 
-  return rows.map((r) => ({
+function mapPromoCodeRow(r: PromoCodeQueryRow): AdminPromoCodeRow {
+  return {
     id: r.id,
     code: r.code,
     title: r.title,
@@ -1540,7 +1899,60 @@ export async function listPromoCodes(): Promise<AdminPromoCodeRow[]> {
     startsAt: r.startsAt ? new Date(r.startsAt).toISOString() : null,
     endsAt: r.endsAt ? new Date(r.endsAt).toISOString() : null,
     active: r.active,
-  }));
+  };
+}
+
+const PROMO_CODE_SORT_KEYS = [
+  "code",
+  "title",
+  "type",
+  "value",
+  "minTotalUsdCents",
+  "usageLimit",
+  "usedCount",
+  "startsAt",
+  "endsAt",
+  "active",
+  "createdAt",
+] as const;
+const PROMO_CODE_SEARCH_FIELDS = ["code", "title"] as const;
+
+/** All promo codes, newest first. */
+export async function listPromoCodes(): Promise<AdminPromoCodeRow[]> {
+  await assertAdmin();
+
+  const rows = await promoCodeRowsQuery().orderBy((f) => f.createdAt.desc()).all();
+  return rows.map(mapPromoCodeRow);
+}
+
+/** One page of promo codes — search over code / title, sortable columns. */
+export async function listPromoCodesPaged(
+  params?: AdminListParams,
+): Promise<AdminPaged<AdminPromoCodeRow>> {
+  await assertAdmin();
+
+  const paging = resolvePaging(params, PROMO_CODE_SORT_KEYS);
+  const where = paging.search ? ilikeAny(PROMO_CODE_SEARCH_FIELDS, paging.search) : null;
+
+  let query = promoCodeRowsQuery();
+  if (where) query = query.where(where);
+  query = query.orderBy(
+    paging.sortBy ? fieldOrder(paging.sortBy, paging.sortDir) : (f) => f.createdAt.desc(),
+  );
+
+  const [rows, count] = await Promise.all([
+    query.orderBy((f) => f.id.asc()).limit(paging.pageSize).offset(paging.offset).all(),
+    db.orm.public.PromoCode
+      .where(where ?? ((f) => f.id.isNotNull()))
+      .aggregate((a) => ({ n: a.count() })),
+  ]);
+
+  return {
+    rows: rows.map(mapPromoCodeRow),
+    total: count.n,
+    page: paging.page,
+    pageSize: paging.pageSize,
+  };
 }
 
 /**

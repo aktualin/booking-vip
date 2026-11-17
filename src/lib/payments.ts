@@ -12,6 +12,15 @@ import {
   type GatewayPayment,
   type PaymentChannel,
 } from "@/lib/xendit";
+import {
+  captureOrder,
+  createOrder,
+  extractCapture,
+  failureUrl as paypalFailureUrl,
+  getOrder,
+  successUrl as paypalSuccessUrl,
+  type PayPalGatewayPayment,
+} from "@/lib/paypal";
 import { sendBookingConfirmation } from "@/lib/notify";
 import { notifyEvoaStatusChange } from "@/lib/evoa-notify";
 
@@ -22,14 +31,19 @@ import { notifyEvoaStatusChange } from "@/lib/evoa-notify";
  * stores the provider references on the row, and applies the state transition
  * when the gateway tells us the money arrived.
  *
- * The gateway is Xendit (Payments API v3): Credit Card, QRIS and Virtual
- * Account, each via a PAYMENT_LINK Payment Session — the customer pays on
- * Xendit's hosted checkout page. Credentials live in the environment only.
+ * The gateways are Xendit (Payments API v3): Credit Card via a PAYMENT_LINK
+ * Payment Session — the customer pays on
+ * Xendit's hosted checkout page; and PayPal (Orders v2, USD-native, MANUAL
+ * capture): the customer approves the order on PayPal, then the server
+ * captures it — both the return page and the webhook capture after
+ * approval. Credentials live in the environment only.
  *
  * Prices are stored and displayed in USD. Xendit charges in IDR, so the
  * booking total (USD cents) is converted to whole rupiah with the live
  * USD→IDR rate at session creation; the rate and the IDR amount are frozen
  * on the payment row (`fxRate`, `providerAmountCents`, `providerCurrency`).
+ * PayPal charges USD as-is — no FX conversion happens there and `fxRate`
+ * stays 1.
  *
  * The rules that matter:
  *
@@ -39,12 +53,13 @@ import { notifyEvoaStatusChange } from "@/lib/evoa-notify";
  *   - a replayed webhook changes nothing (the event id is unique).
  */
 
-/** The Xendit channels a PaymentMethod can be bound to. */
-const SUPPORTED_CHANNELS: readonly PaymentChannel[] = [
-  "CREDIT_CARD",
-  "QRIS",
-  "VIRTUAL_ACCOUNT",
-];
+/**
+ * The Xendit channels a PaymentMethod can be bound to. Only the card channel
+ * is offered — QRIS and Virtual Account are retired (their inactive
+ * PaymentMethod rows remain for historical payments, and the webhook still
+ * settles any legacy event that arrives).
+ */
+const SUPPORTED_CHANNELS: readonly PaymentChannel[] = ["CREDIT_CARD"];
 
 export type PaymentMethodDTO = {
   id: string;
@@ -126,6 +141,55 @@ type StartPaymentOk = {
   paymentId: string;
 };
 
+/** The pending payment-row data both gateways write in startPayment. */
+type PendingGatewayRowData = {
+  methodId: string;
+  status: string;
+  amountUsdCents: number;
+  reference: string;
+  provider: string;
+  providerRef: string;
+  providerAmountCents: number;
+  providerCurrency: string;
+  fxRate: number;
+  checkoutUrl: string | null;
+  expiresAt: Date | null;
+  rawPayload: never;
+};
+
+/**
+ * Write the pending gateway payment row and return its id.
+ *
+ * The booking was created with a placeholder payment row — it is filled
+ * with the gateway data instead of a second row being added. A retry after
+ * a failed or expired attempt still gets a fresh row.
+ */
+async function writePendingGatewayRow(
+  bookingId: string,
+  existing: Awaited<ReturnType<typeof getBookingPayment>>,
+  gatewayData: PendingGatewayRowData,
+): Promise<string> {
+  if (
+    existing &&
+    existing.status === "pending" &&
+    !existing.provider &&
+    !existing.providerRef
+  ) {
+    await db.orm.public.Payment
+      .where((f) => f.id.eq(existing.id))
+      .update(gatewayData);
+    return existing.id;
+  }
+
+  const paymentId = crypto.randomUUID();
+  await db.orm.public.Payment.create({
+    id: paymentId,
+    bookingId,
+    ...gatewayData,
+  });
+  return paymentId;
+}
+
 /**
  * Start a payment for a booking.
  *
@@ -166,23 +230,31 @@ export async function startPayment(params: {
   const methods = await listPaymentMethods();
   const method = methods.find((m) => m.code === params.methodCode);
   if (!method) return { ok: false, error: "Metode pembayaran tidak tersedia." };
-  if (method.provider !== "xendit") {
+
+  // The second gateway is PayPal — anything that is neither Xendit nor
+  // PayPal is unsupported.
+  const isPayPal = method.provider === "paypal";
+  if (!isPayPal && method.provider !== "xendit") {
     return { ok: false, error: "Metode pembayaran ini belum didukung." };
   }
 
-  const channel = (method.providerMethodCode ?? "").toUpperCase() as PaymentChannel;
-  if (!SUPPORTED_CHANNELS.includes(channel)) {
+  const providerMethodCode = (method.providerMethodCode ?? "").toUpperCase();
+  if (isPayPal) {
+    if (providerMethodCode !== "PAYPAL") {
+      return { ok: false, error: "Metode pembayaran ini belum didukung." };
+    }
+  } else if (!SUPPORTED_CHANNELS.includes(providerMethodCode as PaymentChannel)) {
     return { ok: false, error: "Metode pembayaran ini belum didukung." };
   }
 
   // Re-use an open payment instead of creating a second one — as long as
-  // it is the SAME method and the hosted page has not expired. Switching
-  // the method (e.g. card → QRIS) starts a fresh attempt instead.
+  // it is the SAME gateway + method and the hosted page has not expired.
+  // Switching the method (e.g. card → PayPal) starts a fresh attempt instead.
   const existing = await getBookingPayment(booking.id);
   if (
     existing &&
     existing.status === "pending" &&
-    existing.provider === "xendit" &&
+    existing.provider === method.provider &&
     existing.methodId === method.id &&
     existing.providerRef &&
     existing.checkoutUrl &&
@@ -194,6 +266,70 @@ export async function startPayment(params: {
       paymentId: existing.id,
     };
   }
+
+  const contact = contacts[0];
+
+  if (isPayPal) {
+    // PayPal is USD-native — the booking total is charged as-is, no FX
+    // conversion happens and `fxRate` stays 1.
+    const amountUsdCents = booking.totalUsdCents;
+
+    // Count the previous attempts so a retry gets a fresh reference.
+    const previous = await db.orm.public.Payment
+      .select("id")
+      .where((f) => f.bookingId.eq(booking.id))
+      .where((f) => f.provider.eq("paypal"))
+      .all();
+    const invoiceNumber = invoiceForAttempt(
+      booking.invoiceNumber ?? `INV-${booking.code}`,
+      previous.length + 1,
+    );
+
+    const payment: PayPalGatewayPayment = await createOrder({
+      invoiceId: invoiceNumber,
+      customId: booking.id,
+      description: `Booking VIP ${booking.code}`,
+      amountUsdCents,
+      payerEmail: email,
+      payerFirstName: contact.firstName,
+      payerLastName: contact.lastName,
+      returnUrl: paypalSuccessUrl(booking.code),
+      cancelUrl: paypalFailureUrl(booking.code),
+    });
+
+    const gatewayData = {
+      methodId: method.id,
+      status: "pending",
+      amountUsdCents,
+      reference: invoiceNumber,
+      provider: "paypal",
+      providerRef: payment.providerRef,
+      providerAmountCents: payment.amountCents,
+      providerCurrency: "USD",
+      fxRate: 1,
+      checkoutUrl: payment.checkoutUrl ?? null,
+      expiresAt: payment.expiresAt ?? null,
+      rawPayload: payment.raw as never,
+    };
+
+    const paymentId = await writePendingGatewayRow(
+      booking.id,
+      existing,
+      gatewayData,
+    );
+
+    if (!payment.checkoutUrl) {
+      return { ok: false, error: "Gateway tidak mengembalikan link pembayaran." };
+    }
+
+    return {
+      ok: true,
+      checkoutUrl: payment.checkoutUrl,
+      paymentId,
+    };
+  }
+
+  const channel = providerMethodCode as PaymentChannel;
 
   // Xendit charges in IDR — convert the USD total with the rate of the
   // moment the session is created. The rate is frozen on the payment row.
@@ -212,7 +348,6 @@ export async function startPayment(params: {
     previous.length + 1,
   );
 
-  const contact = contacts[0];
   const payment: GatewayPayment = await createPaymentSession({
     channel,
     referenceId: invoiceNumber,
@@ -242,28 +377,11 @@ export async function startPayment(params: {
     rawPayload: payment.raw as never,
   };
 
-  // The booking was created with a placeholder payment row — fill it with
-  // the gateway data instead of adding a second row. A retry after a failed
-  // or expired attempt still gets a fresh row.
-  let paymentId: string;
-  if (
-    existing &&
-    existing.status === "pending" &&
-    !existing.provider &&
-    !existing.providerRef
-  ) {
-    paymentId = existing.id;
-    await db.orm.public.Payment
-      .where((f) => f.id.eq(existing.id))
-      .update(gatewayData);
-  } else {
-    paymentId = crypto.randomUUID();
-    await db.orm.public.Payment.create({
-      id: paymentId,
-      bookingId: booking.id,
-      ...gatewayData,
-    });
-  }
+  const paymentId = await writePendingGatewayRow(
+    booking.id,
+    existing,
+    gatewayData,
+  );
 
   if (!payment.checkoutUrl) {
     return { ok: false, error: "Gateway tidak mengembalikan link pembayaran." };
@@ -579,7 +697,11 @@ export async function getPaymentStatus(params: {
 
   // While the payment is still open, ask the gateway for the latest status —
   // the return page self-heals even when the notification is late.
-  if (payment && payment.status === "pending" && payment.provider === "xendit") {
+  if (
+    payment &&
+    payment.status === "pending" &&
+    (payment.provider === "xendit" || payment.provider === "paypal")
+  ) {
     await refreshPayment(payment.id);
     payment = await getBookingPayment(booking.id);
   }
@@ -626,10 +748,67 @@ export async function refreshPayment(paymentId: string): Promise<string | null> 
     .all();
 
   const payment = rows[0];
-  if (!payment || payment.provider !== "xendit" || !payment.providerRef) {
+  if (
+    !payment ||
+    (payment.provider !== "xendit" && payment.provider !== "paypal") ||
+    !payment.providerRef
+  ) {
     return payment?.status ?? "pending";
   }
   if (payment.status === "paid") return "paid";
+
+  // PayPal — read the order back. The money only moves with a capture, and
+  // a capture is only valid once the payer approved the order.
+  if (payment.provider === "paypal") {
+    try {
+      let order = await getOrder(payment.providerRef);
+      let capture = extractCapture(order);
+
+      // APPROVED with nothing captured yet is the one state where the
+      // capture call belongs — a CREATED / PAYER_ACTION_REQUIRED order
+      // would throw ORDER_NOT_APPROVED, and the return page polls this.
+      // captureOrder is idempotent, so racing the webhook is safe.
+      if (!capture && (order.status ?? "").toUpperCase() === "APPROVED") {
+        order = await captureOrder(payment.providerRef);
+        capture = extractCapture(order);
+      }
+
+      // The capture is the money movement — its status wins. No capture:
+      // nothing moved yet, the row stays as it is.
+      if (capture) {
+        if (capture.status === "paid") {
+          // The same amount rule as the webhook — a mismatch never confirms.
+          const received = capture.amountCents;
+          if (
+            typeof received === "number" &&
+            typeof payment.providerAmountCents === "number" &&
+            received !== payment.providerAmountCents
+          ) {
+            console.error("[payments] amount mismatch on status refresh", {
+              expected: payment.providerAmountCents,
+              received,
+            });
+            return payment.status;
+          }
+
+          await confirmPaidPayment(payment.id, payment.bookingId, order);
+          return "paid";
+        }
+
+        if (capture.status === "failed" && payment.status !== "failed") {
+          await db.orm.public.Payment
+            .where({ id: payment.id })
+            .update({ status: "failed", rawPayload: order as never });
+          return "failed";
+        }
+      }
+
+      return payment.status;
+    } catch (error) {
+      console.error("[payments] could not refresh the payment", error);
+      return payment.status;
+    }
+  }
 
   try {
     const session = await getCardSession(payment.providerRef);
